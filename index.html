@@ -233,7 +233,7 @@
     </div>
     <div id="status"></div>
     <div id="banner">ГОЛ!</div>
-    <div id="power-shell"><div id="power-bar"></div>
+    <div id="power-shell"><div id="power-bar"></div></div>
 
     <div class="controls">
       <span><span class="key">WASD</span> движение</span>
@@ -283,7 +283,6 @@
   const AWAY = 'away';
   const MATCH_LENGTH = 240;
   const keys = Object.create(null);
-  const justPressed = new Set();
 
   let state = 'MENU';
   let scoreHome = 0;
@@ -294,7 +293,6 @@
   let shotCharge = 0;
   let chargingShot = false;
   let restartLock = 0;
-  let possessionLabel = '';
   let bannerTimer = null;
 
   const homeScoreEl = document.getElementById('home-score');
@@ -685,7 +683,6 @@
     const direction = norm(tx - kicker.x, ty - kicker.y);
     ball.release(kicker, direction, speed, air);
     sound.kick(Math.min(1.4, speed / 700));
-    if (kicker.team === HOME && kicker === selectedHome) possessionLabel = '';
     return true;
   }
 
@@ -959,8 +956,6 @@
     acquireLooseBall();
     handleOutOfPlay();
     updateStatus();
-
-    justPressed.clear();
   }
 
   function drawPitch() {
@@ -1071,16 +1066,15 @@
 
   window.addEventListener('keydown', e => {
     if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
-    if (!keys[e.code]) justPressed.add(e.code);
     keys[e.code] = true;
     if (state !== 'PLAYING' && state !== 'RESTART') return;
 
-    if (e.code === 'KeyQ') switchPlayer();
-    if (e.code === 'KeyJ') shortPass();
-    if (e.code === 'KeyL') throughPass();
-    if (e.code === 'KeyU') lobPass();
-    if (e.code === 'Space') manualTackle();
-    if (e.code === 'KeyK' && !chargingShot && selectedHome && ball.owner === selectedHome) {
+    if (e.code === 'KeyQ' && !e.repeat) switchPlayer();
+    if (e.code === 'KeyJ' && !e.repeat) shortPass();
+    if (e.code === 'KeyL' && !e.repeat) throughPass();
+    if (e.code === 'KeyU' && !e.repeat) lobPass();
+    if (e.code === 'Space' && !e.repeat) manualTackle();
+    if (e.code === 'KeyK' && !e.repeat && !chargingShot && selectedHome && ball.owner === selectedHome) {
       chargingShot = true;
       shotCharge = .05;
     }
