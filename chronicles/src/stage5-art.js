@@ -48,32 +48,34 @@
     return layer;
   }
 
+  function renderLayer(layer, signature, nodes) {
+    if (!layer || layer.dataset.stage5Signature === signature) return;
+    layer.dataset.stage5Signature = signature;
+    layer.replaceChildren(...nodes.filter(Boolean));
+  }
+
   function decorateCampaign() {
     const page = document.querySelector('.campaign-page');
     if (!page) return;
     const layer = ensureLayer(page);
-    if (!layer || layer.dataset.stage5Campaign === '1') return;
-    layer.dataset.stage5Campaign = '1';
-    layer.append(
+    renderLayer(layer, 'campaign-static', [
       makeSketch('compass', 'stage5-sketch--campaign-compass stage5-sketch--soft'),
       makeSketch('route', 'stage5-sketch--campaign-route stage5-sketch--soft'),
       makeSketch('moon', 'stage5-sketch--campaign-moon stage5-sketch--soft')
-    );
+    ]);
   }
 
   function decorateChronicle() {
     const page = document.querySelector('.entry-page');
     if (!page) return;
     const layer = ensureLayer(page);
-    if (!layer) return;
-    layer.innerHTML = '';
     const dayIndex = Math.max(0, (Number(state.selectedDayId) || 1) - 1) % chronicleThemes.length;
     const [hero, note, footer] = chronicleThemes[dayIndex];
-    [
+    renderLayer(layer, `chronicle:${state.selectedDayId}:${dayIndex}`, [
       makeSketch(hero, 'stage5-sketch--entry-hero stage5-sketch--soft'),
       makeSketch(note, 'stage5-sketch--entry-note stage5-sketch--soft'),
       makeSketch(footer, 'stage5-sketch--entry-footer stage5-sketch--strong')
-    ].forEach((node) => node && layer.append(node));
+    ]);
   }
 
   function decorateCharacters() {
@@ -81,20 +83,17 @@
     const card = document.querySelector('.character-card');
     if (indexPage) {
       const layer = ensureLayer(indexPage);
-      if (layer && !layer.dataset.stage5Index) {
-        layer.dataset.stage5Index = '1';
-        layer.append(makeSketch('signpost', 'stage5-sketch--characters-index stage5-sketch--soft'));
-      }
+      renderLayer(layer, 'characters-index-static', [
+        makeSketch('signpost', 'stage5-sketch--characters-index stage5-sketch--soft')
+      ]);
     }
     if (!card) return;
     const layer = ensureLayer(card);
-    if (!layer) return;
-    layer.innerHTML = '';
     const index = Math.max(0, data.characters.findIndex((item) => item.id === state.selectedCharacterId));
-    layer.append(
+    renderLayer(layer, `character:${state.selectedCharacterId}:${index}`, [
       makeSketch(characterMotifs[index % characterMotifs.length], 'stage5-sketch--character-crest stage5-sketch--soft'),
       makeSketch('route', 'stage5-sketch--character-footer stage5-sketch--soft')
-    );
+    ]);
   }
 
   function decorateAtlas() {
@@ -102,20 +101,17 @@
     const card = document.querySelector('.atlas-card');
     if (indexPage) {
       const layer = ensureLayer(indexPage);
-      if (layer && !layer.dataset.stage5Index) {
-        layer.dataset.stage5Index = '1';
-        layer.append(makeSketch('compass', 'stage5-sketch--atlas-index stage5-sketch--soft'));
-      }
+      renderLayer(layer, 'atlas-index-static', [
+        makeSketch('compass', 'stage5-sketch--atlas-index stage5-sketch--soft')
+      ]);
     }
     if (!card) return;
     const layer = ensureLayer(card);
-    if (!layer) return;
-    layer.innerHTML = '';
     const index = Math.max(0, data.atlas.findIndex((item) => item.id === state.selectedAtlasId));
-    layer.append(
+    renderLayer(layer, `atlas:${state.selectedAtlasId}:${index}`, [
       makeSketch(atlasMotifs[index % atlasMotifs.length], 'stage5-sketch--atlas-map stage5-sketch--soft'),
       makeSketch('pines', 'stage5-sketch--atlas-footer stage5-sketch--soft')
-    );
+    ]);
   }
 
   function enhance() {
@@ -127,7 +123,15 @@
 
   const app = document.querySelector('#app');
   if (!app) return;
-  const observer = new MutationObserver(() => queueMicrotask(enhance));
+  let queued = false;
+  const observer = new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    queueMicrotask(() => {
+      queued = false;
+      enhance();
+    });
+  });
   observer.observe(app, { childList: true, subtree: true });
   enhance();
 })();
