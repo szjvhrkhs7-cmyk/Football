@@ -1,0 +1,579 @@
+/* Stage 9A: physical journal material pass — preserve behavior, change only presentation */
+:root {
+  --stage9-paper-hi:#f0dfc0;
+  --stage9-paper:#e7d3a7;
+  --stage9-paper-mid:#dcc294;
+  --stage9-paper-deep:#c8a875;
+  --stage9-ink:#35261d;
+  --stage9-burgundy:#6a241f;
+  --stage9-burgundy-dark:#451713;
+  --stage9-forest:#26342a;
+  --stage9-forest-dark:#18231d;
+  --stage9-brass:#a7854e;
+  --stage9-thread:rgba(83,51,30,.24);
+}
+
+/* The book should read as an object before it reads as a website. */
+.book-shell {
+  filter:drop-shadow(0 34px 32px rgba(0,0,0,.58)) drop-shadow(0 5px 3px rgba(0,0,0,.24));
+  transform:rotate(-.08deg);
+}
+
+.book-cover {
+  inset:-27px -30px -30px -32px;
+  border-radius:11px 15px 13px 10px;
+  border-color:#69452b;
+  background:
+    radial-gradient(ellipse at 13% 16%,rgba(255,255,255,.065),transparent 18%),
+    radial-gradient(ellipse at 83% 72%,rgba(0,0,0,.20),transparent 24%),
+    repeating-linear-gradient(7deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(96deg,rgba(0,0,0,.025) 0 1px,transparent 1px 6px),
+    linear-gradient(123deg,#50271c 0%,#321811 38%,#26130f 63%,#401f17 100%);
+  box-shadow:
+    inset 0 0 0 2px #1b100c,
+    inset 0 0 0 7px #785237,
+    inset 0 0 42px rgba(9,5,4,.86),
+    inset 0 -12px 24px rgba(0,0,0,.24),
+    0 23px 48px rgba(0,0,0,.72);
+}
+
+.book-cover::before {
+  inset:13px 11px 12px 14px;
+  border-radius:6px 9px 7px 5px;
+  border-color:rgba(190,151,92,.21);
+}
+.book-cover::after {
+  inset:21px 18px 19px 22px;
+  border-radius:3px 7px 4px 5px;
+  border-color:rgba(54,29,18,.62);
+}
+
+.book-spine {
+  left:-32px;
+  top:43px;
+  bottom:31px;
+  width:33px;
+  border-radius:7px 1px 1px 6px;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 13px,rgba(183,138,78,.06) 13px 14px,transparent 14px 28px),
+    linear-gradient(90deg,#1c0e0a,#53251c 37%,#321710 67%,#160b08);
+  box-shadow:inset -6px 0 9px #120806,inset 5px 0 8px rgba(255,255,255,.025),-9px 7px 17px rgba(0,0,0,.46);
+}
+
+.paper-stack {
+  border-color:#8f7149;
+  background:
+    repeating-linear-gradient(0deg,rgba(92,62,34,.18) 0 1px,rgba(229,209,169,.55) 1px 3px,rgba(116,78,40,.10) 3px 4px),
+    linear-gradient(180deg,#d8bf90,#c8aa78);
+  box-shadow:0 6px 8px rgba(0,0,0,.16),inset 0 0 12px rgba(91,57,28,.13);
+}
+.paper-stack--left { transform:translate(-10px,5px) rotate(-.28deg); }
+.paper-stack--right { transform:translate(10px,5px) rotate(.34deg); }
+.paper-stack::before { transform:translate(4px,2px) rotate(.12deg); }
+.paper-stack::after { transform:translate(7px,4px) rotate(-.14deg); }
+
+.book-spread {
+  border-radius:4px 7px 5px 3px;
+  border-color:rgba(128,93,52,.78);
+  clip-path:polygon(.18% .65%,1.7% .18%,8.5% .48%,15% .13%,25% .38%,37% .1%,48.5% .34%,58% .12%,69% .42%,81% .16%,91% .45%,99.72% .22%,99.88% 8%,99.62% 19%,99.9% 31%,99.63% 43%,99.87% 56%,99.58% 67%,99.82% 80%,99.5% 91%,99.72% 99.55%,91% 99.75%,82% 99.44%,73% 99.82%,63% 99.51%,53% 99.76%,42% 99.43%,31% 99.8%,20% 99.52%,9% 99.78%,.25% 99.42%,.45% 88%,.16% 77%,.42% 66%,.13% 54%,.38% 41%,.12% 28%,.4% 15%);
+  box-shadow:inset 0 0 45px rgba(76,48,25,.28),0 2px 2px rgba(0,0,0,.14);
+}
+
+.book-spread > section,
+.book-spread > article {
+  background:
+    radial-gradient(ellipse at 11% 7%,rgba(255,255,255,.31),transparent 21%),
+    radial-gradient(ellipse at 76% 88%,rgba(104,66,31,.105),transparent 28%),
+    radial-gradient(circle at 6% 37%,rgba(104,69,36,.075),transparent 9%),
+    radial-gradient(circle at 95% 13%,rgba(121,82,43,.065),transparent 8%),
+    radial-gradient(circle at 88% 59%,rgba(92,61,31,.055),transparent 11%),
+    repeating-linear-gradient(2deg,rgba(85,57,32,.021) 0 1px,transparent 1px 5px),
+    repeating-linear-gradient(91deg,transparent 0 10px,rgba(99,67,36,.014) 10px 11px,transparent 11px 21px),
+    linear-gradient(96deg,var(--stage9-paper-hi) 0%,var(--stage9-paper) 36%,#e1c99f 69%,var(--stage9-paper-mid) 100%);
+}
+
+.book-spread > section::before,
+.book-spread > article::before {
+  inset:11px 12px 13px 10px;
+  border:0;
+  box-shadow:
+    inset 17px 0 18px -20px rgba(72,46,26,.48),
+    inset -18px 0 20px -21px rgba(72,46,26,.44),
+    inset 0 15px 18px -22px rgba(72,46,26,.32),
+    inset 0 -18px 22px -23px rgba(72,46,26,.42),
+    inset 0 0 78px rgba(108,70,32,.055);
+}
+
+.book-spread > section::after,
+.book-spread > article::after {
+  opacity:.92;
+  background:
+    radial-gradient(circle at 2% 8%,rgba(77,51,28,.12),transparent 5%),
+    radial-gradient(circle at 99% 18%,rgba(77,51,28,.09),transparent 5%),
+    radial-gradient(circle at 1% 73%,rgba(77,51,28,.095),transparent 5.5%),
+    radial-gradient(circle at 98% 91%,rgba(77,51,28,.11),transparent 5%),
+    radial-gradient(ellipse at 32% 4%,rgba(101,68,35,.07),transparent 12%),
+    radial-gradient(ellipse at 61% 97%,rgba(101,68,35,.075),transparent 14%),
+    linear-gradient(90deg,rgba(78,51,29,.08),transparent 2.2%,transparent 97.5%,rgba(75,48,27,.1)),
+    linear-gradient(0deg,rgba(78,51,29,.075),transparent 2.4%,transparent 97%,rgba(75,48,27,.08));
+}
+
+.gutter {
+  width:4.2%;
+  background:linear-gradient(90deg,transparent,rgba(92,57,31,.13) 22%,rgba(68,39,23,.36) 47%,rgba(42,25,16,.25) 52%,rgba(255,255,255,.11) 62%,transparent 100%);
+  filter:blur(.2px);
+}
+
+/* Cloth bookmarks: irregular, fibrous, and no longer UI tabs. */
+.bookmark-tabs {
+  top:-25px;
+  left:58px;
+  gap:5px;
+  align-items:flex-end;
+}
+.bookmark-tab {
+  min-width:116px;
+  height:58px;
+  padding:0 15px 13px;
+  border:0;
+  border-radius:2px 2px 0 0;
+  clip-path:polygon(2% 0,98% 1%,100% 84%,94% 89%,88% 86%,82% 100%,74% 91%,66% 98%,58% 91%,50% 100%,42% 92%,34% 98%,26% 90%,18% 99%,11% 89%,4% 93%,0 84%);
+  box-shadow:none;
+  text-shadow:0 1px 1px rgba(0,0,0,.4);
+  transition:transform .16s ease,filter .16s ease;
+}
+.bookmark-tab::before {
+  inset:0;
+  height:auto;
+  border-radius:0;
+  opacity:1;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(3deg,rgba(0,0,0,.032) 0 1px,transparent 1px 6px),
+    linear-gradient(180deg,rgba(255,255,255,.105),transparent 33%,rgba(0,0,0,.12));
+}
+.bookmark-tab::after {
+  left:7px;
+  right:8px;
+  bottom:10px;
+  height:1px;
+  background:rgba(226,195,139,.18);
+  box-shadow:0 -37px 0 rgba(255,255,255,.045);
+}
+.bookmark-tab--chronicles {
+  background:linear-gradient(92deg,#571b18,#7c2a25 45%,#5b1d19);
+  transform:rotate(-1.15deg);
+}
+.bookmark-tab--characters {
+  background:linear-gradient(92deg,#18231d,#304133 47%,#1d2b22);
+  transform:rotate(.75deg) translateY(2px);
+}
+.bookmark-tab--atlas {
+  background:linear-gradient(92deg,#594026,#765a36 48%,#4a3420);
+  transform:rotate(-.55deg) translateY(1px);
+}
+.bookmark-tab:hover { transform:translateY(-2px) rotate(-.2deg); filter:brightness(1.04); }
+.bookmark-tab.is-active {
+  height:64px;
+  transform:translateY(3px) rotate(-.12deg);
+  filter:brightness(1.07) saturate(.92);
+}
+.bookmark-tab span { font-size:16px; }
+
+/* Lists become ruled notebook entries instead of cards. */
+.day-list,.character-list { gap:0; }
+.day-row,.character-row {
+  border:0;
+  border-bottom:1px solid rgba(87,60,36,.16);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  transform:none;
+}
+.day-row:first-child,.character-row:first-child { border-top:1px solid rgba(87,60,36,.11); }
+.day-row:hover,.character-row:hover { background:linear-gradient(90deg,rgba(121,82,43,.055),transparent 88%); transform:none; }
+.day-row.is-current,.character-row.is-current {
+  border-color:rgba(87,60,36,.18);
+  background:linear-gradient(90deg,rgba(174,132,75,.13),rgba(255,255,255,.035) 67%,transparent);
+  box-shadow:none;
+}
+.day-row.is-current::before,.character-row.is-current::before {
+  content:'';
+  position:absolute;
+  left:-6px;
+  top:15%;
+  bottom:15%;
+  width:2px;
+  border-radius:0;
+  background:var(--stage9-burgundy);
+  transform:rotate(-2deg);
+}
+
+.day-thumb,.character-thumb {
+  border-radius:1px !important;
+  border-color:rgba(80,55,34,.40) !important;
+  box-shadow:0 2px 4px rgba(64,41,24,.12),inset 0 0 0 2px rgba(250,238,209,.16) !important;
+}
+.day-row:nth-child(odd) .day-thumb,.character-row:nth-child(odd) .character-thumb { transform:rotate(-.75deg); }
+.day-row:nth-child(even) .day-thumb,.character-row:nth-child(even) .character-thumb { transform:rotate(.55deg); }
+
+.add-day,
+.stage4-add-atlas {
+  min-height:44px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  color:#5c4432;
+  border-bottom:1px dashed rgba(88,59,34,.28);
+  justify-content:flex-start;
+  padding-left:11px;
+  font-style:italic;
+}
+.add-day:hover,.stage4-add-atlas:hover { background:rgba(121,82,43,.045); }
+
+/* Search behaves like a pencilled index strip. */
+.search-strip,
+.stage8-character-search {
+  min-height:44px;
+  border:0;
+  border-radius:0;
+  border-top:1px solid rgba(91,63,38,.11);
+  border-bottom:1px solid rgba(91,63,38,.24);
+  background:linear-gradient(90deg,rgba(184,147,94,.07),rgba(255,255,255,.035) 65%,transparent);
+  box-shadow:none;
+  transform:rotate(-.12deg);
+}
+.search-strip button,
+.stage8-character-search button {
+  width:32px;
+  height:32px;
+  border:0;
+  border-radius:2px;
+  background:transparent;
+  color:#66482e;
+  box-shadow:none;
+  font-size:20px;
+}
+.search-strip button:hover,.stage8-character-search button:hover { background:rgba(102,70,40,.08); }
+
+/* Character dossier: portrait and notes feel pasted into a field folio. */
+.character-card,
+.atlas-card { padding-top:48px !important; }
+.character-card > .kicker,
+.atlas-card > .kicker { letter-spacing:.19em; }
+
+.portrait-frame {
+  position:relative;
+  height:264px;
+  margin:20px 7px 26px 2px;
+  border:0;
+  border-radius:0 !important;
+  overflow:visible !important;
+  background:linear-gradient(103deg,#ddc394,#ead8b1 56%,#d8ba87) !important;
+  box-shadow:2px 4px 8px rgba(60,39,24,.16),0 0 0 1px rgba(91,62,38,.22);
+  transform:rotate(-.38deg);
+}
+.portrait-frame::before,
+.portrait-frame::after {
+  content:'';
+  position:absolute;
+  z-index:4;
+  width:54px;
+  height:15px;
+  top:-7px;
+  background:rgba(204,183,141,.58);
+  border-top:1px solid rgba(255,255,255,.18);
+  border-bottom:1px solid rgba(105,77,45,.12);
+  box-shadow:0 2px 4px rgba(73,48,28,.07);
+}
+.portrait-frame::before { left:24px; transform:rotate(-5deg); }
+.portrait-frame::after { right:27px; transform:rotate(4deg); }
+.portrait-frame .portrait-image {
+  position:absolute;
+  inset:8px 9px 9px 8px;
+  width:auto;
+  height:auto;
+}
+.portrait-frame .stage8-portrait-svg { width:min(76%,320px); }
+
+.character-seal {
+  border:1px solid rgba(75,29,25,.76);
+  outline:2px double rgba(169,133,73,.78);
+  outline-offset:-7px;
+  background:
+    radial-gradient(circle at 35% 28%,rgba(255,255,255,.10),transparent 18%),
+    radial-gradient(circle at 55% 58%,#7b2b25,#5a1c18 72%);
+  box-shadow:0 5px 9px rgba(47,29,20,.28),inset 0 0 9px rgba(45,14,12,.35);
+}
+
+.character-card h3,.atlas-card h3 {
+  font-weight:600;
+  letter-spacing:.01em;
+}
+.character-card .handwritten {
+  max-width:86%;
+  margin:14px 3px 8px auto;
+  padding:12px 15px 13px;
+  border:0;
+  border-top:1px solid rgba(91,63,38,.18);
+  border-bottom:1px solid rgba(91,63,38,.11);
+  border-radius:0;
+  background:linear-gradient(96deg,rgba(201,166,111,.20),rgba(242,224,188,.22));
+  box-shadow:2px 3px 7px rgba(76,49,27,.055);
+  transform:rotate(-.9deg);
+}
+
+.stage3-edit-character,
+.stage4-edit-atlas,
+.stage4-inline-back {
+  border-radius:2px;
+  border:0;
+  border-bottom:1px solid rgba(92,62,37,.27);
+  background:transparent;
+  box-shadow:none;
+  color:#5b402d;
+  font-style:italic;
+}
+.stage3-edit-character:hover,.stage4-edit-atlas:hover,.stage4-inline-back:hover { background:rgba(122,81,40,.055); }
+
+/* Atlas = pinned field records, not web cards. */
+.atlas-index .atlas-grid { gap:16px 13px; padding:4px 2px; }
+.atlas-tile {
+  min-height:172px;
+  padding:14px 13px 13px;
+  border:0;
+  border-radius:0;
+  overflow:hidden;
+  background:linear-gradient(105deg,#dbc293,#e6d1a8 58%,#cfad78);
+  box-shadow:2px 4px 8px rgba(62,40,24,.14),0 0 0 1px rgba(85,58,35,.18);
+  clip-path:polygon(1% 1.5%,97.5% .3%,99.4% 7%,99% 94%,96% 99%,4% 98.4%,.4% 94%,.8% 6%);
+}
+.atlas-tile:nth-child(4n+1) { transform:rotate(-.65deg); }
+.atlas-tile:nth-child(4n+2) { transform:rotate(.48deg) translateY(2px); }
+.atlas-tile:nth-child(4n+3) { transform:rotate(.25deg); }
+.atlas-tile:nth-child(4n+4) { transform:rotate(-.35deg) translateY(-1px); }
+.atlas-tile:hover { filter:brightness(1.015); }
+.atlas-tile.is-current {
+  box-shadow:3px 5px 10px rgba(62,40,24,.17),0 0 0 1px rgba(102,67,37,.34),inset 0 0 22px rgba(112,76,39,.055);
+}
+.atlas-tile::before {
+  content:'';
+  position:absolute;
+  z-index:3;
+  top:-5px;
+  left:50%;
+  width:45px;
+  height:12px;
+  transform:translateX(-50%) rotate(-2deg);
+  background:rgba(202,180,137,.48);
+  border-bottom:1px solid rgba(104,75,43,.10);
+}
+.atlas-tile::after {
+  background:linear-gradient(180deg,rgba(238,223,193,.01) 0 36%,rgba(226,204,163,.49) 68%,rgba(222,197,151,.96) 100%);
+}
+.atlas-type { color:#74573b; letter-spacing:.14em; }
+
+.atlas-hero {
+  position:relative;
+  margin:21px 7px 22px 1px;
+  border:0;
+  border-radius:0;
+  overflow:visible !important;
+  background:linear-gradient(104deg,#dcc392,#e7d1a7 58%,#cfad78);
+  box-shadow:2px 4px 8px rgba(60,39,24,.15),0 0 0 1px rgba(91,62,38,.22);
+  transform:rotate(.28deg);
+}
+.atlas-hero::before,
+.atlas-hero::after {
+  content:'';
+  position:absolute;
+  z-index:4;
+  width:56px;
+  height:14px;
+  top:-7px;
+  background:rgba(204,183,141,.55);
+  border-bottom:1px solid rgba(105,77,45,.11);
+}
+.atlas-hero::before { left:22px; transform:rotate(-4deg); }
+.atlas-hero::after { right:24px; transform:rotate(5deg); }
+.atlas-hero-image { position:absolute; inset:7px 8px 8px 7px; width:auto; height:auto; }
+
+.tag-row { gap:8px 12px; }
+.tag-row span {
+  padding:1px 1px 2px;
+  border:0;
+  border-bottom:1px dotted rgba(82,56,34,.42);
+  border-radius:0;
+  background:transparent;
+  transform:rotate(-.45deg);
+  font-size:13px;
+  font-style:italic;
+}
+.tag-row span:nth-child(even) { transform:rotate(.35deg); }
+
+.linked-notes { gap:0; }
+.linked-note {
+  min-height:38px;
+  padding:8px 4px 8px 23px;
+  border:0;
+  border-bottom:1px solid rgba(88,61,38,.16);
+  border-radius:0;
+  background:transparent;
+}
+.linked-note::before { left:6px; color:rgba(93,61,35,.60); }
+
+.atlas-card .atlas-script {
+  width:82%;
+  margin:19px 0 0 auto;
+  padding:10px 7px;
+  border:0;
+  border-top:1px solid rgba(91,63,38,.18);
+  background:transparent;
+}
+
+/* Editors are sheets of stationery, not rounded SaaS dialogs. */
+.stage3-character-overlay,
+.stage4-atlas-overlay {
+  background:rgba(16,9,6,.67);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.stage3-character-sheet,
+.stage4-atlas-sheet {
+  border-radius:3px;
+  border:1px solid rgba(111,79,43,.40);
+  clip-path:polygon(.4% 1%,98.7% .2%,99.7% 5%,99.3% 96%,97% 99.5%,2% 99%,.2% 96%,.5% 4%);
+  background:
+    radial-gradient(circle at 17% 9%,rgba(255,255,255,.23),transparent 24%),
+    repeating-linear-gradient(0deg,rgba(96,66,37,.02) 0 1px,transparent 1px 5px),
+    linear-gradient(101deg,#ecdab5,#dfc596 74%,#d3b47f);
+  box-shadow:0 27px 62px rgba(0,0,0,.48),inset 0 0 35px rgba(95,61,28,.055);
+}
+.stage3-character-sheet input,
+.stage3-character-sheet textarea,
+.stage4-atlas-sheet input,
+.stage4-atlas-sheet textarea,
+.stage4-atlas-sheet select {
+  border-radius:2px;
+  background:rgba(247,231,198,.34);
+  border-color:rgba(97,67,39,.27);
+  box-shadow:inset 0 -1px 0 rgba(90,61,35,.055);
+}
+.stage3-sheet-button,
+.stage4-sheet-button {
+  border-radius:2px;
+  min-height:44px;
+}
+.stage3-sheet-button--ghost,
+.stage4-sheet-button--ghost { background:rgba(247,230,196,.16); }
+.stage3-sheet-button--primary {
+  background:linear-gradient(#425845,#26372b);
+  border-color:rgba(38,59,41,.58);
+}
+.stage4-sheet-button--primary {
+  background:linear-gradient(#705032,#4a3320);
+  border-color:rgba(77,51,31,.58);
+}
+
+/* Keep the text editor as the one intentionally glassy control. */
+.story-toolbar-wrap,.writing-toolbar { isolation:isolate; }
+
+@media (max-width:760px) {
+  .scene {
+    padding-top:max(34px,calc(env(safe-area-inset-top,0px) + 28px)) !important;
+    padding-left:5px !important;
+    padding-right:5px !important;
+  }
+  .book-shell {
+    width:calc(100vw - 10px) !important;
+    margin:0 5px !important;
+    transform:none;
+    filter:drop-shadow(0 17px 20px rgba(0,0,0,.52));
+  }
+  .book-cover {
+    inset:-10px -5px -11px -6px;
+    border-radius:9px 11px 10px 8px;
+  }
+  .book-spread {
+    border-radius:3px 5px 4px 3px;
+    clip-path:polygon(.3% .5%,7% .15%,15% .45%,24% .1%,35% .4%,47% .12%,58% .38%,71% .1%,83% .4%,99.6% .18%,99.8% 12%,99.5% 26%,99.8% 41%,99.55% 58%,99.82% 73%,99.55% 88%,99.72% 99.5%,87% 99.75%,74% 99.48%,61% 99.8%,48% 99.45%,34% 99.78%,18% 99.5%,.25% 99.68%,.45% 82%,.16% 65%,.42% 49%,.14% 32%,.4% 15%);
+  }
+  .book-spread > section,
+  .book-spread > article {
+    padding-left:16px !important;
+    padding-right:16px !important;
+    padding-bottom:max(20px,env(safe-area-inset-bottom,0px) + 14px) !important;
+    background:
+      radial-gradient(circle at 18% 8%,rgba(255,255,255,.27),transparent 23%),
+      radial-gradient(circle at 87% 88%,rgba(111,74,38,.075),transparent 17%),
+      repeating-linear-gradient(2deg,rgba(85,57,32,.019) 0 1px,transparent 1px 5px),
+      linear-gradient(100deg,#efdeba,#e4cda3 70%,#dbc091);
+  }
+  .bookmark-tabs {
+    top:-22px;
+    left:8px !important;
+    right:8px !important;
+    gap:2px !important;
+  }
+  .bookmark-tab {
+    min-width:0;
+    height:52px;
+    min-height:52px;
+    padding:0 6px 12px;
+  }
+  .bookmark-tab.is-active { height:57px; }
+  .bookmark-tab span { font-size:13px; }
+
+  .day-row,.character-row { padding-left:5px; padding-right:4px; }
+  .day-row.is-current::before,.character-row.is-current::before { left:-3px; }
+
+  .stage8-character-search,
+  .search-strip { margin-left:1px; margin-right:1px; }
+
+  .character-card,
+  .atlas-card { padding-top:48px !important; }
+  .portrait-frame {
+    height:226px;
+    margin-left:2px;
+    margin-right:3px;
+  }
+  .portrait-frame::before,.portrait-frame::after,
+  .atlas-hero::before,.atlas-hero::after { width:42px; height:12px; }
+  .character-seal { right:22px; }
+  .character-card .handwritten,.atlas-card .atlas-script { width:92%; max-width:92%; }
+
+  .atlas-index .atlas-grid { gap:12px 9px; }
+  .atlas-tile { min-height:138px; padding:11px 10px; }
+  .atlas-tile::before { width:36px; height:10px; }
+  .atlas-hero { margin-left:2px; margin-right:3px; }
+
+  .stage3-character-sheet,
+  .stage4-atlas-sheet {
+    width:calc(100% - 4px);
+    max-height:calc(91dvh - env(safe-area-inset-top,0px));
+    border-radius:3px;
+    padding:20px 15px max(16px,env(safe-area-inset-bottom,0px) + 10px);
+  }
+  .stage3-edit-character,.stage4-edit-atlas {
+    top:25px;
+    right:13px;
+    min-height:36px;
+    font-size:13px;
+  }
+  input,textarea,select,[contenteditable="true"] { font-size:16px !important; }
+}
+
+@media (max-width:390px) {
+  .scene { padding-left:2px !important; padding-right:2px !important; }
+  .book-shell { width:calc(100vw - 4px) !important; margin:0 2px !important; }
+  .book-spread > section,.book-spread > article { padding-left:14px !important; padding-right:14px !important; }
+  .bookmark-tab span { font-size:12px; }
+  .atlas-index .atlas-grid { grid-template-columns:1fr; gap:11px; }
+  .atlas-tile { min-height:124px; }
+  .portrait-frame { height:214px; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .book-shell,.bookmark-tab,.atlas-tile,.portrait-frame,.atlas-hero { transform:none !important; }
+}
