@@ -1,0 +1,195 @@
+/* Stage 5: art pass — paper wear, irregular tabs, pencil sketches, mobile edge safety */
+:root {
+  --paper-grain: rgba(95, 65, 36, .07);
+  --sketch-ink: rgba(76, 57, 42, .42);
+  --sketch-ink-strong: rgba(76, 57, 42, .58);
+}
+
+.scene { overscroll-behavior-y: contain; }
+
+.book-cover::before {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 6% 9%, rgba(255, 255, 255, .06), transparent 11%),
+    radial-gradient(circle at 93% 12%, rgba(255, 255, 255, .04), transparent 9%),
+    radial-gradient(circle at 6% 92%, rgba(255, 255, 255, .05), transparent 10%),
+    linear-gradient(180deg, rgba(255,255,255,.04), transparent 12%, transparent 86%, rgba(0,0,0,.12));
+  mix-blend-mode: screen;
+}
+
+.book-spread {
+  background:
+    linear-gradient(90deg, rgba(61, 34, 19, .17), transparent 2.1%, transparent 97.9%, rgba(61, 34, 19, .16)),
+    linear-gradient(180deg, rgba(255,255,255,.09), transparent 8%, transparent 90%, rgba(89,58,30,.1)),
+    var(--paper);
+}
+
+.book-spread::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    radial-gradient(circle at 1.2% 16%, rgba(102, 69, 39, .18), transparent 5.2%),
+    radial-gradient(circle at 98.8% 24%, rgba(102, 69, 39, .13), transparent 4.4%),
+    radial-gradient(circle at 1.6% 86%, rgba(102, 69, 39, .15), transparent 5%),
+    radial-gradient(circle at 99% 81%, rgba(102, 69, 39, .16), transparent 4.8%),
+    radial-gradient(circle at 16% 7%, rgba(255,255,255,.11), transparent 8%),
+    radial-gradient(circle at 80% 94%, rgba(80,52,29,.09), transparent 8%);
+  mix-blend-mode: multiply;
+}
+
+.book-spread > section,
+.book-spread > article {
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255,255,255,.45), transparent 24%),
+    radial-gradient(circle at 80% 82%, rgba(122, 80, 38, .1), transparent 26%),
+    radial-gradient(circle at 0% 0%, rgba(108, 75, 39, .12), transparent 18%),
+    radial-gradient(circle at 100% 0%, rgba(108, 75, 39, .09), transparent 16%),
+    radial-gradient(circle at 0% 100%, rgba(108, 75, 39, .1), transparent 18%),
+    radial-gradient(circle at 100% 100%, rgba(108, 75, 39, .12), transparent 16%),
+    repeating-linear-gradient(0deg, rgba(112,80,42,.022) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(91,63,38,.012) 8px 9px, transparent 9px 17px),
+    linear-gradient(90deg, rgba(99, 68, 39, .12), transparent 3%, transparent 97%, rgba(90, 61, 36, .13)),
+    linear-gradient(180deg, rgba(92, 62, 34, .08), transparent 5%, transparent 95%, rgba(92, 62, 34, .11)),
+    linear-gradient(96deg, #f0dfba 0%, #e8d4ab 35%, #e2cca4 72%, #d7bf92 100%);
+}
+
+.book-spread > section::before,
+.book-spread > article::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.12),
+    inset 0 0 12px rgba(91,63,38,.05),
+    inset 18px 0 18px -18px rgba(96, 66, 37, .34),
+    inset -18px 0 18px -18px rgba(96, 66, 37, .34),
+    inset 0 12px 16px -18px rgba(96, 66, 37, .21),
+    inset 0 -14px 18px -20px rgba(96, 66, 37, .31),
+    inset 0 0 70px rgba(122, 81, 37, .04);
+}
+
+.bookmark-tab {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  box-shadow: 0 8px 18px rgba(22, 11, 8, .28), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.bookmark-tab::before,
+.bookmark-tab::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.bookmark-tab::before {
+  inset: 1px 1px auto 1px;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0));
+  opacity: .9;
+}
+.bookmark-tab::after {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,.08), transparent 18%),
+    radial-gradient(circle at 87% 20%, rgba(255,255,255,.05), transparent 14%),
+    radial-gradient(circle at 18% 82%, rgba(0,0,0,.1), transparent 22%),
+    radial-gradient(circle at 82% 78%, rgba(0,0,0,.08), transparent 19%);
+  mix-blend-mode: multiply;
+}
+.bookmark-tab--chronicles { border-radius: 15px 11px 0 0; transform: rotate(-.6deg); }
+.bookmark-tab--characters { border-radius: 12px 13px 0 0; transform: rotate(.45deg) translateY(1px); }
+.bookmark-tab--atlas { border-radius: 13px 12px 0 0; transform: rotate(-.3deg); }
+.bookmark-tab.is-active { transform: translateY(2px) rotate(-.15deg); }
+.bookmark-tab span { position: relative; z-index: 1; }
+
+.entry-hero figcaption,
+.margin-note p,
+.handwritten,
+.atlas-script {
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-wrap: pretty;
+  hyphens: none;
+}
+.entry-hero figcaption {
+  width: min(33%, 220px);
+  transform: rotate(-1.1deg);
+  right: 18px;
+  top: 16px;
+  background: rgba(243, 231, 201, .86);
+}
+.margin-note { transform: rotate(-1.2deg); }
+.entry-copy,
+.stage3-editable-character-note,
+.stage4-editable-atlas-description {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.stage5-sketch-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.stage5-sketch {
+  position: absolute;
+  color: var(--sketch-ink);
+  opacity: .9;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.18));
+}
+.stage5-sketch svg {
+  width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round;
+}
+.stage5-sketch--soft { opacity: .34; }
+.stage5-sketch--strong { color: var(--sketch-ink-strong); }
+.stage5-sketch--campaign-compass { width: 76px; height: 76px; top: 88px; right: 44px; }
+.stage5-sketch--campaign-route { width: 155px; height: 74px; left: 46px; bottom: 76px; }
+.stage5-sketch--campaign-moon { width: 64px; height: 64px; right: 82px; bottom: 96px; }
+.stage5-sketch--entry-hero { width: 126px; height: 70px; left: 18px; bottom: 16px; }
+.stage5-sketch--entry-footer { width: 146px; height: 72px; right: 28px; bottom: 158px; }
+.stage5-sketch--entry-note { width: 72px; height: 72px; right: 192px; top: 318px; }
+.stage5-sketch--characters-index { width: 92px; height: 92px; right: 44px; bottom: 34px; }
+.stage5-sketch--character-crest { width: 96px; height: 96px; right: 34px; top: 38px; }
+.stage5-sketch--character-footer { width: 136px; height: 72px; left: 48px; bottom: 36px; }
+.stage5-sketch--atlas-index { width: 112px; height: 82px; right: 44px; bottom: 34px; }
+.stage5-sketch--atlas-map { width: 148px; height: 78px; right: 32px; top: 118px; }
+.stage5-sketch--atlas-footer { width: 122px; height: 72px; left: 42px; bottom: 34px; }
+
+.entry-page,.character-card,.atlas-card,.campaign-page,.character-index,.atlas-index { isolation: isolate; }
+.entry-copy,.margin-note,.story-toolbar-wrap,.campaign-heading,.day-list,.placeholder-header,.atlas-grid,.linked-notes,.portrait-frame,.atlas-hero { position: relative; z-index: 2; }
+.entry-copy > p,.character-card p,.atlas-card > p,.linked-note { position: relative; z-index: 2; }
+.stage2-inline-back,.entry-back-inline,.stage3-inline-back,.stage4-inline-back { font-size: 16px; }
+
+@media (max-width:760px) {
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  .scene { padding-top: max(30px, env(safe-area-inset-top, 0px) + 22px) !important; }
+  .book-shell { width: calc(100vw - 8px) !important; margin: 0 4px !important; }
+  .book-spread,.book-spread > section,.book-spread > article { min-height: calc(100dvh - 34px) !important; }
+  .book-spread > section,.book-spread > article { padding-left: 10px !important; padding-right: 10px !important; padding-bottom: 16px !important; }
+  .book-shell.show-detail .entry-page,.book-shell.show-detail .character-card,.book-shell.show-detail .atlas-card { padding-left: 18px !important; padding-right: 18px !important; }
+  .book-shell.show-detail .entry-copy,.book-shell.show-detail .stage3-editable-character-note,.book-shell.show-detail .stage4-editable-atlas-description { padding-left: 7px; padding-right: 7px; }
+  input,textarea,select,[contenteditable="true"] { font-size: 16px !important; }
+  .bookmark-tabs { left: 8px !important; right: 8px !important; gap: 4px !important; }
+  .bookmark-tab { min-height: 52px; font-size: 13px !important; }
+  .entry-hero figcaption { width: min(44%, 170px); right: 10px; top: 10px; padding: 8px 10px; font-size: 13px; }
+  .entry-copy > p,.entry-copy > ul,.entry-copy > ol,.character-card p,.atlas-card > p { font-size: 16px !important; line-height: 1.48 !important; }
+  .stage5-sketch--campaign-compass,.stage5-sketch--campaign-route,.stage5-sketch--campaign-moon,.stage5-sketch--entry-footer,.stage5-sketch--characters-index,.stage5-sketch--atlas-index,.stage5-sketch--atlas-footer { display: none; }
+  .stage5-sketch--entry-hero { width: 88px; height: 52px; left: 10px; bottom: 10px; }
+  .stage5-sketch--entry-note { width: 52px; height: 52px; right: 14px; top: auto; bottom: 206px; opacity: .26; }
+  .stage5-sketch--character-crest,.stage5-sketch--atlas-map { width: 72px; height: 56px; right: 18px; top: 78px; opacity: .22; }
+}
+
+@media (max-width:410px) {
+  .book-shell { width: calc(100vw - 4px) !important; margin: 0 2px !important; }
+  .book-spread > section,.book-spread > article { padding-left: 8px !important; padding-right: 8px !important; }
+  .book-shell.show-detail .entry-page,.book-shell.show-detail .character-card,.book-shell.show-detail .atlas-card { padding-left: 16px !important; padding-right: 16px !important; }
+  .book-shell.show-detail .entry-copy,.book-shell.show-detail .stage3-editable-character-note,.book-shell.show-detail .stage4-editable-atlas-description { padding-left: 6px; padding-right: 6px; }
+  .stage5-sketch--entry-hero { width: 72px; height: 44px; }
+}
