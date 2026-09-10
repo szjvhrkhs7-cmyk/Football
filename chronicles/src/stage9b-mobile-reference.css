@@ -1,0 +1,846 @@
+/* Stage 9B: iPhone reference pass.
+   Mobile-only composition override. Desktop stays on Stage 9A. */
+
+@media (max-width: 760px) {
+  :root {
+    --m-paper: #ead8b3;
+    --m-paper-light: #f0dfc0;
+    --m-paper-deep: #d7bc8c;
+    --m-ink: #35261d;
+    --m-soft: #756047;
+    --m-rule: rgba(91, 62, 37, .22);
+    --m-burgundy: #6a241f;
+    --m-forest: #26342a;
+    --m-atlas: #3f4b49;
+    --m-brass: #a7854e;
+  }
+
+  html,
+  body,
+  #app {
+    width: 100%;
+    min-width: 320px;
+    min-height: 100%;
+    background: #24150f;
+  }
+
+  body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* The phone should show one journal page, not a miniature desktop book. */
+  .scene {
+    display: block !important;
+    width: 100%;
+    min-height: 100dvh;
+    padding: max(6px, env(safe-area-inset-top, 0px)) 0 env(safe-area-inset-bottom, 0px) !important;
+    background:
+      radial-gradient(ellipse at 50% -8%, rgba(255, 220, 167, .08), transparent 34%),
+      linear-gradient(90deg, #1b100c, #2b190f 8%, #2b190f 92%, #1a0f0b);
+  }
+
+  .scene::before { opacity: .16; }
+  .scene::after {
+    box-shadow: inset 0 0 38px 7px rgba(0, 0, 0, .34) !important;
+  }
+
+  .brand-plaque,
+  .scene-caption,
+  .ambient,
+  .book-spine,
+  .paper-stack,
+  .gutter {
+    display: none !important;
+  }
+
+  .book-shell {
+    width: min(100%, 430px) !important;
+    min-width: 0 !important;
+    max-width: 430px !important;
+    min-height: calc(100dvh - max(6px, env(safe-area-inset-top, 0px))) !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    margin: 0 auto !important;
+    padding-top: 39px;
+    filter: drop-shadow(0 10px 16px rgba(0,0,0,.38)) !important;
+    transform: none !important;
+  }
+
+  .book-cover {
+    inset: 35px 2px -2px !important;
+    border: 1px solid rgba(105, 67, 38, .66) !important;
+    border-radius: 5px 4px 6px 4px !important;
+    background:
+      repeating-linear-gradient(4deg, rgba(255,255,255,.012) 0 1px, transparent 1px 5px),
+      linear-gradient(100deg, #5b321f, #2b180f 52%, #4a2919) !important;
+    box-shadow:
+      inset 0 0 0 2px rgba(23, 12, 8, .75),
+      inset 0 0 18px rgba(0,0,0,.42),
+      0 8px 20px rgba(0,0,0,.28) !important;
+  }
+
+  .book-cover::before,
+  .book-cover::after {
+    display: none !important;
+  }
+
+  /* Reference tabs: short cloth labels integrated into the upper paper edge. */
+  .bookmark-tabs {
+    position: absolute !important;
+    z-index: 30 !important;
+    top: 1px !important;
+    left: 10px !important;
+    right: auto !important;
+    width: calc(100% - 20px);
+    height: 39px;
+    display: grid !important;
+    grid-template-columns: 1fr 1.18fr .82fr;
+    align-items: end !important;
+    gap: 6px !important;
+    padding: 0 !important;
+  }
+
+  .bookmark-tab,
+  .bookmark-tab.is-active,
+  .bookmark-tab:hover {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    border: 1px solid rgba(181, 144, 89, .46) !important;
+    border-bottom-color: rgba(70, 41, 24, .52) !important;
+    border-radius: 2px 2px 1px 1px !important;
+    clip-path: polygon(2% 1%, 98% 0, 100% 94%, 72% 97%, 49% 94%, 25% 98%, 0 94%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.10),
+      inset 0 -5px 9px rgba(0,0,0,.14),
+      0 2px 3px rgba(46,27,18,.20) !important;
+    filter: none !important;
+    transform: none !important;
+    color: #ebd8b5 !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,.40) !important;
+  }
+
+  .bookmark-tab--chronicles {
+    background:
+      repeating-linear-gradient(91deg, rgba(255,255,255,.025) 0 1px, transparent 1px 4px),
+      linear-gradient(#7a3028, #5a1e1a) !important;
+    transform: rotate(-.35deg) !important;
+  }
+
+  .bookmark-tab--characters {
+    background:
+      repeating-linear-gradient(91deg, rgba(255,255,255,.022) 0 1px, transparent 1px 4px),
+      linear-gradient(#3b4e3d, #26342a) !important;
+    transform: rotate(.28deg) translateY(1px) !important;
+  }
+
+  .bookmark-tab--atlas {
+    background:
+      repeating-linear-gradient(91deg, rgba(255,255,255,.022) 0 1px, transparent 1px 4px),
+      linear-gradient(#4c5855, #35423f) !important;
+    transform: rotate(-.22deg) !important;
+  }
+
+  .bookmark-tab.is-active {
+    height: 38px !important;
+    color: #f4e6c8 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 -5px 9px rgba(0,0,0,.12),
+      0 2px 4px rgba(44,25,16,.24) !important;
+  }
+
+  .bookmark-tab::before {
+    inset: 0 !important;
+    height: auto !important;
+    border-radius: inherit !important;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.075), transparent 32%, rgba(0,0,0,.06)),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 4px) !important;
+    opacity: 1 !important;
+  }
+
+  .bookmark-tab::after {
+    left: 7px !important;
+    right: 7px !important;
+    top: 6px !important;
+    bottom: auto !important;
+    height: 1px !important;
+    background: rgba(244, 222, 181, .11) !important;
+    box-shadow: none !important;
+  }
+
+  .bookmark-tab span {
+    position: relative;
+    z-index: 2;
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: 'EB Garamond', Georgia, serif !important;
+    font-size: 14px !important;
+    font-weight: 600;
+    line-height: 34px;
+    letter-spacing: 0 !important;
+    text-align: center;
+  }
+
+  .book-spread {
+    width: calc(100% - 8px) !important;
+    min-height: calc(100dvh - 45px) !important;
+    margin: 0 4px;
+    overflow: hidden !important;
+    border: 1px solid rgba(119, 83, 48, .56) !important;
+    border-radius: 4px 5px 5px 4px !important;
+    clip-path: none !important;
+    background: var(--m-paper) !important;
+    box-shadow:
+      inset 0 0 30px rgba(83, 50, 26, .15),
+      0 2px 5px rgba(0,0,0,.18) !important;
+  }
+
+  .book-spread::before {
+    inset: 4px !important;
+    border: 1px solid rgba(98, 66, 38, .14) !important;
+  }
+
+  .book-spread::after {
+    inset: 0 !important;
+    opacity: 1 !important;
+    background:
+      radial-gradient(circle at 1% 12%, rgba(90,58,31,.12), transparent 8%),
+      radial-gradient(circle at 99% 26%, rgba(90,58,31,.09), transparent 7%),
+      radial-gradient(circle at 4% 92%, rgba(90,58,31,.10), transparent 8%),
+      radial-gradient(circle at 96% 96%, rgba(90,58,31,.09), transparent 8%) !important;
+  }
+
+  .book-spread > section,
+  .book-spread > article {
+    min-height: calc(100dvh - 47px) !important;
+    padding: 13px 13px 24px !important;
+    background:
+      radial-gradient(ellipse at 24% 4%, rgba(255,255,255,.30), transparent 24%),
+      radial-gradient(ellipse at 84% 88%, rgba(117,76,36,.08), transparent 27%),
+      repeating-linear-gradient(0deg, rgba(92,62,33,.018) 0 1px, transparent 1px 4px),
+      linear-gradient(101deg, #efddbb 0%, #e6d0a4 55%, #dcc295 100%) !important;
+    box-shadow:
+      inset 10px 0 15px -17px rgba(76,47,25,.46),
+      inset -10px 0 15px -17px rgba(76,47,25,.43),
+      inset 0 11px 15px -18px rgba(76,47,25,.30),
+      inset 0 -13px 16px -19px rgba(76,47,25,.34) !important;
+  }
+
+  .book-spread > section::before,
+  .book-spread > article::before {
+    inset: 5px !important;
+    border: 0 !important;
+    box-shadow: inset 0 0 36px rgba(108,70,32,.035) !important;
+  }
+
+  .book-spread > section::after,
+  .book-spread > article::after {
+    opacity: .70 !important;
+  }
+
+  .book-spread > :nth-child(2) { display: none !important; }
+  .book-shell.show-detail .book-spread > :first-child { display: none !important; }
+  .book-shell.show-detail .book-spread > :nth-child(2) {
+    display: block !important;
+    padding-top: 15px !important;
+  }
+
+  /* Common typography follows the compact phone mockup. */
+  h1 { font-size: 28px !important; line-height: 1.02 !important; }
+  h2 { font-size: 29px !important; line-height: 1.02 !important; }
+  h3 { font-size: 17px !important; }
+  .kicker { font-size: 9px !important; letter-spacing: .12em !important; }
+  .campaign-meta,
+  .entry-date { font-size: 12px !important; color: #715a46 !important; }
+
+  /* INDEX: Characters on the reference starts immediately with search. */
+  .character-index .placeholder-header {
+    display: none !important;
+  }
+
+  .character-index {
+    padding-top: 12px !important;
+  }
+
+  .stage8-character-search,
+  .character-index .search-strip {
+    min-height: 39px !important;
+    grid-template-columns: 18px minmax(0,1fr) 32px !important;
+    gap: 7px !important;
+    margin: 0 0 8px !important;
+    padding: 3px 4px 3px 9px !important;
+    border: 1px solid rgba(101, 70, 42, .22) !important;
+    border-radius: 5px !important;
+    background: rgba(244, 227, 193, .30) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22) !important;
+    transform: none !important;
+  }
+
+  .stage8-character-search input,
+  .character-index .search-strip input {
+    font-family: 'EB Garamond', Georgia, serif !important;
+    font-size: 16px !important;
+    color: var(--m-ink) !important;
+  }
+
+  .stage8-character-search .icon,
+  .character-index .search-strip .icon {
+    width: 17px !important;
+    height: 17px !important;
+    color: #735b45 !important;
+  }
+
+  .stage8-character-search button,
+  .character-index .search-strip button {
+    width: 29px !important;
+    height: 29px !important;
+    border: 1px solid rgba(92, 48, 35, .35) !important;
+    border-radius: 50% !important;
+    background: linear-gradient(#764032, #5d291f) !important;
+    color: #edd9b2 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 3px rgba(62,36,23,.16) !important;
+    font-size: 19px !important;
+  }
+
+  .character-list {
+    display: grid !important;
+    gap: 5px !important;
+  }
+
+  .character-row,
+  .character-row.is-current,
+  .character-row:hover {
+    min-height: 66px !important;
+    grid-template-columns: 50px minmax(0,1fr) 15px !important;
+    gap: 10px !important;
+    padding: 6px 7px !important;
+    border: 1px solid rgba(103,72,43,.19) !important;
+    border-radius: 4px !important;
+    background: rgba(243, 225, 188, .23) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
+    transform: none !important;
+  }
+
+  .character-row.is-current {
+    border-color: rgba(111,74,40,.30) !important;
+    background: rgba(225, 199, 151, .34) !important;
+  }
+
+  .character-row::before,
+  .character-row.is-current::before {
+    display: none !important;
+  }
+
+  .character-thumb {
+    width: 47px !important;
+    height: 52px !important;
+    border: 1px solid rgba(77,55,38,.40) !important;
+    border-radius: 2px !important;
+    background: #dfc394 !important;
+    transform: rotate(-.35deg) !important;
+    box-shadow: 0 1px 3px rgba(54,35,22,.13) !important;
+  }
+
+  .character-row:nth-child(even) .character-thumb {
+    transform: rotate(.30deg) !important;
+  }
+
+  .character-row strong {
+    margin: 0 !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+    color: #39291f !important;
+  }
+
+  .character-row small {
+    margin-top: 4px !important;
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+    color: #6f5845 !important;
+  }
+
+  .character-row > .icon {
+    width: 15px !important;
+    height: 15px !important;
+    opacity: .62;
+  }
+
+  .character-index .placeholder-ornament,
+  .stage5-sketch--characters-index {
+    display: none !important;
+  }
+
+  /* Character dossier on phone. */
+  .character-card {
+    padding: 14px 14px 25px !important;
+  }
+
+  .character-card > .kicker {
+    display: none !important;
+  }
+
+  .character-card > h2,
+  .character-card > .entry-date {
+    max-width: calc(100% - 46px) !important;
+  }
+
+  .portrait-frame {
+    height: auto !important;
+    aspect-ratio: 1.55 / 1 !important;
+    margin: 13px 0 16px !important;
+    border: 1px solid rgba(83,58,37,.34) !important;
+    border-radius: 2px !important;
+    overflow: hidden !important;
+    background: #dfc394 !important;
+    box-shadow: inset 0 0 0 3px rgba(250,238,211,.09), 0 2px 5px rgba(61,39,24,.10) !important;
+    transform: none !important;
+  }
+
+  .portrait-frame::before,
+  .portrait-frame::after {
+    display: none !important;
+  }
+
+  .portrait-frame .stage8-portrait-svg {
+    width: min(72%, 260px) !important;
+  }
+
+  .character-seal {
+    top: 48px !important;
+    right: 16px !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-width: 2px !important;
+    font-size: 17px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,.20) !important;
+  }
+
+  .character-card .handwritten {
+    width: 94% !important;
+    max-width: 94% !important;
+    margin: 12px 0 0 auto !important;
+    padding: 10px 11px !important;
+    font-size: 14px !important;
+  }
+
+  /* ATLAS: detail mirrors the right iPhone reference. */
+  .atlas-index .placeholder-header {
+    margin-bottom: 10px !important;
+    padding-bottom: 9px !important;
+  }
+
+  .atlas-index .placeholder-header .kicker {
+    display: none !important;
+  }
+
+  .atlas-index .placeholder-header p:last-child {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .atlas-index .stage4-add-atlas {
+    min-height: 38px !important;
+    margin: 0 0 9px !important;
+    padding: 0 8px !important;
+    border: 1px dashed rgba(91,62,37,.22) !important;
+    border-radius: 4px !important;
+    justify-content: center !important;
+    background: rgba(244,227,193,.16) !important;
+    font-size: 13px !important;
+  }
+
+  .atlas-index .atlas-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .atlas-tile,
+  .atlas-tile.is-current {
+    min-height: 108px !important;
+    padding: 9px !important;
+    border: 1px solid rgba(92,64,40,.22) !important;
+    border-radius: 4px !important;
+    background: #dcc394 !important;
+    box-shadow: inset 0 0 8px rgba(68,43,24,.07) !important;
+    transform: none !important;
+  }
+
+  .atlas-tile::before,
+  .atlas-tile::after {
+    transform: none !important;
+  }
+
+  .atlas-tile strong { font-size: 17px !important; }
+  .atlas-type { font-size: 9px !important; }
+
+  .atlas-card {
+    padding: 14px 14px 26px !important;
+  }
+
+  .atlas-card > .kicker {
+    display: none !important;
+  }
+
+  .atlas-card > h2 {
+    max-width: calc(100% - 46px) !important;
+    margin: 0 0 2px !important;
+    font-size: 29px !important;
+  }
+
+  .atlas-card > .entry-date {
+    max-width: calc(100% - 46px) !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+  }
+
+  .stage4-edit-atlas,
+  .stage3-edit-character {
+    top: 13px !important;
+    right: 13px !important;
+    width: 31px !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid rgba(94,61,40,.30) !important;
+    border-radius: 50% !important;
+    background: linear-gradient(#e5cfa4, #cfad79) !important;
+    color: transparent !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 1px 3px rgba(61,39,24,.12) !important;
+  }
+
+  .stage4-edit-atlas::before,
+  .stage3-edit-character::before {
+    content: '✎';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #5b3f2c;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .atlas-hero {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1.48 / 1 !important;
+    margin: 13px 0 12px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .atlas-hero::before,
+  .atlas-hero::after {
+    display: none !important;
+  }
+
+  .atlas-hero-image {
+    background: transparent !important;
+  }
+
+  .atlas-hero-image .stage8-atlas-svg {
+    width: 100% !important;
+    height: 100% !important;
+    color: rgba(58, 46, 36, .72) !important;
+  }
+
+  .atlas-card > p:not(.entry-date):not(.handwritten):not(.kicker) {
+    max-width: 100% !important;
+    margin-bottom: 10px !important;
+    font-size: 15px !important;
+    line-height: 1.35 !important;
+  }
+
+  .tag-row {
+    gap: 5px !important;
+    margin: 10px 0 15px !important;
+  }
+
+  .tag-row span {
+    padding: 3px 7px !important;
+    border: 1px solid rgba(95,66,40,.26) !important;
+    border-radius: 4px !important;
+    background: rgba(199,163,104,.18) !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    transform: none !important;
+  }
+
+  .atlas-card h3 {
+    margin: 0 0 6px !important;
+    font-size: 14px !important;
+  }
+
+  .linked-notes {
+    gap: 0 !important;
+  }
+
+  .linked-note {
+    min-height: 29px !important;
+    padding: 5px 5px 5px 20px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(89,61,38,.15) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-size: 12px !important;
+  }
+
+  .linked-note::before {
+    left: 5px !important;
+    font-size: 7px !important;
+  }
+
+  .atlas-card .atlas-script {
+    width: 76% !important;
+    max-width: 76% !important;
+    margin: 14px 0 0 auto !important;
+    padding: 7px 3px 0 !important;
+    border-top: 1px solid rgba(93,63,38,.14) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    text-align: left !important;
+    transform: rotate(-1deg) !important;
+  }
+
+  /* Chronicle list/detail also receives the compact phone proportions. */
+  .campaign-page {
+    padding-top: 13px !important;
+  }
+
+  .campaign-heading {
+    min-height: 57px !important;
+    margin-bottom: 8px !important;
+    padding: 0 2px 8px !important;
+  }
+
+  .campaign-heading .kicker { display: none !important; }
+  .campaign-heading h1 { font-size: 26px !important; }
+  .mountain-mark { width: 36% !important; }
+
+  .day-list {
+    gap: 0 !important;
+  }
+
+  .day-row,
+  .day-row.is-current,
+  .day-row:hover {
+    min-height: 61px !important;
+    grid-template-columns: 58px minmax(0,1fr) 14px !important;
+    gap: 9px !important;
+    padding: 5px 3px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(91,62,37,.15) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .day-row.is-current {
+    background: rgba(215, 185, 133, .18) !important;
+  }
+
+  .day-row.is-current::before { display: none !important; }
+
+  .day-thumb {
+    width: 56px !important;
+    height: 43px !important;
+    border-radius: 2px !important;
+  }
+
+  .day-copy strong { font-size: 16px !important; line-height: 1.03 !important; }
+  .day-number { font-size: 11px !important; }
+  .day-copy small { margin-top: 2px !important; font-size: 10px !important; }
+
+  .add-day {
+    min-height: 36px !important;
+    margin-top: 5px !important;
+    padding-left: 7px !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(91,62,37,.12) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-size: 12px !important;
+  }
+
+  .entry-page {
+    padding: 14px 13px 25px !important;
+  }
+
+  .stage2-inline-back,
+  .stage3-inline-back,
+  .stage4-inline-back {
+    min-height: 30px !important;
+    margin: 0 0 8px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #694d38 !important;
+    font-size: 12px !important;
+  }
+
+  .entry-header {
+    margin-bottom: 8px !important;
+    padding: 0 !important;
+  }
+
+  .entry-title-block {
+    padding-right: 54px !important;
+  }
+
+  .entry-header h2 { font-size: 27px !important; }
+  .day-label { font-size: 13px !important; }
+
+  .entry-ribbon {
+    top: -15px !important;
+    right: 18px !important;
+    width: 21px !important;
+    height: 47px !important;
+  }
+
+  .entry-ribbon::after {
+    border-left-width: 10px !important;
+    border-right-width: 10px !important;
+    border-bottom-width: 9px !important;
+  }
+
+  .entry-hero {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1.74 / 1 !important;
+    margin: 0 0 9px !important;
+    border-radius: 2px !important;
+  }
+
+  .entry-hero figcaption {
+    width: min(42%, 148px) !important;
+    top: 8px !important;
+    right: 7px !important;
+    padding: 5px 7px !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+  }
+
+  .section-title-row { display: none !important; }
+
+  .story-toolbar-wrap {
+    position: static !important;
+    margin: 0 0 9px !important;
+  }
+
+  .writing-toolbar {
+    min-height: 39px !important;
+    padding: 3px 4px !important;
+    gap: 2px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border: 1px solid rgba(255,255,255,.32) !important;
+    border-radius: 5px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.10)) !important;
+    backdrop-filter: blur(12px) saturate(112%);
+    -webkit-backdrop-filter: blur(12px) saturate(112%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 4px 10px rgba(68,43,24,.08) !important;
+  }
+
+  .writing-toolbar::-webkit-scrollbar { display: none; }
+
+  .writing-toolbar button {
+    flex: 0 0 31px;
+    width: 31px !important;
+    height: 31px !important;
+    border: 0 !important;
+    border-radius: 3px !important;
+    background: transparent !important;
+  }
+
+  .writing-toolbar button.is-active {
+    background: rgba(141, 101, 58, .12) !important;
+  }
+
+  .entry-copy > p,
+  .entry-copy > ul,
+  .entry-copy > ol {
+    font-size: 15px !important;
+    line-height: 1.38 !important;
+  }
+
+  .margin-note {
+    width: min(74%, 245px) !important;
+    margin: 11px 3px 8px auto !important;
+    padding: 12px 11px 9px !important;
+    font-size: 13px !important;
+  }
+
+  .ink-sketch { margin-top: 11px !important; }
+
+  /* Inputs remain >=16px on iPhone to prevent focus zoom. */
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+
+  /* Creation/edit sheets use paper, not iOS/SaaS bottom-sheet chrome. */
+  .stage2-new-day-sheet,
+  .stage3-character-sheet,
+  .stage4-atlas-sheet {
+    border-radius: 5px 5px 3px 3px !important;
+    border-color: rgba(109,76,45,.35) !important;
+    background:
+      radial-gradient(ellipse at 22% 3%, rgba(255,255,255,.29), transparent 24%),
+      repeating-linear-gradient(0deg, rgba(93,63,35,.018) 0 1px, transparent 1px 4px),
+      linear-gradient(101deg,#efddbb,#dcc295) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .bookmark-tabs {
+    left: 7px !important;
+    width: calc(100% - 14px);
+    gap: 4px !important;
+  }
+
+  .bookmark-tab span { font-size: 13px !important; }
+
+  .book-spread {
+    width: calc(100% - 4px) !important;
+    margin: 0 2px !important;
+  }
+
+  .book-spread > section,
+  .book-spread > article {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .character-row {
+    grid-template-columns: 47px minmax(0,1fr) 14px !important;
+    gap: 8px !important;
+  }
+
+  .character-thumb {
+    width: 44px !important;
+    height: 49px !important;
+  }
+
+  .character-row strong { font-size: 16px !important; }
+  .atlas-card > h2 { font-size: 27px !important; }
+}
