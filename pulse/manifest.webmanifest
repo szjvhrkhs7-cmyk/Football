@@ -1,0 +1,19 @@
+{
+  "name": "Пульс - финансовый трекер",
+  "short_name": "Пульс",
+  "description": "Планирование расходов, бюджет и облачная синхронизация.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#f7f9fc",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
