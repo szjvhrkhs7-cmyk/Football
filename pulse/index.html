@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f9fc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Пульс">
+  <meta name="format-detection" content="telephone=no">
+  <title>Пульс - финансовый трекер</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" type="button" data-nav="overview" aria-label="Перейти в обзор">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 32" role="img"><path d="M3 17h9l4-12 7 23 6-18 4 7h12"/></svg>
+        </span>
+        <span>Пульс</span>
+      </button>
+      <button class="profile-button" id="profileButton" type="button" aria-label="Открыть настройки синхронизации">
+        <span id="profileInitial">В</span>
+        <i class="sync-dot" id="syncDot" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <main id="appMain" tabindex="-1">
+      <section class="screen active" data-screen="overview" aria-labelledby="overviewTitle">
+        <div class="screen-heading">
+          <div>
+            <p class="eyebrow">Финансы в твоём ритме</p>
+            <h1 id="overviewTitle">Обзор</h1>
+          </div>
+        </div>
+
+        <div class="month-switcher" aria-label="Выбор месяца">
+          <button class="icon-button" id="overviewPrevMonth" type="button" aria-label="Предыдущий месяц">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="month-label" id="overviewMonthLabel" type="button" aria-label="Перейти к текущему месяцу"></button>
+          <button class="icon-button" id="overviewNextMonth" type="button" aria-label="Следующий месяц">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <article class="balance-card" aria-label="Свободно на месяц">
+          <div class="balance-card-top">
+            <div>
+              <p>Свободно на месяц</p>
+              <strong id="availableAmount">0 ₽</strong>
+              <span>После всех запланированных трат</span>
+            </div>
+            <div class="pulse-bars" id="pulseBars" aria-hidden="true">
+              <i></i><i></i><i></i><i></i>
+            </div>
+          </div>
+          <div class="balance-divider"></div>
+          <div class="balance-stats">
+            <div>
+              <span>Бюджет</span>
+              <b id="budgetAmount">0 ₽</b>
+            </div>
+            <div>
+              <span>В планах</span>
+              <b id="plannedAmount">0 ₽</b>
+            </div>
+          </div>
+          <div class="budget-meter" aria-hidden="true"><i id="budgetMeterFill"></i></div>
+        </article>
+
+        <div class="section-title-row">
+          <h2>Ближайшие траты</h2>
+          <button class="text-button" type="button" data-nav="plans">Все <span>›</span></button>
+        </div>
+        <div class="expense-list" id="upcomingList"></div>
+
+        <button class="status-card" id="budgetStatusCard" type="button" data-nav="analytics">
+          <span class="status-icon" id="budgetStatusIcon">
+            <svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg>
+          </span>
+          <span>
+            <strong id="budgetStatusTitle">Всё под контролем</strong>
+            <small id="budgetStatusText">Траты укладываются в бюджет</small>
+          </span>
+          <svg class="chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        <button class="primary-action" type="button" data-open-expense>
+          <span class="plus">+</span> Добавить трату
+        </button>
+      </section>
+
+      <section class="screen" data-screen="plans" aria-labelledby="plansTitle">
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">План месяца</p>
+            <h1 id="plansTitle">Планируемые траты</h1>
+          </div>
+        </div>
+
+        <div class="month-switcher" aria-label="Выбор месяца">
+          <button class="icon-button" id="plansPrevMonth" type="button" aria-label="Предыдущий месяц">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="month-label" id="plansMonthLabel" type="button" aria-label="Перейти к текущему месяцу"></button>
+          <button class="icon-button" id="plansNextMonth" type="button" aria-label="Следующий месяц">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <article class="summary-card">
+          <span class="summary-icon">
+            <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
+          </span>
+          <span class="summary-copy">
+            <small>Запланировано</small>
+            <strong id="plansTotal">0 ₽</strong>
+            <em id="plansCount">0 трат</em>
+          </span>
+        </article>
+
+        <div class="segmented" role="tablist" aria-label="Фильтр трат">
+          <button class="active" type="button" data-filter="all" role="tab" aria-selected="true">Все</button>
+          <button type="button" data-filter="planned" role="tab" aria-selected="false">Предстоящие</button>
+          <button type="button" data-filter="paid" role="tab" aria-selected="false">Оплачено</button>
+        </div>
+
+        <div class="expense-list plan-list" id="plansList"></div>
+
+        <button class="category-settings-button" id="categorySettingsButton" type="button">
+          <span>
+            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+          </span>
+          Настроить категории
+          <svg class="chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        <button class="primary-action" type="button" data-open-expense>
+          <span class="plus">+</span> Добавить трату
+        </button>
+      </section>
+
+      <section class="screen" data-screen="analytics" aria-labelledby="analyticsTitle">
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">Картина месяца</p>
+            <h1 id="analyticsTitle">Аналитика</h1>
+          </div>
+        </div>
+
+        <div class="month-switcher" aria-label="Выбор месяца">
+          <button class="icon-button" id="analyticsPrevMonth" type="button" aria-label="Предыдущий месяц">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="month-label" id="analyticsMonthLabel" type="button" aria-label="Перейти к текущему месяцу"></button>
+          <button class="icon-button" id="analyticsNextMonth" type="button" aria-label="Следующий месяц">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <div class="analytics-grid">
+          <article class="metric-card">
+            <span>Запланировано</span>
+            <strong id="analyticsPlanned">0 ₽</strong>
+            <small id="analyticsBudgetPercent">0% бюджета</small>
+          </article>
+          <article class="metric-card">
+            <span>Оплачено</span>
+            <strong id="analyticsPaid">0 ₽</strong>
+            <small id="analyticsPaidCount">0 трат</small>
+          </article>
+        </div>
+
+        <article class="chart-card">
+          <div class="chart-card-head">
+            <div>
+              <h2>Структура расходов</h2>
+              <p>По категориям</p>
+            </div>
+            <div class="donut" id="categoryDonut" aria-label="Диаграмма расходов">
+              <div><strong id="donutTotal">0 ₽</strong><span>всего</span></div>
+            </div>
+          </div>
+          <div class="category-breakdown" id="categoryBreakdown"></div>
+        </article>
+
+        <article class="chart-card">
+          <div class="chart-card-head simple">
+            <div>
+              <h2>Ритм месяца</h2>
+              <p>Распределение планов по неделям</p>
+            </div>
+          </div>
+          <div class="week-chart" id="weekChart" aria-label="Распределение расходов по неделям"></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="settings" aria-labelledby="settingsTitle">
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">Твой Пульс</p>
+            <h1 id="settingsTitle">Настройки</h1>
+          </div>
+        </div>
+
+        <article class="settings-card" id="budgetSettingsCard">
+          <div class="settings-title">
+            <span class="settings-icon blue">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
+            </span>
+            <div><h2>Бюджет</h2><p>Лимит на выбранный месяц</p></div>
+          </div>
+          <label class="field-label" for="budgetInput">Бюджет, ₽</label>
+          <div class="input-with-action">
+            <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
+            <button id="saveBudgetButton" type="button">Сохранить</button>
+          </div>
+          <label class="switch-row">
+            <span><strong>Использовать как базовый</strong><small>Новые месяцы начнутся с этой суммы</small></span>
+            <input id="defaultBudgetToggle" type="checkbox">
+            <i aria-hidden="true"></i>
+          </label>
+        </article>
+
+        <article class="settings-card" id="cloudCard">
+          <div class="settings-title">
+            <span class="settings-icon cyan">
+              <svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 1 1 1-7.87A6 6 0 0 1 19.5 12 3 3 0 0 1 19 18H7Z"/></svg>
+            </span>
+            <div><h2>Облачная синхронизация</h2><p id="cloudSubtitle">Данные сохранены на этом устройстве</p></div>
+          </div>
+
+          <div id="signedOutCloud" class="cloud-panel">
+            <label class="field-label" for="cloudEmail">Email</label>
+            <input id="cloudEmail" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com">
+            <label class="field-label" for="cloudPassword">Пароль</label>
+            <input id="cloudPassword" type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов">
+            <div class="cloud-actions">
+              <button class="secondary-button" id="signInButton" type="button">Войти</button>
+              <button class="primary-small" id="signUpButton" type="button">Создать аккаунт</button>
+            </div>
+            <p class="helper-text">После входа Пульс синхронизирует данные между твоими устройствами.</p>
+          </div>
+
+          <div id="signedInCloud" class="cloud-panel hidden">
+            <div class="account-row">
+              <span class="account-avatar" id="accountAvatar">В</span>
+              <span><strong id="accountEmail">email</strong><small id="lastSyncText">Синхронизация активна</small></span>
+              <span class="live-badge"><i></i> Облако</span>
+            </div>
+            <div class="cloud-actions">
+              <button class="secondary-button" id="syncNowButton" type="button">Синхронизировать</button>
+              <button class="danger-text" id="signOutButton" type="button">Выйти</button>
+            </div>
+          </div>
+          <p class="inline-message" id="cloudMessage" role="status" aria-live="polite"></p>
+        </article>
+
+        <article class="settings-card" id="categoriesCard">
+          <div class="settings-title">
+            <span class="settings-icon violet">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+            </span>
+            <div><h2>Категории</h2><p>Что показывать при добавлении трат</p></div>
+          </div>
+          <div class="category-manage-list" id="categoryManageList"></div>
+          <button class="secondary-button full" id="addCategoryButton" type="button">+ Новая категория</button>
+        </article>
+
+        <article class="settings-card">
+          <div class="settings-title">
+            <span class="settings-icon mint">
+              <svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M5 19h14"/></svg>
+            </span>
+            <div><h2>Резервная копия</h2><p>Экспорт или импорт JSON</p></div>
+          </div>
+          <div class="cloud-actions">
+            <button class="secondary-button" id="exportButton" type="button">Экспорт</button>
+            <button class="secondary-button" id="importButton" type="button">Импорт</button>
+            <input id="importFile" type="file" accept="application/json" hidden>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Основная навигация">
+      <button class="active" type="button" data-nav="overview" aria-current="page">
+        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
+        <span>Обзор</span>
+      </button>
+      <button type="button" data-nav="plans">
+        <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
+        <span>Планы</span>
+      </button>
+      <button type="button" data-nav="analytics">
+        <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-7"/></svg>
+        <span>Аналитика</span>
+      </button>
+      <button type="button" data-nav="settings">
+        <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 3.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2V9.6h.1A1.7 1.7 0 0 0 3.6 8a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8 3.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2h4v.1A1.7 1.7 0 0 0 15 3.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 8c.15.42.36.76.6 1 .29.29.67.48 1.1.5h.1v4h-.1a1.7 1.7 0 0 0-1.7 1.5Z"/></svg>
+        <span>Настройки</span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog class="sheet" id="expenseDialog">
+    <form method="dialog" id="expenseForm" novalidate>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <button class="sheet-close" type="button" data-close-dialog aria-label="Закрыть">
+          <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+        <div><p class="eyebrow" id="expenseDialogEyebrow">Новая запись</p><h2 id="expenseDialogTitle">Добавить трату</h2></div>
+        <span class="sheet-spacer"></span>
+      </div>
+      <input id="expenseId" type="hidden">
+      <label class="field-label" for="expenseTitle">Название</label>
+      <input id="expenseTitle" type="text" maxlength="60" autocomplete="off" placeholder="Например, квартира" required>
+      <div class="two-fields">
+        <div>
+          <label class="field-label" for="expenseAmount">Сумма, ₽</label>
+          <input id="expenseAmount" type="number" min="1" step="1" inputmode="decimal" placeholder="0" required>
+        </div>
+        <div>
+          <label class="field-label" for="expenseDate">Дата</label>
+          <input id="expenseDate" type="date" required>
+        </div>
+      </div>
+      <label class="field-label">Категория</label>
+      <div class="category-picker" id="categoryPicker" role="radiogroup" aria-label="Категория"></div>
+      <label class="switch-row modal-switch">
+        <span><strong>Уже оплачено</strong><small>Учтём отдельно в аналитике</small></span>
+        <input id="expensePaid" type="checkbox">
+        <i aria-hidden="true"></i>
+      </label>
+      <div class="sheet-actions">
+        <button class="danger-text hidden" id="deleteExpenseButton" type="button">Удалить</button>
+        <button class="primary-small grow" id="saveExpenseButton" type="submit">Сохранить трату</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="sheet small-sheet" id="categoryDialog">
+    <form method="dialog" id="categoryForm" novalidate>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <button class="sheet-close" type="button" data-close-category aria-label="Закрыть">
+          <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+        <div><p class="eyebrow">Настройка</p><h2>Новая категория</h2></div>
+        <span class="sheet-spacer"></span>
+      </div>
+      <label class="field-label" for="categoryName">Название</label>
+      <input id="categoryName" type="text" maxlength="28" autocomplete="off" placeholder="Например, Путешествия" required>
+      <label class="field-label" for="categoryEmoji">Значок</label>
+      <input id="categoryEmoji" type="text" maxlength="4" autocomplete="off" placeholder="✈️" required>
+      <button class="primary-small full" type="submit">Добавить категорию</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
