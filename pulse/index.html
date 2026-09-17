@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="./styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script defer src="./app.js"></script>
+  <script defer src="./ui-language.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -49,12 +50,12 @@
           </button>
         </div>
 
-        <article class="balance-card" aria-label="Свободно на месяц">
+        <article class="balance-card" aria-label="Остаток после расходов">
           <div class="balance-card-top">
             <div>
-              <p>Свободно на месяц</p>
+              <p>Остаток</p>
               <strong id="availableAmount">0 ₽</strong>
-              <span>После всех запланированных трат</span>
+              <span>Планируемый бюджет минус расходы</span>
             </div>
             <div class="pulse-bars" id="pulseBars" aria-hidden="true">
               <i></i><i></i><i></i><i></i>
@@ -63,11 +64,11 @@
           <div class="balance-divider"></div>
           <div class="balance-stats">
             <div>
-              <span>Бюджет</span>
+              <span>Планируемый бюджет</span>
               <b id="budgetAmount">0 ₽</b>
             </div>
             <div>
-              <span>В планах</span>
+              <span>Расходы</span>
               <b id="plannedAmount">0 ₽</b>
             </div>
           </div>
@@ -86,7 +87,7 @@
           </span>
           <span>
             <strong id="budgetStatusTitle">Всё под контролем</strong>
-            <small id="budgetStatusText">Траты укладываются в бюджет</small>
+            <small id="budgetStatusText">Расходы укладываются в планируемый бюджет</small>
           </span>
           <svg class="chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -119,7 +120,7 @@
             <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
           </span>
           <span class="summary-copy">
-            <small>Запланировано</small>
+            <small>Расходы</small>
             <strong id="plansTotal">0 ₽</strong>
             <em id="plansCount">0 трат</em>
           </span>
@@ -166,9 +167,9 @@
 
         <div class="analytics-grid">
           <article class="metric-card">
-            <span>Запланировано</span>
+            <span>Расходы</span>
             <strong id="analyticsPlanned">0 ₽</strong>
-            <small id="analyticsBudgetPercent">0% бюджета</small>
+            <small id="analyticsBudgetPercent">0% планируемого бюджета</small>
           </article>
           <article class="metric-card">
             <span>Оплачено</span>
@@ -194,7 +195,7 @@
           <div class="chart-card-head simple">
             <div>
               <h2>Ритм месяца</h2>
-              <p>Распределение планов по неделям</p>
+              <p>Распределение расходов по неделям</p>
             </div>
           </div>
           <div class="week-chart" id="weekChart" aria-label="Распределение расходов по неделям"></div>
@@ -214,15 +215,15 @@
             <span class="settings-icon blue">
               <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
             </span>
-            <div><h2>Бюджет</h2><p>Лимит на выбранный месяц</p></div>
+            <div><h2>Планируемый бюджет</h2><p>Сумма, от которой вычитаются расходы</p></div>
           </div>
-          <label class="field-label" for="budgetInput">Бюджет, ₽</label>
+          <label class="field-label" for="budgetInput">Планируемый бюджет, ₽</label>
           <div class="input-with-action">
             <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
             <button id="saveBudgetButton" type="button">Сохранить</button>
           </div>
           <label class="switch-row">
-            <span><strong>Использовать как базовый</strong><small>Новые месяцы начнутся с этой суммы</small></span>
+            <span><strong>Использовать как базовый</strong><small>Подставлять эту сумму для новых периодов</small></span>
             <input id="defaultBudgetToggle" type="checkbox">
             <i aria-hidden="true"></i>
           </label>
