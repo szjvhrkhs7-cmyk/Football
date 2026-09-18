@@ -31,6 +31,10 @@
   let syncTimer = null;
   let realtimeChannel = null;
   let syncInFlight = false;
+  let localRevision = 0;
+  let pendingPush = false;
+  let cloudStatus = '';
+  let resendAfter = 0;
   let suppressCloudPush = false;
   let toastTimer = null;
 
@@ -46,7 +50,7 @@
     return {
       meta: {
         version: 1,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date(0).toISOString()
       },
       settings: {
         defaultBudget: 120000,
@@ -112,6 +116,7 @@
   }
 
   function persistState({ push = true } = {}) {
+    localRevision += 1;
     state.meta.updatedAt = new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     renderAll();
@@ -544,6 +549,7 @@
   }
 
   function setSyncState(status, text = '') {
+    cloudStatus = status;
     const dot = $('syncDot');
     dot.classList.remove('online', 'syncing', 'error');
     if (status) dot.classList.add(status);
@@ -587,12 +593,14 @@
       await syncBidirectional();
     }
 
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
       currentUser = session?.user || null;
       updateCloudUi();
       if (currentUser) {
-        subscribeRealtime();
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') await syncBidirectional();
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          // Run outside the Auth callback lock.
+          setTimeout(() => { subscribeRealtime(); syncBidirectional(); }, 0);
+        }
       } else {
         unsubscribeRealtime();
         setSyncState('');
@@ -611,7 +619,7 @@
       $('accountAvatar').textContent = initial;
       $('profileInitial').textContent = initial;
       $('cloudSubtitle').textContent = 'Синхронизация между устройствами включена';
-      setSyncState(syncInFlight ? 'syncing' : 'online');
+      setSyncState(syncInFlight ? 'syncing' : cloudStatus);
     } else {
       $('profileInitial').textContent = 'В';
       $('cloudSubtitle').textContent = cloudAvailable() ? 'Войди, чтобы синхронизировать устройства' : 'Облако пока не настроено';
@@ -625,11 +633,16 @@
     const password = $('cloudPassword').value;
     if (!email || password.length < 6) return showCloudMessage('Укажи email и пароль от 6 символов', true);
     setCloudBusy(true);
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    setCloudBusy(false);
-    if (error) return showCloudMessage(humanizeAuthError(error.message), true);
-    $('cloudPassword').value = '';
-    showCloudMessage('Вход выполнен. Синхронизируем данные.');
+    try {
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) return showCloudMessage(humanizeAuthError(error.message), true);
+      $('cloudPassword').value = '';
+      showCloudMessage('Вход выполнен. Синхронизируем данные.');
+    } catch (error) {
+      showCloudMessage(humanizeAuthError(error.message), true);
+    } finally {
+      setCloudBusy(false);
+    }
   }
 
   async function signUp() {
@@ -638,16 +651,40 @@
     const password = $('cloudPassword').value;
     if (!email || password.length < 6) return showCloudMessage('Укажи email и пароль от 6 символов', true);
     setCloudBusy(true);
-    const { data, error } = await supabaseClient.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.href.split('#')[0] }
-    });
-    setCloudBusy(false);
-    if (error) return showCloudMessage(humanizeAuthError(error.message), true);
-    $('cloudPassword').value = '';
-    if (data?.session) showCloudMessage('Аккаунт создан. Облачная синхронизация включена.');
-    else showCloudMessage('Аккаунт создан. Подтверди email по ссылке из письма.');
+    try {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.href.split('#')[0] }
+      });
+      if (error) return showCloudMessage(humanizeAuthError(error.message), true);
+      $('cloudPassword').value = '';
+      if (data?.session) showCloudMessage('Аккаунт создан. Облачная синхронизация включена.');
+      else showCloudMessage('Запрос принят. Проверь почту и папку «Спам». Если аккаунт уже подтверждён, нажми «Войти».');
+    } catch (error) {
+      showCloudMessage(humanizeAuthError(error.message), true);
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!supabaseClient) return showCloudMessage('Облачный сервис сейчас недоступен', true);
+    const email = $('cloudEmail').value.trim();
+    if (!email || !$('cloudEmail').checkValidity()) return showCloudMessage('Укажи корректный email', true);
+    if (Date.now() < resendAfter) return showCloudMessage('Подожди минуту перед повторной отправкой', true);
+    setCloudBusy(true);
+    try {
+      const { error } = await supabaseClient.auth.resend({
+        type: 'signup', email,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname }
+      });
+      if (error) throw error;
+      resendAfter = Date.now() + 60000;
+      showCloudMessage('Повторная отправка запрошена. Проверь почту и папку «Спам». Для подтверждённого аккаунта новое письмо не требуется.');
+    } catch (error) {
+      showCloudMessage(humanizeAuthError(error.message), true);
+    } finally { setCloudBusy(false); }
   }
 
   async function signOut() {
@@ -662,11 +699,16 @@
   function setCloudBusy(busy) {
     $('signInButton').disabled = busy;
     $('signUpButton').disabled = busy;
+    $('resendEmailButton').disabled = busy;
     if (busy) setSyncState('syncing');
+    else if (!currentUser) setSyncState('');
   }
 
   function humanizeAuthError(message = '') {
     const lower = message.toLowerCase();
+    if (lower.includes('email address not authorized') || lower.includes('email_address_not_authorized')) return 'Supabase не разрешает отправку на этот адрес. Нужно настроить почтовый сервис для приложения.';
+    if (lower.includes('sending confirmation email') || lower.includes('smtp')) return 'Не удалось отправить письмо подтверждения. Нужно проверить почтовый сервис приложения.';
+    if (lower.includes('email rate limit')) return 'Лимит отправки писем исчерпан. Подожди час перед следующей попыткой.';
     if (lower.includes('invalid login credentials')) return 'Неверный email или пароль';
     if (lower.includes('email not confirmed')) return 'Сначала подтверди email по ссылке из письма';
     if (lower.includes('user already registered')) return 'Аккаунт с таким email уже существует';
@@ -683,12 +725,14 @@
   function scheduleCloudPush() {
     if (!currentUser || !supabaseClient) return;
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => pushCloudState(), 700);
+    syncTimer = setTimeout(() => { syncTimer = null; pushCloudState(); }, 700);
   }
 
   async function syncBidirectional() {
     if (!currentUser || !supabaseClient || syncInFlight) return;
     syncInFlight = true;
+    const revision = localRevision;
+    const userId = currentUser.id;
     setSyncState('syncing', 'Синхронизация...');
     try {
       const { data, error } = await supabaseClient
@@ -698,6 +742,8 @@
         .maybeSingle();
       if (error) throw error;
 
+      if (currentUser?.id !== userId) return;
+      if (localRevision !== revision) { pendingPush = true; return; }
       if (!data?.payload) {
         await pushCloudState(true);
       } else {
@@ -722,12 +768,13 @@
       showCloudMessage('Облако временно недоступно. Локальные данные сохранены.', true);
     } finally {
       syncInFlight = false;
+      if (pendingPush) { pendingPush = false; scheduleCloudPush(); }
     }
   }
 
   async function pushCloudState(force = false) {
     if (!currentUser || !supabaseClient) return;
-    if (syncInFlight && !force) return;
+    if (syncInFlight && !force) { pendingPush = true; return; }
     if (!force) {
       syncInFlight = true;
       setSyncState('syncing', 'Сохраняем в облако...');
@@ -745,8 +792,12 @@
     } catch (error) {
       console.error('Cloud push failed', error);
       setSyncState('error', 'Локально сохранено, облако недоступно');
+      if (force) throw error;
     } finally {
-      if (!force) syncInFlight = false;
+      if (!force) {
+        syncInFlight = false;
+        if (pendingPush) { pendingPush = false; scheduleCloudPush(); }
+      }
     }
   }
 
@@ -762,7 +813,7 @@
         filter: `user_id=eq.${currentUser.id}`
       }, payload => {
         const remotePayload = payload.new?.payload;
-        if (!remotePayload) return;
+        if (!remotePayload || syncInFlight || pendingPush || syncTimer) return;
         const remote = normalizeState(remotePayload);
         const remoteTime = Date.parse(remote.meta.updatedAt || 0) || 0;
         const localTime = Date.parse(state.meta.updatedAt || 0) || 0;
@@ -776,7 +827,7 @@
         }
       })
       .subscribe(status => {
-        if (status === 'SUBSCRIBED') setSyncState('online');
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSyncState('error', 'Нет связи с облаком. Попробуй синхронизировать вручную.');
       });
   }
 
@@ -834,14 +885,21 @@
     $('deleteExpenseButton').addEventListener('click', deleteExpense);
     $('saveBudgetButton').addEventListener('click', saveBudget);
     $('categorySettingsButton').addEventListener('click', () => {
-      navigate('settings');
-      setTimeout(() => $('categoriesCard').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      $('categoriesDialog').showModal();
+    });
+    $('openCategoriesButton').addEventListener('click', () => $('categoriesDialog').showModal());
+    $('closeCategoriesButton').addEventListener('click', () => $('categoriesDialog').close());
+    $('categoriesDialog').addEventListener('click', event => {
+      if (event.target !== $('categoriesDialog')) return;
+      const rect = $('categoriesDialog').getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('categoriesDialog').close();
     });
     $('addCategoryButton').addEventListener('click', openCategoryDialog);
     $('categoryForm').addEventListener('submit', saveCategory);
 
     $('signInButton').addEventListener('click', signIn);
     $('signUpButton').addEventListener('click', signUp);
+    $('resendEmailButton').addEventListener('click', resendConfirmation);
     $('signOutButton').addEventListener('click', signOut);
     $('syncNowButton').addEventListener('click', syncBidirectional);
 
@@ -860,6 +918,9 @@
       if (!inside) $('categoryDialog').close();
     });
 
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && currentUser && navigator.onLine) syncBidirectional();
+    });
     window.addEventListener('online', () => {
       if (currentUser) syncBidirectional();
       else initCloud();

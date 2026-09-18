@@ -1,4 +1,4 @@
-const CACHE = 'pulse-v1.0.2';
+const CACHE = 'pulse-v1.0.3';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './ui-language.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
@@ -8,7 +8,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+    caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('pulse-') && key !== CACHE).map(key => caches.delete(key))))
   );
   self.clients.claim();
 });

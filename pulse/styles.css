@@ -407,3 +407,11 @@ input:focus { border-color: #8dc5ff; box-shadow: 0 0 0 4px rgba(15,120,243,.08);
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+.categories-trigger { width: 100%; margin: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; min-height: 48px; }
+.categories-trigger > div { flex: 1; }
+.categories-chevron { font-size: 24px; color: var(--muted); }
+.categories-sheet-content { padding: 8px 18px calc(18px + var(--safe-bottom)); overflow-y: auto; max-height: inherit; overscroll-behavior: contain; }
+.categories-sheet .category-manage-list { margin: 16px 0; }
+body:has(dialog[open]) { overflow: hidden; }
+button:disabled { opacity: .55; cursor: wait; }
