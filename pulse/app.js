@@ -173,6 +173,10 @@
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
   }
 
+  function plannedExpensesForOverview(expenses) {
+    return expenses.filter(expense => expense.status !== 'paid');
+  }
+
   function categoryById(id) {
     return state.settings.categories.find(item => item.id === id) || state.settings.categories[0] || defaultCategories[7];
   }
@@ -227,12 +231,8 @@
     const percent = budget > 0 ? Math.min(100, Math.max(0, planned / budget * 100)) : (planned > 0 ? 100 : 0);
     $('budgetMeterFill').style.width = `${percent}%`;
 
-    const todayKey = toDateKey(new Date());
-    const upcoming = monthlyExpenses
-      .filter(expense => expense.status !== 'paid' && expense.date >= todayKey)
-      .slice(0, 3);
-    const fallback = monthlyExpenses.filter(expense => expense.status !== 'paid').slice(0, 3);
-    renderExpenseList($('upcomingList'), upcoming.length ? upcoming : fallback, { limit: 3, empty: 'Добавь первую планируемую трату' });
+    const plannedExpenses = plannedExpensesForOverview(monthlyExpenses);
+    renderExpenseList($('upcomingList'), plannedExpenses, { empty: 'Добавь первую планируемую трату' });
 
     const card = $('budgetStatusCard');
     card.classList.remove('warning', 'danger');

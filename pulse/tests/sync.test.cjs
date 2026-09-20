@@ -24,6 +24,7 @@ function fixture() {
     globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, resendConfirmation, humanizeAuthError,
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
       state: () => state, status: () => cloudStatus,
+      plannedExpensesForOverview,
       mutate() { state.settings.defaultBudget = 99; persistState(); }
     };
   })();`, context);
@@ -76,4 +77,19 @@ test('resending uses the signup flow and preserves the application redirect', as
   await f.api.resendConfirmation();
   assert.equal(args.type, 'signup'); assert.equal(args.options.emailRedirectTo, 'https://example.com/pulse/');
   assert.match(f.api.humanizeAuthError('Email address not authorized'), /почтовый сервис/);
+});
+
+test('overview keeps every planned expense for the selected month, including overdue ones', () => {
+  const f = fixture();
+  const expenses = [
+    { id: 'past', date: '2026-09-18', status: 'planned' },
+    { id: 'today', date: '2026-09-20', status: 'planned' },
+    { id: 'future', date: '2026-09-30', status: 'planned' },
+    { id: 'paid', date: '2026-09-19', status: 'paid' }
+  ];
+
+  assert.deepEqual(
+    Array.from(f.api.plannedExpensesForOverview(expenses), expense => expense.id),
+    ['past', 'today', 'future']
+  );
 });
