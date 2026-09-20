@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../app.js'), 'utf8');
+const indexSource = fs.readFileSync(require('node:path').join(__dirname, '../index.html'), 'utf8');
+const serviceWorkerSource = fs.readFileSync(require('node:path').join(__dirname, '../sw.js'), 'utf8');
 function fixture() {
   const elements = new Map();
   const timers = new Map(); let timerId = 0;
@@ -92,4 +94,13 @@ test('overview keeps every planned expense for the selected month, including ove
     Array.from(f.api.plannedExpensesForOverview(expenses), expense => expense.id),
     ['past', 'today', 'future']
   );
+});
+
+test('versioned app assets match the service worker cache', () => {
+  const version = indexSource.match(/app\.js\?v=([^"']+)/)?.[1];
+  assert.ok(version);
+  assert.match(indexSource, new RegExp(`styles\\.css\\?v=${version}`));
+  assert.match(indexSource, new RegExp(`ui-language\\.js\\?v=${version}`));
+  assert.match(serviceWorkerSource, new RegExp(`CACHE = 'pulse-v${version.replaceAll('.', '\\.')}';`));
+  assert.match(serviceWorkerSource, new RegExp(`app\\.js\\?v=${version.replaceAll('.', '\\.')}`));
 });
