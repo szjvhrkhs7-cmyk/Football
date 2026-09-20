@@ -1,11 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Пульс</title>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#1c8cff"/>
-      <stop offset="1" stop-color="#075fe1"/>
+    <linearGradient id="g" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#30a6ff"/>
+      <stop offset="0.52" stop-color="#147cf3"/>
+      <stop offset="1" stop-color="#1855d9"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="118" fill="#f4f9ff"/>
-  <circle cx="256" cy="256" r="177" fill="url(#g)"/>
-  <path d="M92 270h83l33-103 55 191 44-148 31 60h82" fill="none" stroke="white" stroke-width="31" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" fill="url(#g)"/>
+  <circle cx="450" cy="64" r="218" fill="#fff" opacity="0.06"/>
+  <circle cx="42" cy="490" r="218" fill="#063fbe" opacity="0.1"/>
+  <path d="M116 268h67l36-101 52 178 42-117 27 40h56" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
