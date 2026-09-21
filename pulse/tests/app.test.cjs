@@ -1,0 +1,103 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM, VirtualConsole } = require('jsdom');
+const root = path.join(__dirname, '..');
+async function app(t, saved) {
+  const errors = [];
+  const vc = new VirtualConsole();
+  vc.on('jsdomError', error => errors.push(error));
+  const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), { url: 'https://example.com/pulse/', runScripts: 'outside-only', virtualConsole: vc });
+  t.after(() => dom.window.close());
+  const w = dom.window;
+  Object.defineProperty(w.navigator, 'onLine', { value: false });
+  w.scrollTo = () => {};
+  w.confirm = () => true;
+  w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  w.HTMLDialogElement.prototype.close = function () { this.open = false; };
+  if (saved) w.localStorage.setItem('pulse-finance-v1', saved);
+  w.eval(fs.readFileSync(path.join(root, 'loans.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(root, 'app.js'), 'utf8'));
+  await new Promise(resolve => w.document.addEventListener('DOMContentLoaded', resolve, { once: true }));
+  const $ = id => w.document.getElementById(id);
+  const click = selector => w.document.querySelector(selector).click();
+  const submit = id => $(id).dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  const read = () => JSON.parse(w.localStorage.getItem('pulse-finance-v1'));
+  t.after(() => assert.deepEqual(errors.map(e => e.message), []));
+  return { w, $, click, submit, read };
+}
+function fillLoan(a, title = 'Ипотека') {
+  a.$('loanTitle').value = title;
+  a.$('loanPayment').value = '25000.50';
+  const month = new Date().toISOString().slice(0, 7);
+  a.$('loanFirstDate').value = `${month}-01`;
+}
+test('credit create, pay, edit, reload, close and delete work through UI events', async t => {
+  const a = await app(t);
+  a.click('.bottom-nav [data-nav="loans"]');
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'loans');
+  assert.equal(a.w.document.querySelector('.bottom-nav [data-nav="plans"]'), null);
+  a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
+  assert.equal(a.$('loanDialog').open, false);
+  assert.equal(a.read().loans.length, 1);
+  assert.match(a.$('loansTotal').textContent, /25\s000,5/);
+  a.click('[data-pay-loan]');
+  assert.equal(a.read().loans[0].paidMonths.length, 1);
+  assert.equal(a.$('loansRemaining').textContent, '0 ₽');
+  a.click('[data-edit-loan]');
+  a.$('loanTitle').value = 'Ипотека обновлена';
+  a.submit('loanForm');
+  assert.equal(a.read().loans[0].paidMonths.length, 1);
+  const b = await app(t, a.w.localStorage.getItem('pulse-finance-v1'));
+  assert.equal(b.$('loansRemaining').textContent, '0 ₽');
+  assert.match(b.$('loansSchedule').textContent, /Ипотека обновлена/);
+  b.click('[data-edit-loan]'); b.$('loanClosed').checked = true; b.submit('loanForm');
+  assert.equal(b.$('loansTotal').textContent, '0 ₽');
+  assert.match(b.$('loansDirectory').textContent, /Закрыт/);
+  b.click('#loansDirectory [data-edit-loan]'); b.$('deleteLoanButton').click();
+  assert.equal(b.read().loans.length, 0);
+});
+test('invalid loan forms stay open and preserve data; names are escaped', async t => {
+  const a = await app(t);
+  a.$('addLoanButton').click(); fillLoan(a, '<img src=x onerror=alert(1)>');
+  a.$('loanPayment').value = '-1'; a.submit('loanForm');
+  assert.equal(a.$('loanDialog').open, true);
+  assert.match(a.$('loanError').textContent, /платёж/);
+  a.$('loanPayment').value = '0.01'; a.submit('loanForm');
+  assert.equal(a.$('loansSchedule').querySelector('img'), null);
+  assert.match(a.$('loansSchedule').textContent, /<img/);
+  assert.equal(a.read().loans[0].payment, 0.01);
+});
+test('monthly payment toggles are independent, amounts recalculate and cancellation works', async t => {
+  const a = await app(t);
+  a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
+  a.click('[data-pay-loan]'); a.$('loansNextMonth').click();
+  assert.match(a.$('loansRemaining').textContent, /25\s000,5/);
+  a.$('loansPrevMonth').click();
+  assert.equal(a.$('loansRemaining').textContent, '0 ₽');
+  a.click('[data-pay-loan]');
+  assert.match(a.$('loansRemaining').textContent, /25\s000,5/);
+  assert.equal(a.read().loans[0].paidMonths.length, 0);
+});
+test('home editors and existing expense/category interactions work without layout patches', async t => {
+  const a = await app(t);
+  assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'overview');
+  assert.equal(a.$('categoriesCard').closest('.screen').dataset.screen, 'overview');
+  a.$('budgetInput').value = '40000'; a.$('saveBudgetButton').click();
+  a.click('[data-open-expense]');
+  a.$('expenseTitle').value = 'Продукты'; a.$('expenseAmount').value = '1000'; a.submit('expenseForm');
+  assert.equal(a.read().expenses.length, 1);
+  assert.match(a.$('availableAmount').textContent, /39\s000/);
+  a.$('openCategoriesButton').click(); assert.equal(a.$('categoriesDialog').open, true);
+  a.$('closeCategoriesButton').click(); assert.equal(a.$('categoriesDialog').open, false);
+  a.click('[data-nav="plans"]'); assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'plans');
+  assert.match(a.$('plansList').textContent, /Продукты/);
+});
+test('old backups migrate without losing expenses or requiring credit records', async t => {
+  const a = await app(t, JSON.stringify({ meta: { version: 1, updatedAt: '2026-01-01' }, settings: { defaultBudget: 55 }, expenses: [{ id: 'x', title: 'Old expense', amount: 10, date: '2026-01-01' }] }));
+  a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
+  assert.equal(a.read().expenses[0].title, 'Old expense');
+  assert.equal(a.read().settings.defaultBudget, 55);
+  assert.equal(a.read().loans.length, 1);
+});
