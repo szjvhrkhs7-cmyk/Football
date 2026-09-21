@@ -230,7 +230,7 @@
 
   function renderAll() {
     const label = monthLabel(selectedMonth);
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'loansMonthLabel'].forEach(id => { if ($(id)) $(id).textContent = label; });
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => { if ($(id)) $(id).textContent = label; });
     renderOverview();
     renderPlans();
     renderAnalytics();
@@ -276,27 +276,27 @@
   }
 
   function renderLoans() {
-    const payments = window.PulseLoans.schedule(state.loans, selectedMonth, toDateKey(new Date()));
-    const total = payments.reduce((sum, item) => sum + item.loan.payment, 0);
-    const paid = payments.filter(item => item.paid).reduce((sum, item) => sum + item.loan.payment, 0);
-    $('loansTotal').textContent = formatMoney(total);
-    $('loansPaid').textContent = formatMoney(paid);
-    $('loansRemaining').textContent = formatMoney(Math.max(0, total - paid));
-    $('loansCount').textContent = `Платежей: ${payments.length}`;
-    $('loanDirectoryCount').textContent = state.loans.length;
-    $('loansSchedule').innerHTML = payments.length ? payments.map(({ loan, date, paid, overdue }) => `
-      <article class="loan-card ${paid ? 'is-paid' : ''}">
-        <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}" aria-label="Изменить кредит ${escapeAttr(loan.title)}">
-          <span class="loan-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M3 10h18M7 15h3"/></svg></span>
-          <span class="loan-copy"><strong>${escapeHtml(loan.title)}</strong><small>${escapeHtml(formatDate(date))}</small></span>
-          <b>${escapeHtml(formatMoney(loan.payment))}</b>
-        </button>
-        <div class="loan-footer"><span class="loan-badge ${overdue ? 'overdue' : ''}">${paid ? 'Оплачено' : overdue ? 'Дата прошла' : date === toDateKey(new Date()) ? 'Сегодня' : 'Предстоит'}</span>
-          <button class="loan-pay" type="button" data-pay-loan="${escapeAttr(loan.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Отменить оплату' : 'Отметить оплату'}: ${escapeAttr(loan.title)}">${paid ? '✓ Оплачено' : 'Отметить оплату'}</button>
-        </div>
-      </article>`).join('') : '<div class="empty-state"><span>◷</span><strong>На этот месяц платежей нет</strong><small>Добавь кредит и дату ближайшего платежа</small></div>';
-    $('loansDirectory').innerHTML = state.loans.length ? state.loans.map(loan => `
-      <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}"><span class="loan-copy"><strong>${escapeHtml(loan.title)}</strong><small>${loan.closed ? 'Закрыт' : `С ${escapeHtml(formatDate(loan.firstDate))} ${loan.firstDate.slice(0, 4)}`}</small></span><b>${escapeHtml(formatMoney(loan.payment))}</b><span aria-hidden="true">›</span></button>`).join('') : '<p class="helper-text">Здесь появятся все добавленные кредиты.</p>';
+    const totalDebt = state.loans.reduce((sum, loan) => sum + (Number(loan.balance) || 0), 0);
+    const monthlyTotal = state.loans.reduce((sum, loan) => sum + (Number(loan.payment) || 0), 0);
+    $('loansTotal').textContent = formatMoney(totalDebt);
+    $('loansCount').textContent = String(state.loans.length);
+    $('loansMonthly').textContent = formatMoney(monthlyTotal);
+
+    $('loansDirectory').innerHTML = state.loans.length ? state.loans.map(loan => {
+      const paymentDay = Number(loan.firstDate.slice(8));
+      return `
+        <article class="loan-card">
+          <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}" aria-label="Изменить кредит ${escapeAttr(loan.title)}">
+            <span class="loan-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M3 10h18M7 15h3"/></svg></span>
+            <span class="loan-copy">
+              <strong>${escapeHtml(loan.title)}</strong>
+              <small>Платеж ${escapeHtml(formatMoney(loan.payment))} в месяц · ${paymentDay} числа</small>
+            </span>
+            <span class="loan-amount"><small>Задолженность</small><b>${escapeHtml(formatMoney(loan.balance))}</b></span>
+            <span class="loan-chevron" aria-hidden="true">›</span>
+          </button>
+        </article>`;
+    }).join('') : '<div class="empty-state"><span>◇</span><strong>Кредитов пока нет</strong><small>Добавь кредит, чтобы видеть общую задолженность</small></div>';
   }
 
   function openLoanDialog(id = null) {
@@ -305,10 +305,10 @@
     $('loanError').textContent = '';
     $('loanId').value = loan?.id || '';
     $('loanTitle').value = loan?.title || '';
+    $('loanBalance').value = loan?.balance || '';
     $('loanPayment').value = loan?.payment || '';
     $('loanFirstDate').value = loan?.firstDate || (selectedMonth === toMonthKey(new Date()) ? toDateKey(new Date()) : `${selectedMonth}-01`);
     $('loanEndDate').value = loan?.endDate || '';
-    $('loanClosed').checked = loan?.closed || false;
     $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Добавить кредит';
     $('deleteLoanButton').classList.toggle('hidden', !loan);
     $('loanDialog').showModal();
@@ -317,45 +317,50 @@
   function saveLoan(event) {
     event.preventDefault();
     const title = $('loanTitle').value.trim();
+    const balance = Number($('loanBalance').value);
     const payment = Number($('loanPayment').value);
     const firstDate = $('loanFirstDate').value;
     const endDate = $('loanEndDate').value;
     let error = '';
     if (!title) error = 'Укажи название кредита';
-    else if (!Number.isFinite(payment) || payment < 0.01 || payment > 1e12) error = 'Укажи платёж от 0,01 до 1 000 000 000 000 ₽';
-    else if (!isDateKey(firstDate)) error = 'Выбери дату первого платежа';
-    else if (endDate && (!isDateKey(endDate) || endDate < firstDate)) error = 'Дата окончания не может быть раньше первого платежа';
+    else if (!Number.isFinite(balance) || balance < 0.01 || balance > 1e15) error = 'Укажи остаток задолженности';
+    else if (!Number.isFinite(payment) || payment < 0.01 || payment > 1e12) error = 'Укажи ежемесячный платеж';
+    else if (!isDateKey(firstDate)) error = 'Выбери дату ближайшего платежа';
+    else if (endDate && (!isDateKey(endDate) || endDate < firstDate)) error = 'Дата окончания не может быть раньше ближайшего платежа';
     if (error) { $('loanError').textContent = error; return; }
+
     const existing = state.loans.find(item => item.id === $('loanId').value);
-    const before = state.loans.map(item => ({ ...item, paidMonths: [...item.paidMonths] }));
-    const loan = { id: existing?.id || makeId('loan'), title: title.slice(0, 60), payment: Math.round(payment * 100) / 100, firstDate, endDate, closed: $('loanClosed').checked, paidMonths: existing?.paidMonths || [], updatedAt: new Date().toISOString() };
+    const before = state.loans.map(item => ({ ...item, paidMonths: [...(item.paidMonths || [])] }));
+    const loan = {
+      id: existing?.id || makeId('loan'),
+      title: title.slice(0, 60),
+      balance: Math.round(balance * 100) / 100,
+      payment: Math.round(payment * 100) / 100,
+      firstDate,
+      endDate,
+      closed: false,
+      paidMonths: existing?.paidMonths || [],
+      updatedAt: new Date().toISOString()
+    };
     if (existing) Object.assign(existing, loan);
     else state.loans.push(loan);
-    if (!persistState()) { state.loans = before; $('loanError').textContent = 'Не удалось сохранить кредит. Освободи место на устройстве и повтори.'; return; }
+    if (!persistState()) {
+      state.loans = before;
+      $('loanError').textContent = 'Не удалось сохранить кредит. Освободи место на устройстве и повтори.';
+      return;
+    }
     $('loanDialog').close();
-    showToast(existing ? 'Кредит обновлён' : 'Кредит добавлен');
+    showToast(existing ? 'Кредит обновлен' : 'Кредит добавлен');
   }
 
   function handleLoanClick(event) {
     const edit = event.target.closest('[data-edit-loan]');
-    if (edit) return openLoanDialog(edit.dataset.editLoan);
-    const button = event.target.closest('[data-pay-loan]');
-    if (!button) return;
-    const loan = state.loans.find(item => item.id === button.dataset.payLoan);
-    if (!loan) return;
-    const previous = [...loan.paidMonths];
-    loan.paidMonths = loan.paidMonths.includes(selectedMonth) ? loan.paidMonths.filter(month => month !== selectedMonth) : [...loan.paidMonths, selectedMonth];
-    loan.updatedAt = new Date().toISOString();
-    if (!persistState()) { loan.paidMonths = previous; return; }
-    $('loansSchedule').querySelectorAll('[data-pay-loan]').forEach(item => {
-      if (item.dataset.payLoan === loan.id) item.focus({ preventScroll: true });
-    });
-    showToast(loan.paidMonths.includes(selectedMonth) ? 'Платёж отмечен' : 'Отметка оплаты отменена');
+    if (edit) openLoanDialog(edit.dataset.editLoan);
   }
 
   function deleteLoan() {
     const loan = state.loans.find(item => item.id === $('loanId').value);
-    if (!loan || !window.confirm(`Удалить кредит «${loan.title}» и его отметки оплаты?`)) return;
+    if (!loan || !window.confirm(`Удалить кредит «${loan.title}»?`)) return;
     const previous = state.loans;
     state.loans = state.loans.filter(item => item.id !== loan.id);
     if (!persistState()) { state.loans = previous; return; }
@@ -1006,11 +1011,10 @@
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],
       ['plansPrevMonth', -1], ['plansNextMonth', 1],
-      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1],
-      ['loansPrevMonth', -1], ['loansNextMonth', 1]
+      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1]
     ];
     monthControls.forEach(([id, delta]) => $(id).addEventListener('click', () => setSelectedMonth(addMonths(selectedMonth, delta))));
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'loansMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
 
     qsa('[data-filter]').forEach(button => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
@@ -1044,7 +1048,6 @@
     $('closeLoanButton').addEventListener('click', () => $('loanDialog').close());
     $('loanForm').addEventListener('submit', saveLoan);
     $('deleteLoanButton').addEventListener('click', deleteLoan);
-    $('loansSchedule').addEventListener('click', handleLoanClick);
     $('loansDirectory').addEventListener('click', handleLoanClick);
     $('loanDialog').addEventListener('click', event => {
       if (event.target !== $('loanDialog')) return;
