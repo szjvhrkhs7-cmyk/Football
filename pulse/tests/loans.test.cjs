@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { validDate, normalize, dueDate, schedule } = require('../loans.js');
-const loan = { id: 'loan-1', title: 'Ипотека', firstDate: '2026-01-31', endDate: '', payment: 12345.67, paidMonths: [], closed: false };
+const loan = { id: 'loan-1', title: 'Ипотека', firstDate: '2026-01-31', endDate: '', payment: 12345.67, balance: 450000, paidMonths: [], closed: false };
 test('calendar clamps the 31st without drifting in the following month', () => {
   assert.equal(dueDate(loan, '2026-02'), '2026-02-28');
   assert.equal(dueDate(loan, '2026-03'), '2026-03-31');
@@ -30,6 +30,7 @@ test('payment markers are monthly and overdue dates are retained', () => {
 test('backup normalization preserves credit amounts and payment history', () => {
   const copy = normalize(JSON.parse(JSON.stringify([{ ...loan, paidMonths: ['2026-02', '2026-02', '2026-99'] }])));
   assert.equal(copy[0].payment, 12345.67);
+  assert.equal(copy[0].balance, 450000);
   assert.deepEqual(copy[0].paidMonths, ['2026-02']);
   assert.equal(normalize([loan, loan]).length, 1);
 });
