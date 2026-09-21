@@ -29,57 +29,67 @@ async function app(t, saved) {
 }
 function fillLoan(a, title = 'Ипотека') {
   a.$('loanTitle').value = title;
+  a.$('loanBalance').value = '550000';
   a.$('loanPayment').value = '25000.50';
   const month = new Date().toISOString().slice(0, 7);
   a.$('loanFirstDate').value = `${month}-01`;
 }
-test('credit create, pay, edit, reload, close and delete work through UI events', async t => {
+test('credit create, edit, reload and delete work without a payment schedule', async t => {
   const a = await app(t);
   a.click('.bottom-nav [data-nav="loans"]');
   assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'loans');
-  assert.equal(a.w.document.querySelector('.bottom-nav [data-nav="plans"]'), null);
+  assert.equal(a.$('loansSchedule'), null);
+  assert.equal(a.$('loansPrevMonth'), null);
+  assert.equal(a.$('loanClosed'), null);
+
   a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
   assert.equal(a.$('loanDialog').open, false);
   assert.equal(a.read().loans.length, 1);
-  assert.match(a.$('loansTotal').textContent, /25\s000,5/);
-  a.click('[data-pay-loan]');
-  assert.equal(a.read().loans[0].paidMonths.length, 1);
-  assert.equal(a.$('loansRemaining').textContent, '0 ₽');
+  assert.match(a.$('loansTotal').textContent, /550\s000/);
+  assert.match(a.$('loansMonthly').textContent, /25\s000,5/);
+  assert.match(a.$('loansDirectory').textContent, /Ипотека/);
+  assert.match(a.$('loansDirectory').textContent, /550\s000/);
+
   a.click('[data-edit-loan]');
   a.$('loanTitle').value = 'Ипотека обновлена';
+  a.$('loanBalance').value = '500000';
   a.submit('loanForm');
-  assert.equal(a.read().loans[0].paidMonths.length, 1);
+  assert.equal(a.read().loans[0].balance, 500000);
+
   const b = await app(t, a.w.localStorage.getItem('pulse-finance-v1'));
-  assert.equal(b.$('loansRemaining').textContent, '0 ₽');
-  assert.match(b.$('loansSchedule').textContent, /Ипотека обновлена/);
-  b.click('[data-edit-loan]'); b.$('loanClosed').checked = true; b.submit('loanForm');
-  assert.equal(b.$('loansTotal').textContent, '0 ₽');
-  assert.match(b.$('loansDirectory').textContent, /Закрыт/);
-  b.click('#loansDirectory [data-edit-loan]'); b.$('deleteLoanButton').click();
+  assert.match(b.$('loansTotal').textContent, /500\s000/);
+  assert.match(b.$('loansDirectory').textContent, /Ипотека обновлена/);
+  b.click('#loansDirectory [data-edit-loan]');
+  b.$('deleteLoanButton').click();
   assert.equal(b.read().loans.length, 0);
+  assert.equal(b.$('loansTotal').textContent, '0 ₽');
 });
-test('invalid loan forms stay open and preserve data; names are escaped', async t => {
+
+test('loan validation keeps the form open and loan names are escaped', async t => {
   const a = await app(t);
   a.$('addLoanButton').click(); fillLoan(a, '<img src=x onerror=alert(1)>');
-  a.$('loanPayment').value = '-1'; a.submit('loanForm');
+  a.$('loanBalance').value = '-1'; a.submit('loanForm');
   assert.equal(a.$('loanDialog').open, true);
-  assert.match(a.$('loanError').textContent, /платёж/);
+  assert.match(a.$('loanError').textContent, /задолженности/);
+  a.$('loanBalance').value = '1';
   a.$('loanPayment').value = '0.01'; a.submit('loanForm');
-  assert.equal(a.$('loansSchedule').querySelector('img'), null);
-  assert.match(a.$('loansSchedule').textContent, /<img/);
+  assert.equal(a.$('loansDirectory').querySelector('img'), null);
+  assert.match(a.$('loansDirectory').textContent, /<img/);
   assert.equal(a.read().loans[0].payment, 0.01);
 });
-test('monthly payment toggles are independent, amounts recalculate and cancellation works', async t => {
+
+test('total debt and monthly payments are summed across all credits', async t => {
   const a = await app(t);
-  a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
-  a.click('[data-pay-loan]'); a.$('loansNextMonth').click();
-  assert.match(a.$('loansRemaining').textContent, /25\s000,5/);
-  a.$('loansPrevMonth').click();
-  assert.equal(a.$('loansRemaining').textContent, '0 ₽');
-  a.click('[data-pay-loan]');
-  assert.match(a.$('loansRemaining').textContent, /25\s000,5/);
-  assert.equal(a.read().loans[0].paidMonths.length, 0);
+  a.$('addLoanButton').click(); fillLoan(a, 'Первый'); a.submit('loanForm');
+  a.$('addLoanButton').click(); fillLoan(a, 'Второй');
+  a.$('loanBalance').value = '125000';
+  a.$('loanPayment').value = '7000';
+  a.submit('loanForm');
+  assert.match(a.$('loansTotal').textContent, /675\s000/);
+  assert.match(a.$('loansMonthly').textContent, /32\s000,5/);
+  assert.equal(a.$('loansCount').textContent, '2');
 });
+
 test('home editors and existing expense/category interactions work without layout patches', async t => {
   const a = await app(t);
   assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'overview');

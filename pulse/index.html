@@ -9,13 +9,13 @@
   <meta name="apple-mobile-web-app-title" content="Пульс">
   <meta name="format-detection" content="telephone=no">
   <title>Пульс - финансовый трекер</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=1.1.1">
-  <link rel="icon" href="./icon.svg?v=1.1.1" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=1.2.0">
+  <link rel="icon" href="./icon.svg?v=1.2.0" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
-  <link rel="stylesheet" href="./styles.css?v=1.1.1">
+  <link rel="stylesheet" href="./styles.css?v=1.2.0">
   <script defer src="./vendor/supabase-2.45.4.js"></script>
-  <script defer src="./loans.js?v=1.1.1"></script>
-  <script defer src="./app.js?v=1.1.1"></script>
+  <script defer src="./loans.js?v=1.2.0"></script>
+  <script defer src="./app.js?v=1.2.0"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -178,22 +178,32 @@
       </section>
 
       <section class="screen" data-screen="loans" aria-labelledby="loansTitle">
-        <div class="screen-heading compact"><div><p class="eyebrow">Обязательные платежи</p><h1 id="loansTitle">Кредитная нагрузка</h1></div></div>
-        <div class="month-switcher" aria-label="Выбор месяца кредитных платежей">
-          <button class="icon-button" id="loansPrevMonth" type="button" aria-label="Предыдущий месяц платежей"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-          <button class="month-label" id="loansMonthLabel" type="button" aria-label="Текущий месяц платежей"></button>
-          <button class="icon-button" id="loansNextMonth" type="button" aria-label="Следующий месяц платежей"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">Твои обязательства</p>
+            <h1 id="loansTitle">Кредиты</h1>
+          </div>
         </div>
-        <article class="balance-card credit-balance">
-          <p class="credit-caption">Платежи за выбранный месяц</p><strong class="credit-total" id="loansTotal">0 ₽</strong>
+
+        <article class="balance-card credit-balance" aria-label="Общая сумма задолженности">
+          <div class="balance-card-top">
+            <div>
+              <p>Общая задолженность</p>
+              <strong class="credit-total" id="loansTotal">0 ₽</strong>
+              <span>По всем добавленным кредитам</span>
+            </div>
+            <div class="pulse-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          </div>
           <div class="balance-divider"></div>
-          <div class="balance-stats"><div><span>Оплачено</span><b id="loansPaid">0 ₽</b></div><div><span>Осталось оплатить</span><b id="loansRemaining">0 ₽</b></div></div>
+          <div class="balance-stats">
+            <div><span>Кредитов</span><b id="loansCount">0</b></div>
+            <div><span>Платежи в месяц</span><b id="loansMonthly">0 ₽</b></div>
+          </div>
         </article>
-        <p class="helper-text credit-note">Кредиты учитываются отдельно от трат. Отметка оплаты не списывает деньги и не создаёт расход.</p>
-        <div class="section-title-row"><h2>График платежей</h2><span class="helper-text" id="loansCount"></span></div>
-        <div id="loansSchedule" class="loan-list"></div>
+
+        <div class="section-title-row loans-title-row"><h2>Мои кредиты</h2></div>
+        <div id="loansDirectory" class="loan-list"></div>
         <button class="primary-action" id="addLoanButton" type="button"><span class="plus">+</span> Добавить кредит</button>
-        <details class="loan-directory"><summary>Все кредиты <span id="loanDirectoryCount"></span></summary><div id="loansDirectory" class="expense-list"></div></details>
       </section>
 
       <section class="screen" data-screen="analytics" aria-labelledby="analyticsTitle">
@@ -338,16 +348,34 @@
   <dialog class="sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
     <form id="loanForm" novalidate>
       <div class="sheet-handle" aria-hidden="true"></div>
-      <div class="sheet-head"><button class="sheet-close" id="closeLoanButton" type="button" aria-label="Закрыть кредит"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button><div><p class="eyebrow">Кредитная нагрузка</p><h2 id="loanDialogTitle">Добавить кредит</h2></div><span></span></div>
+      <div class="sheet-head">
+        <button class="sheet-close" id="closeLoanButton" type="button" aria-label="Закрыть кредит"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <div><p class="eyebrow">Кредитная нагрузка</p><h2 id="loanDialogTitle">Добавить кредит</h2></div>
+        <span class="sheet-spacer"></span>
+      </div>
       <input id="loanId" type="hidden">
-      <label class="field-label" for="loanTitle">Название кредита</label><input id="loanTitle" maxlength="60" placeholder="Например, ипотека" required autocomplete="off">
-      <label class="field-label" for="loanPayment">Ежемесячный платёж, ₽</label><input id="loanPayment" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
-      <label class="field-label" for="loanFirstDate">Дата первого учитываемого платежа</label><input id="loanFirstDate" type="date" required>
-      <p class="helper-text">Дальше платёж повторяется в тот же день каждого месяца. Если такого дня нет, используется последний день месяца.</p>
-      <label class="field-label" for="loanEndDate">Дата окончания (необязательно)</label><input id="loanEndDate" type="date">
-      <label class="switch-row modal-switch"><span><strong>Кредит закрыт</strong><small>Не включать в график платежей</small></span><input id="loanClosed" type="checkbox"><i aria-hidden="true"></i></label>
+
+      <label class="field-label" for="loanTitle">Название кредита</label>
+      <input id="loanTitle" maxlength="60" placeholder="Например, ипотека" required autocomplete="off">
+
+      <label class="field-label" for="loanBalance">Остаток задолженности, ₽</label>
+      <input id="loanBalance" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
+
+      <label class="field-label" for="loanPayment">Ежемесячный платеж, ₽</label>
+      <input id="loanPayment" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
+
+      <label class="field-label" for="loanFirstDate">Дата ближайшего платежа</label>
+      <input id="loanFirstDate" type="date" required>
+      <p class="helper-text">Пульс покажет день ежемесячного платежа в карточке кредита.</p>
+
+      <label class="field-label" for="loanEndDate">Дата окончания (необязательно)</label>
+      <input id="loanEndDate" type="date">
+
       <p id="loanError" class="inline-message form-error" role="alert"></p>
-      <div class="sheet-actions"><button class="danger-text hidden" id="deleteLoanButton" type="button">Удалить</button><button class="primary-small grow" type="submit">Сохранить кредит</button></div>
+      <div class="sheet-actions">
+        <button class="danger-text hidden" id="deleteLoanButton" type="button">Удалить</button>
+        <button class="primary-small grow" type="submit">Сохранить кредит</button>
+      </div>
     </form>
   </dialog>
 

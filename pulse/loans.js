@@ -16,6 +16,7 @@
         id: item.id,
         title: String(item.title || 'Кредит').slice(0, 60),
         payment: Math.round(Number(item.payment) * 100) / 100,
+        balance: Math.max(0, Math.round(Number(item.balance ?? item.debt ?? 0) * 100) / 100),
         firstDate: item.firstDate,
         endDate: validDate(item.endDate) && item.endDate >= item.firstDate ? item.endDate : '',
         closed: item.closed === true,
