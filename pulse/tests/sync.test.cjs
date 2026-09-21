@@ -11,7 +11,7 @@ function fixture() {
   const stored = new Map();
   const context = vm.createContext({
     Date, console: { warn() {}, error() {} },
-    window: { location: { origin: 'https://example.com', pathname: '/pulse/' } },
+    window: { PulseLoans: require('../loans.js'), location: { origin: 'https://example.com', pathname: '/pulse/' } },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', style: {}, disabled: false, checkValidity: () => true, classList: { add() {}, remove() {}, toggle() {} } });
       return elements.get(id);
@@ -23,7 +23,7 @@ function fixture() {
   vm.runInContext(source.slice(0, source.indexOf(marker)) + `
     renderAll = () => {};
     subscribeRealtime = () => {};
-    globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, resendConfirmation, humanizeAuthError,
+    globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, signUp, resendConfirmation, humanizeAuthError, normalizeState,
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
       state: () => state, status: () => cloudStatus,
       plannedExpensesForOverview,
@@ -100,7 +100,36 @@ test('versioned app assets match the service worker cache', () => {
   const version = indexSource.match(/app\.js\?v=([^"']+)/)?.[1];
   assert.ok(version);
   assert.match(indexSource, new RegExp(`styles\\.css\\?v=${version}`));
-  assert.match(indexSource, new RegExp(`ui-language\\.js\\?v=${version}`));
+  assert.match(indexSource, new RegExp(`loans\\.js\\?v=${version}`));
   assert.match(serviceWorkerSource, new RegExp(`CACHE = 'pulse-v${version.replaceAll('.', '\\.')}';`));
   assert.match(serviceWorkerSource, new RegExp(`app\\.js\\?v=${version.replaceAll('.', '\\.')}`));
+});
+
+test('registration validates the email before contacting Auth', async () => {
+  const f = fixture(); let calls = 0;
+  f.api.connect({ auth: { signUp: async () => { calls++; return {}; } } });
+  f.context.document.getElementById('cloudEmail').value = 'invalid';
+  f.context.document.getElementById('cloudEmail').checkValidity = () => false;
+  f.context.document.getElementById('cloudPassword').value = 'long-password';
+  await f.api.signUp();
+  assert.equal(calls, 0);
+  assert.match(f.elements.get('cloudMessage').textContent, /корректный email/);
+});
+test('signup normalizes its redirect and does not announce success on an SMTP rejection', async () => {
+  const f = fixture(); let args;
+  f.api.connect({ auth: { signUp: async value => { args = value; return { error: { code: 'email_address_not_authorized', message: 'Forbidden' } }; } } });
+  f.context.document.getElementById('cloudEmail').value = 'test@example.com';
+  f.context.document.getElementById('cloudPassword').value = 'long-password';
+  await f.api.signUp();
+  assert.equal(args.options.emailRedirectTo, 'https://example.com/pulse/');
+  assert.match(f.elements.get('cloudMessage').textContent, /почтовый сервис/);
+  assert.equal(f.elements.get('signUpButton').disabled, false);
+});
+test('cloud downloads preserve credit records, including paid months', async () => {
+  const f = fixture();
+  const loans = [{ id: 'a', title: 'Кредит', payment: 50.25, firstDate: '2026-09-21', paidMonths: ['2026-09'] }];
+  f.api.connect(db(async () => ({ data: { payload: { meta: { updatedAt: '2026-09-21T10:00:00Z' }, loans } } }), async () => ({})));
+  await f.api.syncBidirectional();
+  assert.equal(f.api.state().loans[0].payment, 50.25);
+  assert.equal(f.api.state().loans[0].paidMonths[0], '2026-09');
 });

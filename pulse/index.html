@@ -9,13 +9,13 @@
   <meta name="apple-mobile-web-app-title" content="Пульс">
   <meta name="format-detection" content="telephone=no">
   <title>Пульс - финансовый трекер</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=1.0.6">
-  <link rel="icon" href="./icon.svg?v=1.0.6" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=1.1.0">
+  <link rel="icon" href="./icon.svg?v=1.1.0" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
-  <link rel="stylesheet" href="./styles.css?v=1.0.6">
-  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script defer src="./app.js?v=1.0.6"></script>
-  <script defer src="./ui-language.js?v=1.0.6"></script>
+  <link rel="stylesheet" href="./styles.css?v=1.1.0">
+  <script defer src="./vendor/supabase-2.45.4.js"></script>
+  <script defer src="./loans.js?v=1.1.0"></script>
+  <script defer src="./app.js?v=1.1.0"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -76,9 +76,38 @@
           <div class="budget-meter" aria-hidden="true"><i id="budgetMeterFill"></i></div>
         </article>
 
+        <section class="home-editors" aria-label="Бюджет и категории">
+        <article class="settings-card" id="budgetSettingsCard">
+          <div class="settings-title">
+            <span class="settings-icon blue">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
+            </span>
+            <div><h2>Планируемый бюджет</h2><p>Сумма, от которой вычитаются расходы</p></div>
+          </div>
+          <label class="field-label" for="budgetInput">Планируемый бюджет, ₽</label>
+          <div class="input-with-action">
+            <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
+            <button id="saveBudgetButton" type="button">Сохранить</button>
+          </div>
+          <label class="switch-row">
+            <span><strong>Использовать как базовый</strong><small>Подставлять эту сумму для новых периодов</small></span>
+            <input id="defaultBudgetToggle" type="checkbox">
+            <i aria-hidden="true"></i>
+          </label>
+        </article>
+        <article class="settings-card" id="categoriesCard">
+          <button class="settings-title categories-trigger" id="openCategoriesButton" type="button" aria-haspopup="dialog" aria-controls="categoriesDialog">
+            <span class="settings-icon violet">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+            </span>
+            <div><h2>Категории</h2><p>Что показывать при добавлении трат</p></div>
+          <span class="categories-chevron" aria-hidden="true">⌄</span></button>
+        </article>
+        </section>
+
         <div class="section-title-row">
           <h2>Планируемые траты</h2>
-          <button class="text-button" type="button" data-nav="plans">Все <span>›</span></button>
+          <button class="text-button" type="button" data-nav="plans">Все траты <span>›</span></button>
         </div>
         <div class="expense-list" id="upcomingList"></div>
 
@@ -101,8 +130,8 @@
       <section class="screen" data-screen="plans" aria-labelledby="plansTitle">
         <div class="screen-heading compact">
           <div>
-            <p class="eyebrow">План месяца</p>
-            <h1 id="plansTitle">Планируемые траты</h1>
+            <button class="text-button" type="button" data-nav="overview">‹ Обзор</button>
+            <h1 id="plansTitle">Все траты</h1>
           </div>
         </div>
 
@@ -146,6 +175,25 @@
         <button class="primary-action" type="button" data-open-expense>
           <span class="plus">+</span> Добавить трату
         </button>
+      </section>
+
+      <section class="screen" data-screen="loans" aria-labelledby="loansTitle">
+        <div class="screen-heading compact"><div><p class="eyebrow">Обязательные платежи</p><h1 id="loansTitle">Кредитная нагрузка</h1></div></div>
+        <div class="month-switcher" aria-label="Выбор месяца кредитных платежей">
+          <button class="icon-button" id="loansPrevMonth" type="button" aria-label="Предыдущий месяц платежей"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <button class="month-label" id="loansMonthLabel" type="button" aria-label="Текущий месяц платежей"></button>
+          <button class="icon-button" id="loansNextMonth" type="button" aria-label="Следующий месяц платежей"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+        <article class="balance-card credit-balance">
+          <p class="credit-caption">Платежи за выбранный месяц</p><strong class="credit-total" id="loansTotal">0 ₽</strong>
+          <div class="balance-divider"></div>
+          <div class="balance-stats"><div><span>Оплачено</span><b id="loansPaid">0 ₽</b></div><div><span>Осталось оплатить</span><b id="loansRemaining">0 ₽</b></div></div>
+        </article>
+        <p class="helper-text credit-note">Кредиты учитываются отдельно от трат. Отметка оплаты не списывает деньги и не создаёт расход.</p>
+        <div class="section-title-row"><h2>График платежей</h2><span class="helper-text" id="loansCount"></span></div>
+        <div id="loansSchedule" class="loan-list"></div>
+        <button class="primary-action" id="addLoanButton" type="button"><span class="plus">+</span> Добавить кредит</button>
+        <details class="loan-directory"><summary>Все кредиты <span id="loanDirectoryCount"></span></summary><div id="loansDirectory" class="expense-list"></div></details>
       </section>
 
       <section class="screen" data-screen="analytics" aria-labelledby="analyticsTitle">
@@ -211,24 +259,7 @@
           </div>
         </div>
 
-        <article class="settings-card" id="budgetSettingsCard">
-          <div class="settings-title">
-            <span class="settings-icon blue">
-              <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
-            </span>
-            <div><h2>Планируемый бюджет</h2><p>Сумма, от которой вычитаются расходы</p></div>
-          </div>
-          <label class="field-label" for="budgetInput">Планируемый бюджет, ₽</label>
-          <div class="input-with-action">
-            <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
-            <button id="saveBudgetButton" type="button">Сохранить</button>
-          </div>
-          <label class="switch-row">
-            <span><strong>Использовать как базовый</strong><small>Подставлять эту сумму для новых периодов</small></span>
-            <input id="defaultBudgetToggle" type="checkbox">
-            <i aria-hidden="true"></i>
-          </label>
-        </article>
+
 
         <article class="settings-card" id="cloudCard">
           <div class="settings-title">
@@ -238,18 +269,18 @@
             <div><h2>Облачная синхронизация</h2><p id="cloudSubtitle">Данные сохранены на этом устройстве</p></div>
           </div>
 
-          <div id="signedOutCloud" class="cloud-panel">
+          <form id="signedOutCloud" class="cloud-panel" novalidate>
             <label class="field-label" for="cloudEmail">Email</label>
-            <input id="cloudEmail" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com">
+            <input id="cloudEmail" required autocapitalize="none" spellcheck="false" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com">
             <label class="field-label" for="cloudPassword">Пароль</label>
-            <input id="cloudPassword" type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов">
+            <input id="cloudPassword" required type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов">
             <div class="cloud-actions">
-              <button class="secondary-button" id="signInButton" type="button">Войти</button>
+              <button class="secondary-button" id="signInButton" type="submit">Войти</button>
               <button class="primary-small" id="signUpButton" type="button">Создать аккаунт</button>
             </div>
             <button class="text-button" id="resendEmailButton" type="button">Отправить письмо подтверждения повторно</button>
             <p class="helper-text">После входа Пульс синхронизирует данные между твоими устройствами.</p>
-          </div>
+          </form>
 
           <div id="signedInCloud" class="cloud-panel hidden">
             <div class="account-row">
@@ -262,17 +293,11 @@
               <button class="danger-text" id="signOutButton" type="button">Выйти</button>
             </div>
           </div>
+          <button class="text-button hidden" id="retryCloudButton" type="button">Повторить подключение</button>
           <p class="inline-message" id="cloudMessage" role="status" aria-live="polite"></p>
         </article>
 
-        <article class="settings-card" id="categoriesCard">
-          <button class="settings-title categories-trigger" id="openCategoriesButton" type="button" aria-haspopup="dialog" aria-controls="categoriesDialog">
-            <span class="settings-icon violet">
-              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
-            </span>
-            <div><h2>Категории</h2><p>Что показывать при добавлении трат</p></div>
-          <span class="categories-chevron" aria-hidden="true">⌄</span></button>
-        </article>
+
 
         <article class="settings-card">
           <div class="settings-title">
@@ -295,9 +320,9 @@
         <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
         <span>Обзор</span>
       </button>
-      <button type="button" data-nav="plans">
+      <button type="button" data-nav="loans">
         <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
-        <span>Планы</span>
+        <span>Кредиты</span>
       </button>
       <button type="button" data-nav="analytics">
         <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-7"/></svg>
@@ -309,6 +334,22 @@
       </button>
     </nav>
   </div>
+
+  <dialog class="sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
+    <form id="loanForm" novalidate>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head"><button class="sheet-close" id="closeLoanButton" type="button" aria-label="Закрыть кредит"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button><div><p class="eyebrow">Кредитная нагрузка</p><h2 id="loanDialogTitle">Добавить кредит</h2></div><span></span></div>
+      <input id="loanId" type="hidden">
+      <label class="field-label" for="loanTitle">Название кредита</label><input id="loanTitle" maxlength="60" placeholder="Например, ипотека" required autocomplete="off">
+      <label class="field-label" for="loanPayment">Ежемесячный платёж, ₽</label><input id="loanPayment" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
+      <label class="field-label" for="loanFirstDate">Дата первого учитываемого платежа</label><input id="loanFirstDate" type="date" required>
+      <p class="helper-text">Дальше платёж повторяется в тот же день каждого месяца. Если такого дня нет, используется последний день месяца.</p>
+      <label class="field-label" for="loanEndDate">Дата окончания (необязательно)</label><input id="loanEndDate" type="date">
+      <label class="switch-row modal-switch"><span><strong>Кредит закрыт</strong><small>Не включать в график платежей</small></span><input id="loanClosed" type="checkbox"><i aria-hidden="true"></i></label>
+      <p id="loanError" class="inline-message form-error" role="alert"></p>
+      <div class="sheet-actions"><button class="danger-text hidden" id="deleteLoanButton" type="button">Удалить</button><button class="primary-small grow" type="submit">Сохранить кредит</button></div>
+    </form>
+  </dialog>
 
   <dialog class="sheet" id="expenseDialog">
     <form method="dialog" id="expenseForm" novalidate>

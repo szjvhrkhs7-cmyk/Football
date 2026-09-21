@@ -37,6 +37,10 @@
   let resendAfter = 0;
   let suppressCloudPush = false;
   let toastTimer = null;
+  let cloudInitPromise = null;
+  let authBusy = false;
+  let activeScreen = 'overview';
+  const screenScroll = new Map();
 
   const $ = id => document.getElementById(id);
   const qsa = selector => Array.from(document.querySelectorAll(selector));
@@ -57,6 +61,7 @@
         budgets: {},
         categories: defaultCategories.map(item => ({ ...item }))
       },
+      loans: [],
       expenses: []
     };
   }
@@ -101,7 +106,8 @@
         budgets: settings.budgets && typeof settings.budgets === 'object' ? { ...settings.budgets } : {},
         categories
       },
-      expenses
+      expenses,
+      loans: window.PulseLoans.normalize(candidate.loans)
     };
   }
 
@@ -118,9 +124,20 @@
   function persistState({ push = true } = {}) {
     localRevision += 1;
     state.meta.updatedAt = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!saveLocalState()) return false;
     renderAll();
     if (push && !suppressCloudPush) scheduleCloudPush();
+    return true;
+  }
+
+  function saveLocalState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return true;
+    } catch {
+      showToast('Не удалось сохранить данные на устройстве. Экспортируй резервную копию.');
+      return false;
+    }
   }
 
   function toMonthKey(date) {
@@ -132,7 +149,7 @@
   }
 
   function isDateKey(value) {
-    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
+    return window.PulseLoans.validDate(value);
   }
 
   function monthLabel(monthKey) {
@@ -146,7 +163,7 @@
     if (compact && Math.abs(amount) >= 1000000) {
       return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(amount / 1000000)} млн ₽`;
     }
-    return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(amount)} ₽`;
+    return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(amount)} ₽`;
   }
 
   function formatDate(dateKey) {
@@ -196,24 +213,28 @@
   }
 
   function navigate(screenName) {
+    if (screenName === activeScreen) return;
+    screenScroll.set(activeScreen, window.scrollY);
+    activeScreen = screenName;
     qsa('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === screenName));
     qsa('.bottom-nav [data-nav]').forEach(button => {
-      const active = button.dataset.nav === screenName;
+      const active = button.dataset.nav === (screenName === 'plans' ? 'overview' : screenName);
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: screenScroll.get(screenName) || 0, behavior: 'instant' });
     $('appMain')?.focus({ preventScroll: true });
     if (screenName === 'settings') renderSettings();
   }
 
   function renderAll() {
     const label = monthLabel(selectedMonth);
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => { if ($(id)) $(id).textContent = label; });
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'loansMonthLabel'].forEach(id => { if ($(id)) $(id).textContent = label; });
     renderOverview();
     renderPlans();
     renderAnalytics();
+    renderLoans();
     renderSettings();
     renderCategoryPicker();
     updateCloudUi();
@@ -238,20 +259,108 @@
     card.classList.remove('warning', 'danger');
     if (budget <= 0 && planned > 0) {
       card.classList.add('warning');
-      $('budgetStatusTitle').textContent = 'Задай бюджет';
-      $('budgetStatusText').textContent = 'Так Пульс сможет оценить запас на месяц';
+      $('budgetStatusTitle').textContent = 'Задай планируемый бюджет';
+      $('budgetStatusText').textContent = 'Так Пульс сможет показать остаток';
     } else if (available < 0) {
       card.classList.add('danger');
-      $('budgetStatusTitle').textContent = 'Планы выше бюджета';
+      $('budgetStatusTitle').textContent = 'Расходы выше планируемого бюджета';
       $('budgetStatusText').textContent = `На ${formatMoney(Math.abs(available))}`;
     } else if (budget > 0 && planned / budget >= 0.85) {
       card.classList.add('warning');
-      $('budgetStatusTitle').textContent = 'Бюджет почти распределён';
-      $('budgetStatusText').textContent = `Свободно ${formatMoney(available)}`;
+      $('budgetStatusTitle').textContent = 'Планируемый бюджет почти исчерпан';
+      $('budgetStatusText').textContent = `Остаток ${formatMoney(available)}`;
     } else {
       $('budgetStatusTitle').textContent = 'Всё под контролем';
-      $('budgetStatusText').textContent = monthlyExpenses.length ? `Свободно ${formatMoney(available)}` : 'Добавь планы на месяц';
+      $('budgetStatusText').textContent = monthlyExpenses.length ? `Остаток ${formatMoney(available)}` : 'Добавь траты';
     }
+  }
+
+  function renderLoans() {
+    const payments = window.PulseLoans.schedule(state.loans, selectedMonth, toDateKey(new Date()));
+    const total = payments.reduce((sum, item) => sum + item.loan.payment, 0);
+    const paid = payments.filter(item => item.paid).reduce((sum, item) => sum + item.loan.payment, 0);
+    $('loansTotal').textContent = formatMoney(total);
+    $('loansPaid').textContent = formatMoney(paid);
+    $('loansRemaining').textContent = formatMoney(Math.max(0, total - paid));
+    $('loansCount').textContent = `Платежей: ${payments.length}`;
+    $('loanDirectoryCount').textContent = state.loans.length;
+    $('loansSchedule').innerHTML = payments.length ? payments.map(({ loan, date, paid, overdue }) => `
+      <article class="loan-card ${paid ? 'is-paid' : ''}">
+        <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}" aria-label="Изменить кредит ${escapeAttr(loan.title)}">
+          <span class="loan-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M3 10h18M7 15h3"/></svg></span>
+          <span class="loan-copy"><strong>${escapeHtml(loan.title)}</strong><small>${escapeHtml(formatDate(date))}</small></span>
+          <b>${escapeHtml(formatMoney(loan.payment))}</b>
+        </button>
+        <div class="loan-footer"><span class="loan-badge ${overdue ? 'overdue' : ''}">${paid ? 'Оплачено' : overdue ? 'Дата прошла' : date === toDateKey(new Date()) ? 'Сегодня' : 'Предстоит'}</span>
+          <button class="loan-pay" type="button" data-pay-loan="${escapeAttr(loan.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Отменить оплату' : 'Отметить оплату'}: ${escapeAttr(loan.title)}">${paid ? '✓ Оплачено' : 'Отметить оплату'}</button>
+        </div>
+      </article>`).join('') : '<div class="empty-state"><span>◷</span><strong>На этот месяц платежей нет</strong><small>Добавь кредит и дату ближайшего платежа</small></div>';
+    $('loansDirectory').innerHTML = state.loans.length ? state.loans.map(loan => `
+      <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}"><span class="loan-copy"><strong>${escapeHtml(loan.title)}</strong><small>${loan.closed ? 'Закрыт' : `С ${escapeHtml(formatDate(loan.firstDate))} ${loan.firstDate.slice(0, 4)}`}</small></span><b>${escapeHtml(formatMoney(loan.payment))}</b><span aria-hidden="true">›</span></button>`).join('') : '<p class="helper-text">Здесь появятся все добавленные кредиты.</p>';
+  }
+
+  function openLoanDialog(id = null) {
+    const loan = state.loans.find(item => item.id === id);
+    $('loanForm').reset();
+    $('loanError').textContent = '';
+    $('loanId').value = loan?.id || '';
+    $('loanTitle').value = loan?.title || '';
+    $('loanPayment').value = loan?.payment || '';
+    $('loanFirstDate').value = loan?.firstDate || (selectedMonth === toMonthKey(new Date()) ? toDateKey(new Date()) : `${selectedMonth}-01`);
+    $('loanEndDate').value = loan?.endDate || '';
+    $('loanClosed').checked = loan?.closed || false;
+    $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Добавить кредит';
+    $('deleteLoanButton').classList.toggle('hidden', !loan);
+    $('loanDialog').showModal();
+  }
+
+  function saveLoan(event) {
+    event.preventDefault();
+    const title = $('loanTitle').value.trim();
+    const payment = Number($('loanPayment').value);
+    const firstDate = $('loanFirstDate').value;
+    const endDate = $('loanEndDate').value;
+    let error = '';
+    if (!title) error = 'Укажи название кредита';
+    else if (!Number.isFinite(payment) || payment < 0.01 || payment > 1e12) error = 'Укажи платёж от 0,01 до 1 000 000 000 000 ₽';
+    else if (!isDateKey(firstDate)) error = 'Выбери дату первого платежа';
+    else if (endDate && (!isDateKey(endDate) || endDate < firstDate)) error = 'Дата окончания не может быть раньше первого платежа';
+    if (error) { $('loanError').textContent = error; return; }
+    const existing = state.loans.find(item => item.id === $('loanId').value);
+    const before = state.loans.map(item => ({ ...item, paidMonths: [...item.paidMonths] }));
+    const loan = { id: existing?.id || makeId('loan'), title: title.slice(0, 60), payment: Math.round(payment * 100) / 100, firstDate, endDate, closed: $('loanClosed').checked, paidMonths: existing?.paidMonths || [], updatedAt: new Date().toISOString() };
+    if (existing) Object.assign(existing, loan);
+    else state.loans.push(loan);
+    if (!persistState()) { state.loans = before; $('loanError').textContent = 'Не удалось сохранить кредит. Освободи место на устройстве и повтори.'; return; }
+    $('loanDialog').close();
+    showToast(existing ? 'Кредит обновлён' : 'Кредит добавлен');
+  }
+
+  function handleLoanClick(event) {
+    const edit = event.target.closest('[data-edit-loan]');
+    if (edit) return openLoanDialog(edit.dataset.editLoan);
+    const button = event.target.closest('[data-pay-loan]');
+    if (!button) return;
+    const loan = state.loans.find(item => item.id === button.dataset.payLoan);
+    if (!loan) return;
+    const previous = [...loan.paidMonths];
+    loan.paidMonths = loan.paidMonths.includes(selectedMonth) ? loan.paidMonths.filter(month => month !== selectedMonth) : [...loan.paidMonths, selectedMonth];
+    loan.updatedAt = new Date().toISOString();
+    if (!persistState()) { loan.paidMonths = previous; return; }
+    $('loansSchedule').querySelectorAll('[data-pay-loan]').forEach(item => {
+      if (item.dataset.payLoan === loan.id) item.focus({ preventScroll: true });
+    });
+    showToast(loan.paidMonths.includes(selectedMonth) ? 'Платёж отмечен' : 'Отметка оплаты отменена');
+  }
+
+  function deleteLoan() {
+    const loan = state.loans.find(item => item.id === $('loanId').value);
+    if (!loan || !window.confirm(`Удалить кредит «${loan.title}» и его отметки оплаты?`)) return;
+    const previous = state.loans;
+    state.loans = state.loans.filter(item => item.id !== loan.id);
+    if (!persistState()) { state.loans = previous; return; }
+    $('loanDialog').close();
+    showToast('Кредит удалён');
   }
 
   function renderPlans() {
@@ -296,7 +405,7 @@
     const budget = budgetForMonth();
     $('analyticsPlanned').textContent = formatMoney(planned);
     $('analyticsPaid').textContent = formatMoney(paid);
-    $('analyticsBudgetPercent').textContent = budget > 0 ? `${Math.round(planned / budget * 100)}% бюджета` : 'Бюджет не задан';
+    $('analyticsBudgetPercent').textContent = budget > 0 ? `${Math.round(planned / budget * 100)}% планируемого бюджета` : 'Планируемый бюджет не задан';
     $('analyticsPaidCount').textContent = `${paidItems.length} ${expenseWord(paidItems.length)}`;
     $('donutTotal').textContent = formatMoney(planned, true);
 
@@ -348,8 +457,7 @@
 
   function renderSettings() {
     const directBudget = state.settings.budgets[selectedMonth];
-    $('budgetInput').value = directBudget ?? state.settings.defaultBudget ?? 0;
-    $('defaultBudgetToggle').checked = false;
+    if (document.activeElement !== $('budgetInput')) $('budgetInput').value = directBudget ?? state.settings.defaultBudget ?? 0;
     renderCategoryManagement();
   }
 
@@ -462,7 +570,7 @@
       });
     }
     selectedMonth = date.slice(0, 7);
-    persistState();
+    if (!persistState()) return;
     closeExpenseDialog();
     showToast(existing ? 'Трата обновлена' : 'Трата добавлена');
   }
@@ -474,19 +582,19 @@
     if (!expense) return;
     if (!window.confirm(`Удалить «${expense.title}»?`)) return;
     state.expenses = state.expenses.filter(item => item.id !== id);
-    persistState();
+    if (!persistState()) return;
     closeExpenseDialog();
     showToast('Трата удалена');
   }
 
   function saveBudget() {
     const amount = Number($('budgetInput').value);
-    if (!Number.isFinite(amount) || amount < 0) return showToast('Укажи корректный бюджет');
+    if (!Number.isFinite(amount) || amount < 0) return showToast('Укажи корректный планируемый бюджет');
     state.settings.budgets[selectedMonth] = amount;
     if ($('defaultBudgetToggle').checked) state.settings.defaultBudget = amount;
     persistState();
     $('defaultBudgetToggle').checked = false;
-    showToast(`Бюджет на ${monthLabel(selectedMonth).toLowerCase()} сохранён`);
+    showToast('Планируемый бюджет сохранён');
   }
 
   function openCategoryDialog() {
@@ -561,6 +669,17 @@
   }
 
   async function initCloud() {
+    if (cloudInitPromise) return cloudInitPromise;
+    cloudInitPromise = connectCloud();
+    try { await cloudInitPromise; }
+    catch {
+      setSyncState('error');
+      showCloudMessage('Не удалось подключиться к облаку. Проверь интернет и повтори подключение.', true);
+      $('retryCloudButton')?.classList.remove('hidden');
+    } finally { cloudInitPromise = null; }
+  }
+
+  async function connectCloud() {
     if (supabaseClient) {
       if (currentUser) await syncBidirectional();
       return;
@@ -571,9 +690,7 @@
       return;
     }
     if (!window.supabase?.createClient) {
-      $('cloudSubtitle').textContent = 'Облако недоступно без сети';
-      setSyncState('error');
-      return;
+      throw new Error('Auth library unavailable');
     }
 
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -585,7 +702,8 @@
     });
 
     const { data, error } = await supabaseClient.auth.getSession();
-    if (error) console.warn('Ошибка сессии Supabase', error);
+    if (error) { supabaseClient = null; throw error; }
+    $('retryCloudButton')?.classList.add('hidden');
     currentUser = data?.session?.user || null;
     updateCloudUi();
     if (currentUser) {
@@ -628,47 +746,57 @@
   }
 
   async function signIn() {
+    if (authBusy) return;
+    if (!supabaseClient) await initCloud();
     if (!supabaseClient) return showCloudMessage('Облачный сервис сейчас недоступен', true);
     const email = $('cloudEmail').value.trim();
     const password = $('cloudPassword').value;
-    if (!email || password.length < 6) return showCloudMessage('Укажи email и пароль от 6 символов', true);
+    if (!email || !$('cloudEmail').checkValidity()) return showCloudMessage('Укажи корректный email', true);
+    if (password.length < 6) return showCloudMessage('Укажи пароль от 6 символов', true);
     setCloudBusy(true);
     try {
       const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) return showCloudMessage(humanizeAuthError(error.message), true);
+      if (error) return showCloudMessage(humanizeAuthError(error), true);
       $('cloudPassword').value = '';
       showCloudMessage('Вход выполнен. Синхронизируем данные.');
     } catch (error) {
-      showCloudMessage(humanizeAuthError(error.message), true);
+      showCloudMessage(humanizeAuthError(error), true);
     } finally {
       setCloudBusy(false);
     }
   }
 
   async function signUp() {
+    if (authBusy) return;
+    if (!supabaseClient) await initCloud();
     if (!supabaseClient) return showCloudMessage('Облачный сервис сейчас недоступен', true);
     const email = $('cloudEmail').value.trim();
     const password = $('cloudPassword').value;
-    if (!email || password.length < 6) return showCloudMessage('Укажи email и пароль от 6 символов', true);
+    if (!email || !$('cloudEmail').checkValidity()) return showCloudMessage('Укажи корректный email', true);
+    if (password.length < 6) return showCloudMessage('Укажи пароль от 6 символов', true);
     setCloudBusy(true);
     try {
       const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.href.split('#')[0] }
+        options: { emailRedirectTo: window.location.origin + window.location.pathname }
       });
-      if (error) return showCloudMessage(humanizeAuthError(error.message), true);
+      if (error) return showCloudMessage(humanizeAuthError(error), true);
       $('cloudPassword').value = '';
       if (data?.session) showCloudMessage('Аккаунт создан. Облачная синхронизация включена.');
-      else showCloudMessage('Запрос принят. Проверь почту и папку «Спам». Если аккаунт уже подтверждён, нажми «Войти».');
+      else {
+        resendAfter = Date.now() + 60000;
+        showCloudMessage('Подтверди почту по ссылке из письма, затем войди с паролем. Если письмо не пришло, повторную отправку можно запросить через минуту.');
+      }
     } catch (error) {
-      showCloudMessage(humanizeAuthError(error.message), true);
+      showCloudMessage(humanizeAuthError(error), true);
     } finally {
       setCloudBusy(false);
     }
   }
 
   async function resendConfirmation() {
+    if (authBusy) return;
     if (!supabaseClient) return showCloudMessage('Облачный сервис сейчас недоступен', true);
     const email = $('cloudEmail').value.trim();
     if (!email || !$('cloudEmail').checkValidity()) return showCloudMessage('Укажи корректный email', true);
@@ -683,20 +811,30 @@
       resendAfter = Date.now() + 60000;
       showCloudMessage('Повторная отправка запрошена. Проверь почту и папку «Спам». Для подтверждённого аккаунта новое письмо не требуется.');
     } catch (error) {
-      showCloudMessage(humanizeAuthError(error.message), true);
+      showCloudMessage(humanizeAuthError(error), true);
     } finally { setCloudBusy(false); }
   }
 
   async function signOut() {
     if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
-    currentUser = null;
-    unsubscribeRealtime();
-    updateCloudUi();
-    showToast('Вы вышли из облачного аккаунта');
+    try {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) throw error;
+      currentUser = null;
+      clearTimeout(syncTimer);
+      syncTimer = null;
+      pendingPush = false;
+      unsubscribeRealtime();
+      updateCloudUi();
+      showToast('Вы вышли из облачного аккаунта');
+    } catch {
+      showCloudMessage('Не удалось выйти из аккаунта. Проверь подключение и повтори.', true);
+    }
   }
 
   function setCloudBusy(busy) {
+    authBusy = busy;
+    $('signedOutCloud')?.setAttribute?.('aria-busy', String(busy));
     $('signInButton').disabled = busy;
     $('signUpButton').disabled = busy;
     $('resendEmailButton').disabled = busy;
@@ -704,14 +842,16 @@
     else if (!currentUser) setSyncState('');
   }
 
-  function humanizeAuthError(message = '') {
-    const lower = message.toLowerCase();
+  function humanizeAuthError(error = '') {
+    const lower = (typeof error === 'string' ? error : `${error.code || ''} ${error.message || ''}`).toLowerCase();
     if (lower.includes('email address not authorized') || lower.includes('email_address_not_authorized')) return 'Supabase не разрешает отправку на этот адрес. Нужно настроить почтовый сервис для приложения.';
     if (lower.includes('sending confirmation email') || lower.includes('smtp')) return 'Не удалось отправить письмо подтверждения. Нужно проверить почтовый сервис приложения.';
-    if (lower.includes('email rate limit')) return 'Лимит отправки писем исчерпан. Подожди час перед следующей попыткой.';
+    if (lower.includes('email rate limit') || lower.includes('over_email_send_rate_limit')) return 'Лимит отправки писем исчерпан. Подожди час перед следующей попыткой.';
     if (lower.includes('invalid login credentials')) return 'Неверный email или пароль';
-    if (lower.includes('email not confirmed')) return 'Сначала подтверди email по ссылке из письма';
+    if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) return 'Сначала подтверди email по ссылке из письма';
     if (lower.includes('user already registered')) return 'Аккаунт с таким email уже существует';
+    if (lower.includes('signup_disabled')) return 'Создание аккаунтов временно отключено. Уже зарегистрированные пользователи могут войти.';
+    if (lower.includes('otp_expired')) return 'Ссылка подтверждения истекла. Запроси новое письмо.';
     if (lower.includes('password')) return 'Пароль должен содержать не меньше 6 символов';
     if (lower.includes('rate')) return 'Слишком много попыток. Попробуй чуть позже';
     return 'Не удалось выполнить операцию. Проверь подключение и данные';
@@ -866,10 +1006,11 @@
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],
       ['plansPrevMonth', -1], ['plansNextMonth', 1],
-      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1]
+      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1],
+      ['loansPrevMonth', -1], ['loansNextMonth', 1]
     ];
     monthControls.forEach(([id, delta]) => $(id).addEventListener('click', () => setSelectedMonth(addMonths(selectedMonth, delta))));
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'loansMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
 
     qsa('[data-filter]').forEach(button => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
@@ -897,7 +1038,19 @@
     $('addCategoryButton').addEventListener('click', openCategoryDialog);
     $('categoryForm').addEventListener('submit', saveCategory);
 
-    $('signInButton').addEventListener('click', signIn);
+    $('signedOutCloud').addEventListener('submit', event => { event.preventDefault(); signIn(); });
+    $('retryCloudButton').addEventListener('click', initCloud);
+    $('addLoanButton').addEventListener('click', () => openLoanDialog());
+    $('closeLoanButton').addEventListener('click', () => $('loanDialog').close());
+    $('loanForm').addEventListener('submit', saveLoan);
+    $('deleteLoanButton').addEventListener('click', deleteLoan);
+    $('loansSchedule').addEventListener('click', handleLoanClick);
+    $('loansDirectory').addEventListener('click', handleLoanClick);
+    $('loanDialog').addEventListener('click', event => {
+      if (event.target !== $('loanDialog')) return;
+      const rect = $('loanDialog').getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('loanDialog').close();
+    });
     $('signUpButton').addEventListener('click', signUp);
     $('resendEmailButton').addEventListener('click', resendConfirmation);
     $('signOutButton').addEventListener('click', signOut);
@@ -919,7 +1072,10 @@
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && currentUser && navigator.onLine) syncBidirectional();
+      if (!document.hidden) {
+        renderLoans();
+        if (currentUser && navigator.onLine) syncBidirectional();
+      }
     });
     window.addEventListener('online', () => {
       if (currentUser) syncBidirectional();
@@ -943,6 +1099,13 @@
     bindEvents();
     renderAll();
     registerServiceWorker();
+    const callback = new URLSearchParams(window.location.hash.slice(1));
+    const callbackError = callback.get('error_code') || callback.get('error_description') || callback.get('error');
+    if (callbackError) {
+      navigate('settings');
+      showCloudMessage(humanizeAuthError(callbackError), true);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } else if (callback.has('access_token')) navigate('settings');
     if (navigator.onLine) initCloud();
   }
 

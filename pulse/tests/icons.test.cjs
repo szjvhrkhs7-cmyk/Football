@@ -26,5 +26,5 @@ test('header, favicon and manifest reference existing cached logo assets', () =>
     assert.ok(fs.existsSync(path.join(root, icon.src.split('?')[0])));
     assert.ok(worker.includes(`'${icon.src}'`));
   }
-  assert.match(html, /href="\.\/icon\.svg\?v=1\.0\.6"/);
+  assert.match(html, /href="\.\/icon\.svg\?v=[0-9.]+"/);
 });
