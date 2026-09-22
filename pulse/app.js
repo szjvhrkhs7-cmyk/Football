@@ -289,7 +289,7 @@
     $('budgetMeterFill').style.width = `${percent}%`;
 
     const plannedExpenses = plannedExpensesForOverview(monthlyExpenses);
-    renderExpenseList($('upcomingList'), plannedExpenses, { empty: 'Добавь первую планируемую трату' });
+    renderExpenseList($('upcomingList'), plannedExpenses, { empty: 'Добавь первую планируемую трату', completable: true });
 
     const card = $('budgetStatusCard');
     card.classList.remove('warning', 'danger');
@@ -504,6 +504,19 @@
     container.innerHTML = list.map(expense => {
       const category = categoryById(expense.categoryId);
       const paidLabel = expense.status === 'paid' ? '<span class="paid-mark">✓ Оплачено</span>' : escapeHtml(formatDate(expense.date));
+      if (options.completable && expense.status !== 'paid') {
+        return `
+          <div class="expense-row expense-row-completable">
+            <button class="expense-row-main" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Открыть трату ${escapeAttr(expense.title)}">
+              <span class="category-icon" style="background:${escapeAttr(category.soft)};color:${escapeAttr(category.color)}">${escapeHtml(category.emoji)}</span>
+              <span class="expense-main"><strong>${escapeHtml(expense.title)}</strong><small>${paidLabel}</small></span>
+              <b>${escapeHtml(formatMoney(expense.amount))}</b>
+            </button>
+            <button class="expense-complete" type="button" data-complete-expense="${escapeAttr(expense.id)}" aria-label="Отметить трату ${escapeAttr(expense.title)} выполненной" title="Выполнено">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.4 3.4 7.8-8"/></svg>
+            </button>
+          </div>`;
+      }
       return `
         <button class="expense-row ${expense.status === 'paid' ? 'paid' : ''}" type="button" data-expense-id="${escapeAttr(expense.id)}">
           <span class="category-icon" style="background:${escapeAttr(category.soft)};color:${escapeAttr(category.color)}">${escapeHtml(category.emoji)}</span>
@@ -515,6 +528,9 @@
 
     container.querySelectorAll('[data-expense-id]').forEach(button => {
       button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId));
+    });
+    container.querySelectorAll('[data-complete-expense]').forEach(button => {
+      button.addEventListener('click', () => completeExpense(button.dataset.completeExpense));
     });
   }
 
@@ -694,6 +710,21 @@
     if (!persistState()) return;
     closeExpenseDialog();
     showToast(existing ? 'Трата обновлена' : 'Трата добавлена');
+  }
+
+  function completeExpense(id) {
+    const expense = state.expenses.find(item => item.id === id);
+    if (!expense || expense.status === 'paid') return;
+    const previousStatus = expense.status;
+    const previousUpdatedAt = expense.updatedAt;
+    expense.status = 'paid';
+    expense.updatedAt = new Date().toISOString();
+    if (!persistState()) {
+      expense.status = previousStatus;
+      expense.updatedAt = previousUpdatedAt;
+      return;
+    }
+    showToast('Трата выполнена');
   }
 
   function deleteExpense() {
