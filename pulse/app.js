@@ -61,6 +61,7 @@
         budgets: {},
         categories: defaultCategories.map(item => ({ ...item }))
       },
+      mandatoryPayments: [],
       loans: [],
       expenses: []
     };
@@ -96,6 +97,20 @@
           }))
       : [];
 
+    const mandatoryPayments = Array.isArray(candidate.mandatoryPayments)
+      ? candidate.mandatoryPayments
+          .filter(item => item && typeof item === 'object')
+          .map(item => ({
+            id: String(item.id || makeId('payment')),
+            title: String(item.title || 'Платёж').slice(0, 60),
+            amount: Math.max(0, Math.round((Number(item.amount) || 0) * 100) / 100),
+            day: Math.min(31, Math.max(1, Math.trunc(Number(item.day) || 1))),
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString()
+          }))
+          .filter(item => item.amount > 0)
+      : [];
+
     return {
       meta: {
         version: 1,
@@ -107,6 +122,7 @@
         categories
       },
       expenses,
+      mandatoryPayments,
       loans: window.PulseLoans.normalize(candidate.loans)
     };
   }
@@ -194,6 +210,22 @@
     return expenses.filter(expense => expense.status !== 'paid');
   }
 
+  function paymentWord(count) {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return 'платёж';
+    if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'платежа';
+    return 'платежей';
+  }
+
+  function mandatoryPaymentsSorted() {
+    return [...state.mandatoryPayments].sort((a, b) => a.day - b.day || a.title.localeCompare(b.title, 'ru'));
+  }
+
+  function mandatoryPaymentsTotal() {
+    return state.mandatoryPayments.reduce((sum, item) => sum + item.amount, 0);
+  }
+
   function categoryById(id) {
     return state.settings.categories.find(item => item.id === id) || state.settings.categories[0] || defaultCategories[7];
   }
@@ -234,6 +266,7 @@
     renderOverview();
     renderPlans();
     renderAnalytics();
+    renderMandatoryPayments();
     renderLoans();
     renderSettings();
     renderCategoryPicker();
@@ -249,6 +282,9 @@
     $('availableAmount').textContent = formatMoney(available);
     $('budgetAmount').textContent = formatMoney(budget);
     $('plannedAmount').textContent = formatMoney(planned);
+    const mandatoryTotal = mandatoryPaymentsTotal();
+    $('mandatoryOverviewAmount').textContent = formatMoney(mandatoryTotal);
+    $('mandatoryOverviewCount').textContent = `${state.mandatoryPayments.length} ${paymentWord(state.mandatoryPayments.length)} в месяц`;
     const percent = budget > 0 ? Math.min(100, Math.max(0, planned / budget * 100)) : (planned > 0 ? 100 : 0);
     $('budgetMeterFill').style.width = `${percent}%`;
 
@@ -273,6 +309,86 @@
       $('budgetStatusTitle').textContent = 'Всё под контролем';
       $('budgetStatusText').textContent = monthlyExpenses.length ? `Остаток ${formatMoney(available)}` : 'Добавь траты';
     }
+  }
+
+  function renderMandatoryPayments() {
+    const payments = mandatoryPaymentsSorted();
+    $('mandatoryPaymentsTotal').textContent = formatMoney(mandatoryPaymentsTotal());
+    $('mandatoryPaymentsCount').textContent = `${payments.length} ${paymentWord(payments.length)} в месяц`;
+    $('mandatoryPaymentsList').innerHTML = payments.length ? payments.map(payment => `
+      <article class="payment-card">
+        <button class="payment-main" type="button" data-edit-mandatory-payment="${escapeAttr(payment.id)}" aria-label="Изменить обязательный платёж ${escapeAttr(payment.title)}">
+          <span class="payment-symbol" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
+          </span>
+          <span class="payment-copy">
+            <strong>${escapeHtml(payment.title)}</strong>
+            <small>Каждый месяц · ${payment.day} числа</small>
+          </span>
+          <b>${escapeHtml(formatMoney(payment.amount))}</b>
+          <span class="payment-chevron" aria-hidden="true">›</span>
+        </button>
+      </article>`).join('') : '<div class="empty-state"><span>◫</span><strong>Обязательных платежей пока нет</strong><small>Добавь регулярный платёж, чтобы видеть сумму на месяц</small></div>';
+  }
+
+  function openMandatoryPaymentDialog(id = null) {
+    const payment = state.mandatoryPayments.find(item => item.id === id);
+    $('mandatoryPaymentForm').reset();
+    $('mandatoryPaymentError').textContent = '';
+    $('mandatoryPaymentId').value = payment?.id || '';
+    $('mandatoryPaymentTitle').value = payment?.title || '';
+    $('mandatoryPaymentAmount').value = payment?.amount || '';
+    $('mandatoryPaymentDay').value = payment?.day || new Date().getDate();
+    $('mandatoryPaymentDialogTitle').textContent = payment ? 'Изменить платёж' : 'Добавить платёж';
+    $('deleteMandatoryPaymentButton').classList.toggle('hidden', !payment);
+    $('mandatoryPaymentDialog').showModal();
+  }
+
+  function saveMandatoryPayment(event) {
+    event.preventDefault();
+    const title = $('mandatoryPaymentTitle').value.trim();
+    const amount = Number($('mandatoryPaymentAmount').value);
+    const day = Number($('mandatoryPaymentDay').value);
+    let error = '';
+    if (!title) error = 'Укажи название платежа';
+    else if (!Number.isFinite(amount) || amount < 0.01 || amount > 1e12) error = 'Укажи сумму платежа';
+    else if (!Number.isInteger(day) || day < 1 || day > 31) error = 'Укажи день месяца от 1 до 31';
+    if (error) { $('mandatoryPaymentError').textContent = error; return; }
+
+    const existing = state.mandatoryPayments.find(item => item.id === $('mandatoryPaymentId').value);
+    const before = state.mandatoryPayments.map(item => ({ ...item }));
+    const payment = {
+      id: existing?.id || makeId('payment'),
+      title: title.slice(0, 60),
+      amount: Math.round(amount * 100) / 100,
+      day,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (existing) Object.assign(existing, payment);
+    else state.mandatoryPayments.push(payment);
+    if (!persistState()) {
+      state.mandatoryPayments = before;
+      $('mandatoryPaymentError').textContent = 'Не удалось сохранить платёж. Освободи место на устройстве и повтори.';
+      return;
+    }
+    $('mandatoryPaymentDialog').close();
+    showToast(existing ? 'Платёж обновлён' : 'Платёж добавлен');
+  }
+
+  function deleteMandatoryPayment() {
+    const payment = state.mandatoryPayments.find(item => item.id === $('mandatoryPaymentId').value);
+    if (!payment || !window.confirm(`Удалить платёж «${payment.title}»?`)) return;
+    const before = state.mandatoryPayments;
+    state.mandatoryPayments = state.mandatoryPayments.filter(item => item.id !== payment.id);
+    if (!persistState()) { state.mandatoryPayments = before; return; }
+    $('mandatoryPaymentDialog').close();
+    showToast('Платёж удалён');
+  }
+
+  function handleMandatoryPaymentClick(event) {
+    const edit = event.target.closest('[data-edit-mandatory-payment]');
+    if (edit) openMandatoryPaymentDialog(edit.dataset.editMandatoryPayment);
   }
 
   function renderLoans() {
@@ -1054,6 +1170,18 @@
       const rect = $('loanDialog').getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('loanDialog').close();
     });
+
+    $('addMandatoryPaymentButton').addEventListener('click', () => openMandatoryPaymentDialog());
+    $('closeMandatoryPaymentButton').addEventListener('click', () => $('mandatoryPaymentDialog').close());
+    $('mandatoryPaymentForm').addEventListener('submit', saveMandatoryPayment);
+    $('deleteMandatoryPaymentButton').addEventListener('click', deleteMandatoryPayment);
+    $('mandatoryPaymentsList').addEventListener('click', handleMandatoryPaymentClick);
+    $('mandatoryPaymentDialog').addEventListener('click', event => {
+      if (event.target !== $('mandatoryPaymentDialog')) return;
+      const rect = $('mandatoryPaymentDialog').getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('mandatoryPaymentDialog').close();
+    });
+
     $('signUpButton').addEventListener('click', signUp);
     $('resendEmailButton').addEventListener('click', resendConfirmation);
     $('signOutButton').addEventListener('click', signOut);
