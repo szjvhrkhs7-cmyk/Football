@@ -9,13 +9,13 @@
   <meta name="apple-mobile-web-app-title" content="Пульс">
   <meta name="format-detection" content="telephone=no">
   <title>Пульс - финансовый трекер</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=1.2.0">
-  <link rel="icon" href="./icon.svg?v=1.2.0" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=1.3.0">
+  <link rel="icon" href="./icon.svg?v=1.3.0" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
-  <link rel="stylesheet" href="./styles.css?v=1.2.0">
+  <link rel="stylesheet" href="./styles.css?v=1.3.0">
   <script defer src="./vendor/supabase-2.45.4.js"></script>
-  <script defer src="./loans.js?v=1.2.0"></script>
-  <script defer src="./app.js?v=1.2.0"></script>
+  <script defer src="./loans.js?v=1.3.0"></script>
+  <script defer src="./app.js?v=1.3.0"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -76,25 +76,42 @@
           <div class="budget-meter" aria-hidden="true"><i id="budgetMeterFill"></i></div>
         </article>
 
+        <button class="obligation-overview-card" type="button" data-nav="payments" aria-label="Открыть обязательные платежи">
+          <span class="obligation-overview-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
+          </span>
+          <span class="obligation-overview-copy">
+            <small>Обязательные платежи</small>
+            <strong id="mandatoryOverviewAmount">0 ₽</strong>
+            <em id="mandatoryOverviewCount">0 платежей в месяц</em>
+          </span>
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
         <section class="home-editors" aria-label="Бюджет и категории">
-        <article class="settings-card" id="budgetSettingsCard">
-          <div class="settings-title">
-            <span class="settings-icon blue">
-              <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
+        <details class="settings-card budget-details" id="budgetSettingsCard">
+          <summary>
+            <span class="settings-title">
+              <span class="settings-icon blue">
+                <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM7 4h10v3H7zM16 12h2"/></svg>
+              </span>
+              <span><h2>Планируемый бюджет</h2><p>Нажми, чтобы изменить сумму</p></span>
             </span>
-            <div><h2>Планируемый бюджет</h2><p>Сумма, от которой вычитаются расходы</p></div>
+            <svg class="budget-details-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="budget-details-body">
+            <label class="field-label" for="budgetInput">Планируемый бюджет, ₽</label>
+            <div class="input-with-action">
+              <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
+              <button id="saveBudgetButton" type="button">Сохранить</button>
+            </div>
+            <label class="switch-row">
+              <span><strong>Использовать как базовый</strong><small>Подставлять эту сумму для новых периодов</small></span>
+              <input id="defaultBudgetToggle" type="checkbox">
+              <i aria-hidden="true"></i>
+            </label>
           </div>
-          <label class="field-label" for="budgetInput">Планируемый бюджет, ₽</label>
-          <div class="input-with-action">
-            <input id="budgetInput" type="number" min="0" step="500" inputmode="numeric" autocomplete="off">
-            <button id="saveBudgetButton" type="button">Сохранить</button>
-          </div>
-          <label class="switch-row">
-            <span><strong>Использовать как базовый</strong><small>Подставлять эту сумму для новых периодов</small></span>
-            <input id="defaultBudgetToggle" type="checkbox">
-            <i aria-hidden="true"></i>
-          </label>
-        </article>
+        </details>
         <article class="settings-card" id="categoriesCard">
           <button class="settings-title categories-trigger" id="openCategoriesButton" type="button" aria-haspopup="dialog" aria-controls="categoriesDialog">
             <span class="settings-icon violet">
@@ -174,6 +191,35 @@
 
         <button class="primary-action" type="button" data-open-expense>
           <span class="plus">+</span> Добавить трату
+        </button>
+      </section>
+
+      <section class="screen" data-screen="payments" aria-labelledby="paymentsTitle">
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">Регулярные расходы</p>
+            <h1 id="paymentsTitle">Обязательные платежи</h1>
+          </div>
+        </div>
+
+        <article class="summary-card mandatory-summary" aria-label="Сумма обязательных платежей в месяц">
+          <span class="summary-icon">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
+          </span>
+          <span class="summary-copy">
+            <small>Всего в месяц</small>
+            <strong id="mandatoryPaymentsTotal">0 ₽</strong>
+            <em id="mandatoryPaymentsCount">0 платежей в месяц</em>
+          </span>
+        </article>
+
+        <p class="payment-note">Платежи показываются отдельно и не уменьшают планируемый бюджет автоматически.</p>
+
+        <div class="section-title-row payments-title-row"><h2>Мои платежи</h2></div>
+        <div id="mandatoryPaymentsList" class="payment-list"></div>
+
+        <button class="primary-action" id="addMandatoryPaymentButton" type="button">
+          <span class="plus">+</span> Добавить платёж
         </button>
       </section>
 
@@ -330,6 +376,10 @@
         <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
         <span>Обзор</span>
       </button>
+      <button type="button" data-nav="payments">
+        <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
+        <span>Платежи</span>
+      </button>
       <button type="button" data-nav="loans">
         <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
         <span>Кредиты</span>
@@ -344,6 +394,36 @@
       </button>
     </nav>
   </div>
+
+  <dialog class="sheet" id="mandatoryPaymentDialog" aria-labelledby="mandatoryPaymentDialogTitle">
+    <form id="mandatoryPaymentForm" novalidate>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <button class="sheet-close" id="closeMandatoryPaymentButton" type="button" aria-label="Закрыть обязательный платёж">
+          <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+        <div><p class="eyebrow">Регулярный расход</p><h2 id="mandatoryPaymentDialogTitle">Добавить платёж</h2></div>
+        <span class="sheet-spacer"></span>
+      </div>
+      <input id="mandatoryPaymentId" type="hidden">
+
+      <label class="field-label" for="mandatoryPaymentTitle">Название</label>
+      <input id="mandatoryPaymentTitle" maxlength="60" placeholder="Например, аренда" required autocomplete="off">
+
+      <label class="field-label" for="mandatoryPaymentAmount">Сумма, ₽</label>
+      <input id="mandatoryPaymentAmount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
+
+      <label class="field-label" for="mandatoryPaymentDay">День месяца</label>
+      <input id="mandatoryPaymentDay" type="number" inputmode="numeric" min="1" max="31" step="1" placeholder="1" required>
+      <p class="helper-text">Если в месяце нет выбранного числа, ориентируйся на последний день месяца.</p>
+
+      <p id="mandatoryPaymentError" class="inline-message form-error" role="alert"></p>
+      <div class="sheet-actions">
+        <button class="danger-text hidden" id="deleteMandatoryPaymentButton" type="button">Удалить</button>
+        <button class="primary-small grow" type="submit">Сохранить платёж</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
     <form id="loanForm" novalidate>

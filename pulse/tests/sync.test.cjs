@@ -133,3 +133,16 @@ test('cloud downloads preserve credit records, including paid months', async () 
   assert.equal(f.api.state().loans[0].payment, 50.25);
   assert.equal(f.api.state().loans[0].paidMonths[0], '2026-09');
 });
+
+test('cloud downloads preserve mandatory payments', async () => {
+  const f = fixture();
+  const mandatoryPayments = [
+    { id: 'rent', title: 'Аренда', amount: 45000, day: 5 },
+    { id: 'internet', title: 'Интернет', amount: 900, day: 20 }
+  ];
+  f.api.connect(db(async () => ({ data: { payload: { meta: { updatedAt: '2026-09-22T10:00:00Z' }, mandatoryPayments } } }), async () => ({})));
+  await f.api.syncBidirectional();
+  assert.equal(f.api.state().mandatoryPayments.length, 2);
+  assert.equal(f.api.state().mandatoryPayments[0].amount, 45000);
+  assert.equal(f.api.state().mandatoryPayments[1].day, 20);
+});
