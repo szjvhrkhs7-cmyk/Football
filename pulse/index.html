@@ -9,13 +9,13 @@
   <meta name="apple-mobile-web-app-title" content="Пульс">
   <meta name="format-detection" content="telephone=no">
   <title>Пульс - финансовый трекер</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=1.2.0">
-  <link rel="icon" href="./icon.svg?v=1.2.0" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=1.3.0">
+  <link rel="icon" href="./icon.svg?v=1.3.0" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v2.png">
-  <link rel="stylesheet" href="./styles.css?v=1.2.0">
+  <link rel="stylesheet" href="./styles.css?v=1.3.0">
   <script defer src="./vendor/supabase-2.45.4.js"></script>
-  <script defer src="./loans.js?v=1.2.0"></script>
-  <script defer src="./app.js?v=1.2.0"></script>
+  <script defer src="./loans.js?v=1.3.0"></script>
+  <script defer src="./app.js?v=1.3.0"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -75,6 +75,18 @@
           </div>
           <div class="budget-meter" aria-hidden="true"><i id="budgetMeterFill"></i></div>
         </article>
+
+        <button class="obligations-card" type="button" data-nav="payments" aria-label="Открыть обязательные платежи">
+          <span class="obligations-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><path d="M8 13h3M8 16h6"/></svg>
+          </span>
+          <span class="obligations-copy">
+            <small>Обязательные платежи</small>
+            <strong id="overviewPaymentsTotal">0 ₽</strong>
+            <em id="overviewPaymentsMeta">Платежей пока нет</em>
+          </span>
+          <svg class="chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
 
         <section class="home-editors" aria-label="Бюджет и категории">
         <article class="settings-card" id="budgetSettingsCard">
@@ -175,6 +187,31 @@
         <button class="primary-action" type="button" data-open-expense>
           <span class="plus">+</span> Добавить трату
         </button>
+      </section>
+
+      <section class="screen" data-screen="payments" aria-labelledby="paymentsTitle">
+        <div class="screen-heading compact">
+          <div>
+            <p class="eyebrow">Регулярные расходы</p>
+            <h1 id="paymentsTitle">Обязательные платежи</h1>
+          </div>
+        </div>
+
+        <article class="payments-hero" aria-label="Сумма обязательных платежей">
+          <span>
+            <small>Всего в месяц</small>
+            <strong id="paymentsTotal">0 ₽</strong>
+            <em id="paymentsCount">0 платежей</em>
+          </span>
+          <span class="payments-hero-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><path d="M8 13h3M8 16h6"/></svg>
+          </span>
+        </article>
+        <p class="payments-note">Эта сумма показывается отдельно и не уменьшает планируемый бюджет автоматически.</p>
+
+        <div class="section-title-row payments-title-row"><h2>Мои платежи</h2></div>
+        <div id="paymentsDirectory" class="payment-list"></div>
+        <button class="primary-action" id="addPaymentButton" type="button"><span class="plus">+</span> Добавить платеж</button>
       </section>
 
       <section class="screen" data-screen="loans" aria-labelledby="loansTitle">
@@ -330,6 +367,10 @@
         <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
         <span>Обзор</span>
       </button>
+      <button type="button" data-nav="payments">
+        <svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><path d="M8 13h3M8 16h6"/></svg>
+        <span>Платежи</span>
+      </button>
       <button type="button" data-nav="loans">
         <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
         <span>Кредиты</span>
@@ -344,6 +385,36 @@
       </button>
     </nav>
   </div>
+
+  <dialog class="sheet" id="paymentDialog" aria-labelledby="paymentDialogTitle">
+    <form id="paymentForm" novalidate>
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <button class="sheet-close" id="closePaymentButton" type="button" aria-label="Закрыть платеж"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <div><p class="eyebrow">Обязательный платеж</p><h2 id="paymentDialogTitle">Добавить платеж</h2></div>
+        <span class="sheet-spacer"></span>
+      </div>
+      <input id="paymentId" type="hidden">
+      <label class="field-label" for="paymentTitle">Название</label>
+      <input id="paymentTitle" maxlength="60" placeholder="Например, аренда" required autocomplete="off">
+      <div class="two-fields">
+        <div>
+          <label class="field-label" for="paymentAmount">Сумма, ₽</label>
+          <input id="paymentAmount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0" required>
+        </div>
+        <div>
+          <label class="field-label" for="paymentDay">День месяца</label>
+          <input id="paymentDay" type="number" inputmode="numeric" min="1" max="31" step="1" placeholder="1" required>
+        </div>
+      </div>
+      <p class="helper-text">Если в месяце нет выбранного дня, ориентируйся на последний день месяца.</p>
+      <p id="paymentError" class="inline-message form-error" role="alert"></p>
+      <div class="sheet-actions">
+        <button class="danger-text hidden" id="deletePaymentButton" type="button">Удалить</button>
+        <button class="primary-small grow" type="submit">Сохранить платеж</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
     <form id="loanForm" novalidate>
