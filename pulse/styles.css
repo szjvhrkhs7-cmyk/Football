@@ -189,9 +189,64 @@ h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
 .expense-main { min-width: 0; }
 .expense-main strong { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 16px; }
 .expense-main small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
-.expense-row > b { font-size: 15px; white-space: nowrap; }
+.expense-row > b, .expense-row-main > b { font-size: 15px; white-space: nowrap; }
 .expense-row > .row-more { color: #9aa4b5; font-size: 22px; width: 24px; text-align: center; }
 .expense-row.paid .expense-main strong, .expense-row.paid > b { color: #687287; }
+.expense-row-completable {
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 7px;
+  padding: 7px 9px 7px 7px;
+  cursor: default;
+}
+.expense-row-main {
+  min-width: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.expense-row-main:active { opacity: .72; }
+.expense-complete {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #b9ddcf;
+  border-radius: 50%;
+  background: #f2fbf7;
+  color: #278a65;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+.expense-complete svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.expense-complete:active {
+  transform: scale(.92);
+  background: #e2f7ee;
+  border-color: #8bc8b0;
+}
+.expense-complete:focus-visible {
+  outline: 3px solid rgba(24, 134, 250, .22);
+  outline-offset: 2px;
+}
 .expense-row.paid .expense-main strong { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 .paid-mark { display: inline-flex; align-items: center; gap: 4px; color: var(--green); font-weight: 650; }
 .empty-state { padding: 28px 16px; border-radius: 20px; background: rgba(255,255,255,.7); border: 1px dashed #dce4ef; text-align: center; color: var(--muted); }
