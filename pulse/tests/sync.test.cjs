@@ -125,11 +125,14 @@ test('signup normalizes its redirect and does not announce success on an SMTP re
   assert.match(f.elements.get('cloudMessage').textContent, /почтовый сервис/);
   assert.equal(f.elements.get('signUpButton').disabled, false);
 });
-test('cloud downloads preserve credit records, including paid months', async () => {
+test('cloud downloads preserve credit records and mandatory payments', async () => {
   const f = fixture();
-  const loans = [{ id: 'a', title: 'Кредит', payment: 50.25, firstDate: '2026-09-21', paidMonths: ['2026-09'] }];
-  f.api.connect(db(async () => ({ data: { payload: { meta: { updatedAt: '2026-09-21T10:00:00Z' }, loans } } }), async () => ({})));
+  const loans = [{ id: 'a', title: 'Кредит', payment: 50.25, balance: 1000, firstDate: '2026-09-21', paidMonths: ['2026-09'] }];
+  const payments = [{ id: 'p', title: 'Аренда', amount: 32000, day: 5 }];
+  f.api.connect(db(async () => ({ data: { payload: { meta: { updatedAt: '2026-09-21T10:00:00Z' }, loans, payments } } }), async () => ({})));
   await f.api.syncBidirectional();
   assert.equal(f.api.state().loans[0].payment, 50.25);
   assert.equal(f.api.state().loans[0].paidMonths[0], '2026-09');
+  assert.equal(f.api.state().payments[0].amount, 32000);
+  assert.equal(f.api.state().payments[0].day, 5);
 });
