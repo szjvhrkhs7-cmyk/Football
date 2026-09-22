@@ -172,6 +172,29 @@ test('home editors and existing expense/category interactions work without layou
   a.click('[data-nav="plans"]'); assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'plans');
   assert.match(a.$('plansList').textContent, /Продукты/);
 });
+test('home completion check hides an expense from overview and keeps it in analytics', async t => {
+  const a = await app(t);
+  a.$('budgetInput').value = '40000';
+  a.$('saveBudgetButton').click();
+
+  a.click('[data-open-expense]');
+  a.$('expenseTitle').value = 'Продукты';
+  a.$('expenseAmount').value = '1250';
+  a.submit('expenseForm');
+
+  assert.match(a.$('upcomingList').textContent, /Продукты/);
+  const complete = a.w.document.querySelector('#upcomingList [data-complete-expense]');
+  assert.ok(complete);
+  complete.click();
+
+  assert.equal(a.read().expenses[0].status, 'paid');
+  assert.doesNotMatch(a.$('upcomingList').textContent, /Продукты/);
+  assert.match(a.$('plansList').textContent, /Продукты/);
+  assert.match(a.$('analyticsPaid').textContent, /1\s250/);
+  assert.equal(a.$('analyticsPaidCount').textContent, '1 трата');
+  assert.match(a.$('availableAmount').textContent, /38\s750/);
+});
+
 test('old backups migrate without losing expenses or requiring credit records', async t => {
   const a = await app(t, JSON.stringify({ meta: { version: 1, updatedAt: '2026-01-01' }, settings: { defaultBudget: 55 }, expenses: [{ id: 'x', title: 'Old expense', amount: 10, date: '2026-01-01' }] }));
   a.$('addLoanButton').click(); fillLoan(a); a.submit('loanForm');
