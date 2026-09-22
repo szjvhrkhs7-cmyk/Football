@@ -34,6 +34,11 @@ function fillLoan(a, title = 'Ипотека') {
   const month = new Date().toISOString().slice(0, 7);
   a.$('loanFirstDate').value = `${month}-01`;
 }
+function fillMandatoryPayment(a, title = 'Аренда', amount = '5000', day = '15') {
+  a.$('mandatoryPaymentTitle').value = title;
+  a.$('mandatoryPaymentAmount').value = amount;
+  a.$('mandatoryPaymentDay').value = day;
+}
 test('credit create, edit, reload and delete work without a payment schedule', async t => {
   const a = await app(t);
   a.click('.bottom-nav [data-nav="loans"]');
@@ -90,6 +95,69 @@ test('total debt and monthly payments are summed across all credits', async t =>
   assert.equal(a.$('loansCount').textContent, '2');
 });
 
+test('mandatory payments support CRUD, sort by day and stay outside budget math', async t => {
+  const a = await app(t);
+  a.$('budgetInput').value = '40000';
+  a.$('saveBudgetButton').click();
+
+  a.click('[data-open-expense]');
+  a.$('expenseTitle').value = 'Продукты';
+  a.$('expenseAmount').value = '1000';
+  a.submit('expenseForm');
+  assert.match(a.$('availableAmount').textContent, /39\s000/);
+
+  a.$('addMandatoryPaymentButton').click();
+  fillMandatoryPayment(a, 'Интернет', '5000', '25');
+  a.submit('mandatoryPaymentForm');
+
+  a.$('addMandatoryPaymentButton').click();
+  fillMandatoryPayment(a, 'Аренда', '20000', '5');
+  a.submit('mandatoryPaymentForm');
+
+  assert.match(a.$('mandatoryPaymentsTotal').textContent, /25\s000/);
+  assert.match(a.$('mandatoryOverviewAmount').textContent, /25\s000/);
+  assert.match(a.$('availableAmount').textContent, /39\s000/);
+  assert.deepEqual(
+    Array.from(a.w.document.querySelectorAll('#mandatoryPaymentsList .payment-copy strong'), node => node.textContent),
+    ['Аренда', 'Интернет']
+  );
+
+  const internet = Array.from(a.w.document.querySelectorAll('[data-edit-mandatory-payment]')).find(button => button.textContent.includes('Интернет'));
+  internet.click();
+  a.$('mandatoryPaymentAmount').value = '6000';
+  a.submit('mandatoryPaymentForm');
+  assert.match(a.$('mandatoryPaymentsTotal').textContent, /26\s000/);
+
+  const b = await app(t, a.w.localStorage.getItem('pulse-finance-v1'));
+  assert.equal(b.read().mandatoryPayments.length, 2);
+  assert.match(b.$('mandatoryPaymentsTotal').textContent, /26\s000/);
+  assert.match(b.$('availableAmount').textContent, /39\s000/);
+
+  const rent = Array.from(b.w.document.querySelectorAll('[data-edit-mandatory-payment]')).find(button => button.textContent.includes('Аренда'));
+  rent.click();
+  b.$('deleteMandatoryPaymentButton').click();
+  assert.equal(b.read().mandatoryPayments.length, 1);
+  assert.match(b.$('mandatoryPaymentsTotal').textContent, /6\s000/);
+});
+
+test('mandatory payment validation keeps unsafe titles as text', async t => {
+  const a = await app(t);
+  a.$('addMandatoryPaymentButton').click();
+  fillMandatoryPayment(a, '<img src=x onerror=alert(1)>', '-1', '32');
+  a.submit('mandatoryPaymentForm');
+  assert.equal(a.$('mandatoryPaymentDialog').open, true);
+  assert.match(a.$('mandatoryPaymentError').textContent, /сумму платежа/);
+
+  a.$('mandatoryPaymentAmount').value = '1';
+  a.submit('mandatoryPaymentForm');
+  assert.match(a.$('mandatoryPaymentError').textContent, /день месяца/);
+
+  a.$('mandatoryPaymentDay').value = '12';
+  a.submit('mandatoryPaymentForm');
+  assert.equal(a.$('mandatoryPaymentsList').querySelector('img'), null);
+  assert.match(a.$('mandatoryPaymentsList').textContent, /<img/);
+});
+
 test('home editors and existing expense/category interactions work without layout patches', async t => {
   const a = await app(t);
   assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'overview');
@@ -110,4 +178,5 @@ test('old backups migrate without losing expenses or requiring credit records', 
   assert.equal(a.read().expenses[0].title, 'Old expense');
   assert.equal(a.read().settings.defaultBudget, 55);
   assert.equal(a.read().loans.length, 1);
+  assert.deepEqual(a.read().mandatoryPayments, []);
 });
