@@ -62,6 +62,7 @@
         categories: defaultCategories.map(item => ({ ...item }))
       },
       loans: [],
+      payments: [],
       expenses: []
     };
   }
@@ -96,6 +97,19 @@
           }))
       : [];
 
+    const payments = Array.isArray(candidate.payments)
+      ? candidate.payments
+          .filter(item => item && typeof item === 'object')
+          .map(item => ({
+            id: String(item.id || makeId('payment')),
+            title: String(item.title || 'Платеж').slice(0, 60),
+            amount: Math.max(0, Math.round((Number(item.amount) || 0) * 100) / 100),
+            day: Math.min(31, Math.max(1, Math.trunc(Number(item.day) || 1))),
+            createdAt: item.createdAt || new Date().toISOString(),
+            updatedAt: item.updatedAt || new Date().toISOString()
+          }))
+      : [];
+
     return {
       meta: {
         version: 1,
@@ -107,7 +121,8 @@
         categories
       },
       expenses,
-      loans: window.PulseLoans.normalize(candidate.loans)
+      loans: window.PulseLoans.normalize(candidate.loans),
+      payments
     };
   }
 
@@ -179,6 +194,14 @@
     return 'трат';
   }
 
+  function paymentWord(count) {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return 'платеж';
+    if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'платежа';
+    return 'платежей';
+  }
+
   function budgetForMonth(monthKey = selectedMonth) {
     const direct = Number(state.settings.budgets?.[monthKey]);
     return Number.isFinite(direct) && direct >= 0 ? direct : Number(state.settings.defaultBudget) || 0;
@@ -234,6 +257,7 @@
     renderOverview();
     renderPlans();
     renderAnalytics();
+    renderPayments();
     renderLoans();
     renderSettings();
     renderCategoryPicker();
@@ -249,6 +273,11 @@
     $('availableAmount').textContent = formatMoney(available);
     $('budgetAmount').textContent = formatMoney(budget);
     $('plannedAmount').textContent = formatMoney(planned);
+    const paymentsTotal = state.payments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+    $('overviewPaymentsTotal').textContent = formatMoney(paymentsTotal);
+    $('overviewPaymentsMeta').textContent = state.payments.length
+      ? `${state.payments.length} ${paymentWord(state.payments.length)} в месяц · отдельно от бюджета`
+      : 'Платежей пока нет · отдельно от бюджета';
     const percent = budget > 0 ? Math.min(100, Math.max(0, planned / budget * 100)) : (planned > 0 ? 100 : 0);
     $('budgetMeterFill').style.width = `${percent}%`;
 
@@ -273,6 +302,82 @@
       $('budgetStatusTitle').textContent = 'Всё под контролем';
       $('budgetStatusText').textContent = monthlyExpenses.length ? `Остаток ${formatMoney(available)}` : 'Добавь траты';
     }
+  }
+
+  function renderPayments() {
+    const total = state.payments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+    $('paymentsTotal').textContent = formatMoney(total);
+    $('paymentsCount').textContent = `${state.payments.length} ${paymentWord(state.payments.length)}`;
+    const sorted = [...state.payments].sort((a, b) => a.day - b.day || a.title.localeCompare(b.title, 'ru'));
+    $('paymentsDirectory').innerHTML = sorted.length ? sorted.map(payment => `
+      <article class="payment-card">
+        <button class="payment-main" type="button" data-edit-payment="${escapeAttr(payment.id)}" aria-label="Изменить платеж ${escapeAttr(payment.title)}">
+          <span class="payment-day" aria-hidden="true"><small>день</small><b>${payment.day}</b></span>
+          <span class="payment-copy"><strong>${escapeHtml(payment.title)}</strong><small>${payment.day} числа каждого месяца</small></span>
+          <span class="payment-amount">${escapeHtml(formatMoney(payment.amount))}</span>
+          <span class="loan-chevron" aria-hidden="true">›</span>
+        </button>
+      </article>`).join('') : '<div class="empty-state"><span>◷</span><strong>Платежей пока нет</strong><small>Добавь регулярные обязательные платежи</small></div>';
+  }
+
+  function openPaymentDialog(id = null) {
+    const payment = state.payments.find(item => item.id === id);
+    $('paymentForm').reset();
+    $('paymentError').textContent = '';
+    $('paymentId').value = payment?.id || '';
+    $('paymentTitle').value = payment?.title || '';
+    $('paymentAmount').value = payment?.amount || '';
+    $('paymentDay').value = payment?.day || '';
+    $('paymentDialogTitle').textContent = payment ? 'Изменить платеж' : 'Добавить платеж';
+    $('deletePaymentButton').classList.toggle('hidden', !payment);
+    $('paymentDialog').showModal();
+  }
+
+  function savePayment(event) {
+    event.preventDefault();
+    const title = $('paymentTitle').value.trim();
+    const amount = Number($('paymentAmount').value);
+    const day = Number($('paymentDay').value);
+    let error = '';
+    if (!title) error = 'Укажи название платежа';
+    else if (!Number.isFinite(amount) || amount < 0.01 || amount > 1e15) error = 'Укажи сумму платежа';
+    else if (!Number.isInteger(day) || day < 1 || day > 31) error = 'Укажи день месяца от 1 до 31';
+    if (error) { $('paymentError').textContent = error; return; }
+
+    const existing = state.payments.find(item => item.id === $('paymentId').value);
+    const before = state.payments.map(item => ({ ...item }));
+    const payment = {
+      id: existing?.id || makeId('payment'),
+      title: title.slice(0, 60),
+      amount: Math.round(amount * 100) / 100,
+      day,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (existing) Object.assign(existing, payment);
+    else state.payments.push(payment);
+    if (!persistState()) {
+      state.payments = before;
+      $('paymentError').textContent = 'Не удалось сохранить платеж. Освободи место на устройстве и повтори.';
+      return;
+    }
+    $('paymentDialog').close();
+    showToast(existing ? 'Платеж обновлен' : 'Платеж добавлен');
+  }
+
+  function handlePaymentClick(event) {
+    const edit = event.target.closest('[data-edit-payment]');
+    if (edit) openPaymentDialog(edit.dataset.editPayment);
+  }
+
+  function deletePayment() {
+    const payment = state.payments.find(item => item.id === $('paymentId').value);
+    if (!payment || !window.confirm(`Удалить платеж «${payment.title}»?`)) return;
+    const previous = state.payments;
+    state.payments = state.payments.filter(item => item.id !== payment.id);
+    if (!persistState()) { state.payments = previous; return; }
+    $('paymentDialog').close();
+    showToast('Платеж удален');
   }
 
   function renderLoans() {
@@ -1044,6 +1149,16 @@
 
     $('signedOutCloud').addEventListener('submit', event => { event.preventDefault(); signIn(); });
     $('retryCloudButton').addEventListener('click', initCloud);
+    $('addPaymentButton').addEventListener('click', () => openPaymentDialog());
+    $('closePaymentButton').addEventListener('click', () => $('paymentDialog').close());
+    $('paymentForm').addEventListener('submit', savePayment);
+    $('deletePaymentButton').addEventListener('click', deletePayment);
+    $('paymentsDirectory').addEventListener('click', handlePaymentClick);
+    $('paymentDialog').addEventListener('click', event => {
+      if (event.target !== $('paymentDialog')) return;
+      const rect = $('paymentDialog').getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('paymentDialog').close();
+    });
     $('addLoanButton').addEventListener('click', () => openLoanDialog());
     $('closeLoanButton').addEventListener('click', () => $('loanDialog').close());
     $('loanForm').addEventListener('submit', saveLoan);
@@ -1076,6 +1191,7 @@
 
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
+        renderPayments();
         renderLoans();
         if (currentUser && navigator.onLine) syncBidirectional();
       }
