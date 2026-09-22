@@ -90,6 +90,35 @@ test('total debt and monthly payments are summed across all credits', async t =>
   assert.equal(a.$('loansCount').textContent, '2');
 });
 
+test('mandatory payments support create, edit, delete and stay separate from the budget', async t => {
+  const a = await app(t);
+  a.click('.bottom-nav [data-nav="payments"]');
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'payments');
+
+  a.$('addPaymentButton').click();
+  a.$('paymentTitle').value = 'Аренда';
+  a.$('paymentAmount').value = '32000';
+  a.$('paymentDay').value = '5';
+  a.submit('paymentForm');
+  assert.equal(a.read().payments.length, 1);
+  assert.match(a.$('paymentsTotal').textContent, /32\s000/);
+  assert.match(a.$('overviewPaymentsTotal').textContent, /32\s000/);
+
+  a.$('budgetInput').value = '100000';
+  a.$('saveBudgetButton').click();
+  assert.match(a.$('availableAmount').textContent, /100\s000/);
+
+  a.click('[data-edit-payment]');
+  a.$('paymentAmount').value = '30000';
+  a.submit('paymentForm');
+  assert.equal(a.read().payments[0].amount, 30000);
+
+  a.click('[data-edit-payment]');
+  a.$('deletePaymentButton').click();
+  assert.equal(a.read().payments.length, 0);
+  assert.equal(a.$('paymentsTotal').textContent, '0 ₽');
+});
+
 test('home editors and existing expense/category interactions work without layout patches', async t => {
   const a = await app(t);
   assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'overview');
@@ -110,4 +139,5 @@ test('old backups migrate without losing expenses or requiring credit records', 
   assert.equal(a.read().expenses[0].title, 'Old expense');
   assert.equal(a.read().settings.defaultBudget, 55);
   assert.equal(a.read().loans.length, 1);
+  assert.deepEqual(a.read().payments, []);
 });
