@@ -301,7 +301,7 @@ test('failed local expense saves keep the form open and do not leave unsaved rec
 test('mobile sheets open without focusing a field and follow keyboard resize and pan', async t => {
   const a = await app(t, undefined, true),viewport=a.w.visualViewport,root=a.w.document.documentElement;
   a.click('[data-open-expense]');
-  assert.equal(a.w.document.activeElement.className,'sheet-close');
+  assert.equal(a.w.document.activeElement.id,'expenseDialogTitle');
   viewport.height=390;viewport.dispatchEvent(new a.w.Event('resize'));
   assert.equal(root.style.getPropertyValue('--visible-height'),'390px');
   assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-390}px`);
@@ -311,4 +311,16 @@ test('mobile sheets open without focusing a field and follow keyboard resize and
   viewport.height=a.w.innerHeight;viewport.offsetTop=0;viewport.dispatchEvent(new a.w.Event('resize'));
   assert.equal(root.style.getPropertyValue('--keyboard-inset'),'0px');
   assert.equal(root.classList.contains('keyboard-open'),false);
+});
+
+
+test('budget preview follows input without saving or changing planned expenses', async t => {
+  const a = await app(t);
+  a.click('[data-open-expense]');a.$('expenseTitle').value='В плане';a.$('expenseAmount').value='3000';a.submit('expenseForm');
+  a.$('openBudgetButton').click();const before=a.w.localStorage.getItem('pulse-finance-v1');
+  a.$('budgetInput').value='2000';a.$('budgetInput').dispatchEvent(new a.w.Event('input'));
+  assert.equal(a.$('budgetPlannedAmount').textContent.replace(/\u00a0/g,' '),'3 000 ₽');
+  assert.match(a.$('budgetRemainingAmount').textContent,/-1/);assert.ok(a.$('budgetRemainingAmount').classList.contains('negative'));
+  assert.equal(a.w.localStorage.getItem('pulse-finance-v1'),before);
+  a.$('budgetInput').value='';a.$('budgetInput').dispatchEvent(new a.w.Event('input'));assert.equal(a.$('budgetRemainingAmount').textContent,'—');
 });

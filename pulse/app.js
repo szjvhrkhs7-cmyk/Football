@@ -70,7 +70,7 @@
   function openBudgetDialog() {
     renderSettings();
     $('budgetDialog').showModal();
-    $('closeBudgetButton').focus({ preventScroll: true });
+    $('budgetDialogTitle').focus({ preventScroll: true });
   }
 
   function makeId(prefix = 'id') {
@@ -446,6 +446,7 @@
     $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Новый кредит';
     $('deleteLoanButton').classList.toggle('hidden', !loan);
     $('loanDialog').showModal();
+    $('loanDialogTitle').focus({ preventScroll: true });
   }
 
   function saveLoan(event) {
@@ -566,11 +567,19 @@
     $('weekChart').setAttribute('aria-label', `Суммы по семидневным периодам: ${weekly.map(amount => formatMoney(amount)).join(', ')}`);
   }
 
+  function renderBudgetPreview() {
+    const planned = expensesForMonth().reduce((sum, expense) => sum + expense.amount, 0);
+    const budget = Number($('budgetInput').value);
+    $('budgetPlannedAmount').textContent = formatMoney(planned);
+    $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney(budget - planned);
+    $('budgetRemainingAmount').classList.toggle('negative', $('budgetInput').value !== '' && Number.isFinite(budget) && budget < planned);
+  }
+
   function renderSettings() {
     if (!$('budgetDialog').open) $('budgetInput').value = budgetForMonth();
     $('settingsBudgetLabel').textContent = `${monthLabel(selectedMonth)} · ${formatMoney(budgetForMonth())}`;
-    $('budgetDialogPeriod').textContent = `${monthLabel(selectedMonth)}. Сумма, которую вы выделили на траты.`;
-    $('budgetDialogHint').textContent = `Все траты в плане: ${formatMoney(expensesForMonth().reduce((sum, expense) => sum + expense.amount, 0))}. Остаток = планируемый бюджет − все траты в плане.`;
+    $('budgetDialogPeriod').textContent = monthLabel(selectedMonth);
+    renderBudgetPreview();
     renderCategoryManagement();
   }
 
@@ -631,7 +640,7 @@
     }
     renderCategoryPicker();
     dialog.showModal();
-    dialog.querySelector('.sheet-close').focus({ preventScroll: true });
+    $('expenseDialogTitle').focus({ preventScroll: true });
   }
 
   function closeExpenseDialog() {
@@ -1184,6 +1193,7 @@
     $('expenseForm').addEventListener('submit', saveExpense);
     $('deleteExpenseButton').addEventListener('click', deleteExpense);
     $('budgetForm').addEventListener('submit', saveBudget);
+    $('budgetInput').addEventListener('input', renderBudgetPreview);
     $('openBudgetButton').addEventListener('click', openBudgetDialog);
     $('budgetSettingsCard').addEventListener('click', openBudgetDialog);
     $('closeBudgetButton').addEventListener('click', () => $('budgetDialog').close());

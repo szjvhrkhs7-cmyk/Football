@@ -1642,3 +1642,412 @@ dialog.sheet::backdrop {
   min-height: 46px;
   border-radius: 12px;
 }
+
+/* Shared, keyboard-aware financial dialogs. */
+dialog.designed-sheet {
+  width: calc(100% - 24px);
+  max-width: 420px;
+  max-height: min(680px, calc(var(--visible-height, 100dvh) - env(safe-area-inset-bottom, 0px) - 24px));
+  bottom: calc(var(--keyboard-inset, 0px) + env(safe-area-inset-bottom, 0px) + 12px);
+  padding: 0;
+  border-radius: 24px;
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow: 0 20px 64px #0c234533;
+}
+dialog.designed-sheet::backdrop {
+  background: #10274466;
+}
+.designed-sheet > form {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  min-height: 0;
+}
+.designed-sheet .sheet-head {
+  flex: none;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 20px 20px 16px;
+}
+.dialog-heading {
+  flex: 1;
+  min-width: 0;
+}
+.designed-sheet .sheet-head h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: -.35px;
+  overflow-wrap: anywhere;
+}
+.designed-sheet .sheet-head h2:focus {
+  outline: none;
+}
+.dialog-heading p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.designed-sheet .sheet-close {
+  width: 44px;
+  height: 44px;
+  margin: -4px -8px -4px 0;
+  border-radius: 50%;
+  background: #f1f4f8;
+  color: #626f80;
+}
+.designed-sheet .sheet-close svg {
+  width: 18px;
+  height: 18px;
+}
+.designed-sheet .sheet-close:hover {
+  background: #e8edf4;
+}
+.designed-sheet .sheet-close:focus-visible, .designed-sheet summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 20px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 12px;
+}
+.money-field {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--navy);
+  color: white;
+}
+.money-field > label {
+  display: block;
+  color: #c5d1e3;
+  font-size: 12px;
+  line-height: 18px;
+}
+.money-input {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 4px;
+}
+dialog.designed-sheet .money-input input[type="number"] {
+  flex: 1;
+  width: 0;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 2px;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: white;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 40px;
+  letter-spacing: -.6px;
+  font-variant-numeric: tabular-nums;
+}
+.money-input input::placeholder {
+  color: #acbdd5;
+  opacity: 1;
+}
+.money-input > span {
+  font-size: 22px;
+  color: #c5d1e3;
+}
+.designed-sheet input[type="number"] {
+  -moz-appearance: textfield;
+}
+.designed-sheet input[type="number"]::-webkit-inner-spin-button, .designed-sheet input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.designed-sheet .money-input input:focus-visible {
+  outline: 2px solid #8caeff;
+  outline-offset: 2px;
+}
+.dialog-field {
+  margin-top: 14px;
+  min-width: 0;
+}
+.dialog-field > label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  color: #536176;
+}
+dialog.designed-sheet .dialog-field input:not([type="hidden"]), dialog.designed-sheet .dialog-field select {
+  display: block;
+  width: 100%;
+  height: 46px;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  background: #f5f7fa;
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--ink);
+}
+.designed-sheet .dialog-field input::placeholder {
+  color: #778396;
+  opacity: 1;
+}
+dialog.designed-sheet .dialog-field input:focus, dialog.designed-sheet .dialog-field select:focus {
+  border-color: var(--blue);
+  background: white;
+  outline: none;
+  box-shadow: 0 0 0 3px #265dea1a;
+}
+.designed-sheet .dialog-fields {
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.designed-sheet .loan-numbers {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+.field-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.label-extra {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.option-row > span {
+  min-width: 0;
+}
+.option-row strong {
+  display: block;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.option-row small {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.designed-sheet input.dialog-switch {
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+}
+.designed-sheet input.dialog-switch::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 2px;
+  width: 40px;
+  height: 24px;
+  border-radius: 24px;
+  background: #c9d2df;
+}
+.designed-sheet input.dialog-switch::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px #10274426;
+  transition: transform .15s;
+}
+.designed-sheet input.dialog-switch:checked::before {
+  background: var(--blue);
+}
+.designed-sheet input.dialog-switch:checked::after {
+  transform: translateX(16px);
+}
+.designed-sheet input.dialog-switch:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.budget-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 0;
+}
+.budget-preview > div + div {
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+.budget-preview span {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.budget-preview strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.budget-preview .negative {
+  color: var(--red);
+}
+.budget-preview + .option-row {
+  margin-top: 0;
+}
+.dialog-details {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 12px;
+}
+.dialog-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  font-size: 13px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 8px;
+}
+.dialog-details summary::-webkit-details-marker {
+  display: none;
+}
+.dialog-details summary svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.dialog-details[open] summary svg {
+  transform: rotate(180deg);
+}
+.dialog-details[open] {
+  padding-bottom: 12px;
+}
+.dialog-details .dialog-field {
+  margin-top: 8px;
+}
+.dialog-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.designed-sheet .form-error:empty {
+  display: none;
+}
+.designed-sheet .form-error {
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+.dialog-footer {
+  flex: none;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #edf0f5;
+  background: white;
+}
+.designed-sheet .dialog-footer .primary {
+  position: static;
+  margin: 0;
+  width: 100%;
+  height: 46px;
+  min-height: 46px;
+  border-radius: 14px;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 20px;
+}
+.designed-sheet .dialog-footer .danger {
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 10px;
+  font-size: 13px;
+  background: transparent;
+}
+body:has(dialog.designed-sheet[open]) .dock {
+  visibility: hidden;
+}
+.keyboard-open dialog.designed-sheet {
+  padding: 0;
+  bottom: calc(var(--keyboard-inset, 0px) + 8px);
+  max-height: calc(var(--visible-height, 100dvh) - 16px);
+}
+@media (min-width: 821px) {
+  dialog.designed-sheet {
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    max-height: calc(var(--visible-height, 100dvh) - 32px);
+  }
+  .keyboard-open dialog.designed-sheet {
+    inset: auto 0;
+    bottom: calc(var(--keyboard-inset, 0px) + 8px);
+    margin: 0 auto;
+  }
+}
+@media (max-width: 360px) {
+  .designed-sheet .sheet-head {
+    padding: 18px 16px 14px;
+  }
+  .dialog-body {
+    padding: 0 16px 14px;
+  }
+  .dialog-footer {
+    padding: 12px 16px 16px;
+  }
+  .designed-sheet .sheet-head h2 {
+    font-size: 17px;
+  }
+  .designed-sheet .dialog-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .designed-sheet input.dialog-switch::after {
+    transition: none;
+  }
+}
+.designed-sheet #loanBalance:not(:placeholder-shown) {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

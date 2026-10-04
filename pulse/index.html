@@ -12,17 +12,17 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.4.1" />
-    <link rel="icon" href="./icon.svg?v=1.4.1" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.4.2" />
+    <link rel="icon" href="./icon.svg?v=1.4.2" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.4.1" />
+    <link rel="stylesheet" href="./styles.css?v=1.4.2" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.4.1"></script>
-    <script defer src="./app.js?v=1.4.1"></script>
+    <script defer src="./loans.js?v=1.4.2"></script>
+    <script defer src="./app.js?v=1.4.2"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -523,7 +523,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.4.1</p>
+          <p class="note">Пульс · версия 1.4.2</p>
         </section>
       </main>
       <footer class="dock">
@@ -583,189 +583,163 @@
         </nav>
       </footer>
     </div>
-    <dialog
-      class="sheet"
-      id="expenseDialog"
-      aria-labelledby="expenseDialogTitle"
-    >
+    <dialog class="sheet designed-sheet" id="expenseDialog" aria-labelledby="expenseDialogTitle">
       <form id="expenseForm" novalidate>
-        <div class="sheet-head">
-          <h2 id="expenseDialogTitle">Новая трата</h2>
-          <button
-            class="sheet-close"
-            data-close-dialog
-            type="button"
-            aria-label="Закрыть"
-          >
+        <header class="sheet-head">
+          <div class="dialog-heading">
+            <h2 id="expenseDialogTitle" tabindex="-1" autofocus>Новая трата</h2>
+            <p>Разовая трата в плане месяца</p>
+          </div>
+          <button class="sheet-close" data-close-dialog type="button" aria-label="Закрыть">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m6 6 12 12M6 18 18 6" />
             </svg>
           </button>
-        </div>
-        <input id="expenseId" type="hidden" />
-        <label class="field-label" for="expenseAmount">Сумма, ₽</label
-        ><input
-          class="amountinput"
-          id="expenseAmount"
-          type="number"
-          min="0.01"
-          step="0.01"
-          inputmode="decimal"
-          placeholder="0"
-          required
-        />
-        <label class="field-label" for="expenseTitle">Название</label
-        ><input
-          id="expenseTitle"
-          type="text"
-          maxlength="60"
-          autocomplete="off"
-          placeholder="Например, продукты"
-          required
-        />
-        <div class="twocol">
-          <div>
-            <label class="field-label" for="categoryPicker">Категория</label
-            ><select id="categoryPicker" aria-label="Категория"></select>
+        </header>
+        <div class="dialog-body">
+          <input id="expenseId" type="hidden" />
+          <div class="money-field">
+            <label for="expenseAmount">Сумма траты</label>
+            <div class="money-input">
+              <input id="expenseAmount" aria-label="Сумма траты в рублях" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0" required />
+              <span aria-hidden="true">₽</span>
+            </div>
           </div>
-          <div>
-            <label class="field-label" for="expenseDate">Дата</label
-            ><input id="expenseDate" type="date" required />
+          <div class="dialog-field">
+            <label for="expenseTitle">Название</label>
+            <input id="expenseTitle" type="text" maxlength="60" autocomplete="off" placeholder="Например, продукты" required />
           </div>
+          <div class="twocol dialog-fields">
+            <div class="dialog-field">
+              <label for="categoryPicker">Категория</label>
+              <select id="categoryPicker" aria-label="Категория"></select>
+            </div>
+            <div class="dialog-field">
+              <label for="expenseDate">Дата</label>
+              <input id="expenseDate" type="date" required />
+            </div>
+          </div>
+          <label class="option-row" for="expensePaid">
+            <span>
+              <strong>Уже оплачено</strong>
+              <small id="expensePaidHint">Без повторного вычета из бюджета</small>
+            </span>
+            <input class="dialog-switch" id="expensePaid" type="checkbox" aria-describedby="expensePaidHint" />
+          </label>
+          <p class="inline-message form-error" id="expenseError" role="alert"></p>
         </div>
-        <label class="statuslabel"
-          ><input id="expensePaid" type="checkbox" />Уже оплачено</label
-        >
-        <p class="note">
-          Оплата меняет статус траты и не вычитает сумму повторно.
-        </p>
-        <p class="inline-message form-error" id="expenseError" role="alert"></p>
-        <button class="primary" id="saveExpenseButton" type="submit">
-          Добавить в план</button
-        ><button class="danger hidden" id="deleteExpenseButton" type="button">
-          Удалить трату
-        </button>
+        <footer class="dialog-footer">
+          <button class="primary" id="saveExpenseButton" type="submit">Добавить в план</button>
+          <button class="danger hidden" id="deleteExpenseButton" type="button">Удалить трату</button>
+        </footer>
       </form>
     </dialog>
-    <dialog class="sheet" id="budgetDialog" aria-labelledby="budgetDialogTitle">
+    <dialog class="sheet designed-sheet" id="budgetDialog" aria-labelledby="budgetDialogTitle">
       <form id="budgetForm" novalidate>
-        <div class="sheet-head">
-          <h2 id="budgetDialogTitle">Планируемый бюджет</h2>
-          <button
-            class="sheet-close"
-            id="closeBudgetButton"
-            type="button"
-            aria-label="Закрыть"
-          >
+        <header class="sheet-head">
+          <div class="dialog-heading">
+            <h2 id="budgetDialogTitle" tabindex="-1" autofocus>Планируемый бюджет</h2>
+            <p id="budgetDialogPeriod"></p>
+          </div>
+          <button class="sheet-close" id="closeBudgetButton" type="button" aria-label="Закрыть">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m6 6 12 12M6 18 18 6" />
             </svg>
           </button>
+        </header>
+        <div class="dialog-body">
+          <div class="money-field">
+            <label for="budgetInput">Выделить на месяц</label>
+            <div class="money-input">
+              <input id="budgetInput" aria-label="Бюджет на месяц в рублях" type="number" min="0" step="0.01" inputmode="decimal" required />
+              <span aria-hidden="true">₽</span>
+            </div>
+          </div>
+          <div class="budget-preview" id="budgetDialogHint">
+            <div>
+              <span>Траты в плане</span>
+              <strong id="budgetPlannedAmount"></strong>
+            </div>
+            <div>
+              <span>Останется</span>
+              <strong id="budgetRemainingAmount"></strong>
+            </div>
+          </div>
+          <label class="option-row" for="defaultBudgetToggle">
+            <span>
+              <strong>Для новых месяцев</strong>
+              <small>Использовать эту сумму как базовую</small>
+            </span>
+            <input class="dialog-switch" id="defaultBudgetToggle" type="checkbox" />
+          </label>
         </div>
-        <p class="note" id="budgetDialogPeriod" style="padding-top: 0"></p>
-        <label class="field-label" for="budgetInput">Сумма, ₽</label
-        ><input
-          class="amountinput"
-          id="budgetInput"
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          required
-        />
-        <p class="note" id="budgetDialogHint"></p>
-        <details class="advanced">
-          <summary>Для новых периодов</summary>
-          <label class="switch-row"
-            ><input id="defaultBudgetToggle" type="checkbox" /><span
-              >Использовать эту сумму как базовую</span
-            ></label
-          >
-        </details>
-        <button class="primary" id="saveBudgetButton" type="submit">
-          Сохранить бюджет
-        </button>
+        <footer class="dialog-footer">
+          <button class="primary" id="saveBudgetButton" type="submit">Сохранить бюджет</button>
+        </footer>
       </form>
     </dialog>
-    <dialog class="sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
+    <dialog class="sheet designed-sheet" id="loanDialog" aria-labelledby="loanDialogTitle">
       <form id="loanForm" novalidate>
-        <div class="sheet-head">
-          <h2 id="loanDialogTitle">Новый кредит</h2>
-          <button
-            class="sheet-close"
-            id="closeLoanButton"
-            type="button"
-            aria-label="Закрыть"
-          >
+        <header class="sheet-head">
+          <div class="dialog-heading">
+            <h2 id="loanDialogTitle" tabindex="-1" autofocus>Новый кредит</h2>
+            <p>Ежемесячное обязательство</p>
+          </div>
+          <button class="sheet-close" id="closeLoanButton" type="button" aria-label="Закрыть">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m6 6 12 12M6 18 18 6" />
             </svg>
           </button>
-        </div>
-        <input id="loanId" type="hidden" /><label
-          class="field-label"
-          for="loanTitle"
-          >Название</label
-        ><input
-          id="loanTitle"
-          maxlength="60"
-          placeholder="Например, телефон"
-          required
-          autocomplete="off"
-        />
-        <label class="field-label" for="loanBalance">Остаток долга, ₽</label
-        ><input
-          id="loanBalance"
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          placeholder="Можно заполнить позже"
-        />
-        <div class="twocol">
-          <div>
-            <label class="field-label" for="loanPayment"
-              >Платеж в месяц, ₽</label
-            ><input
-              id="loanPayment"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputmode="decimal"
-              required
-            />
+        </header>
+        <div class="dialog-body">
+          <input id="loanId" type="hidden" />
+          <div class="money-field">
+            <label for="loanPayment">Платеж в месяц</label>
+            <div class="money-input">
+              <input id="loanPayment" aria-label="Платеж в месяц в рублях" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0" required />
+              <span aria-hidden="true">₽</span>
+            </div>
           </div>
-          <div>
-            <label class="field-label" for="loanDay">День платежа</label
-            ><input
-              id="loanDay"
-              type="number"
-              min="1"
-              max="31"
-              inputmode="numeric"
-              required
-            />
+          <div class="dialog-field">
+            <label for="loanTitle">Название</label>
+            <input id="loanTitle" maxlength="60" placeholder="Например, телефон" required autocomplete="off" />
           </div>
+          <div class="twocol dialog-fields loan-numbers">
+            <div class="dialog-field">
+              <label for="loanBalance">Остаток долга, ₽</label>
+              <input id="loanBalance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Не указан" aria-describedby="loanBalanceHint" />
+              <small class="field-hint" id="loanBalanceHint">Можно указать позже</small>
+            </div>
+            <div class="dialog-field">
+              <label for="loanDay">День платежа</label>
+              <input id="loanDay" type="number" min="1" max="31" inputmode="numeric" required />
+              <small class="field-hint">Число от 1 до 31</small>
+            </div>
+          </div>
+          <details class="dialog-details">
+            <summary>
+              <span>Даты кредита</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m8 10 4 4 4-4" />
+              </svg>
+            </summary>
+            <div class="dialog-field">
+              <label for="loanFirstDate">Первый платеж</label>
+              <input id="loanFirstDate" type="date" required />
+            </div>
+            <div class="dialog-field">
+              <label for="loanEndDate">Окончание <span class="label-extra">необязательно</span>
+              </label>
+              <input id="loanEndDate" type="date" />
+            </div>
+          </details>
+          <p class="dialog-hint">Кредитные платежи добавляются в план отдельно.</p>
+          <p id="loanError" class="inline-message form-error" role="alert"></p>
         </div>
-        <p class="note">
-          Пустой остаток долга означает отсутствие данных. Его не будем считать
-          нулевым.
-        </p>
-        <details class="advanced">
-          <summary>Даты кредита</summary>
-          <label class="field-label" for="loanFirstDate"
-            >Дата первого платежа</label
-          ><input id="loanFirstDate" type="date" required /><label
-            class="field-label"
-            for="loanEndDate"
-            >Дата окончания (необязательно)</label
-          ><input id="loanEndDate" type="date" />
-        </details>
-        <p id="loanError" class="inline-message form-error" role="alert"></p>
-        <button class="primary" type="submit">Сохранить кредит</button
-        ><button class="danger hidden" id="deleteLoanButton" type="button">
-          Удалить кредит
-        </button>
+        <footer class="dialog-footer">
+          <button class="primary" type="submit">Сохранить кредит</button>
+          <button class="danger hidden" id="deleteLoanButton" type="button">Удалить кредит</button>
+        </footer>
       </form>
     </dialog>
     <dialog
