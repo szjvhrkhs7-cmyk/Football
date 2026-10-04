@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const root = path.join(__dirname, '..');
-async function app(t, saved) {
+async function app(t, saved, mockViewport = false) {
   const errors = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', error => errors.push(error));
@@ -13,6 +13,10 @@ async function app(t, saved) {
   const w = dom.window;
   Object.defineProperty(w.navigator, 'onLine', { value: false });
   w.scrollTo = () => {};
+  if (mockViewport) {
+    const viewport = new w.EventTarget(); viewport.height = w.innerHeight; viewport.offsetTop = 0;
+    Object.defineProperty(w, 'visualViewport', { value: viewport });
+  }
   w.confirm = () => true;
   w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   w.HTMLDialogElement.prototype.close = function () { this.open = false; };
@@ -291,4 +295,20 @@ test('failed local expense saves keep the form open and do not leave unsaved rec
   a.click('[data-open-expense]');a.$('expenseTitle').value='Новая';a.$('expenseAmount').value='50';
   storagePrototype.setItem=function(){throw new Error('Quota exceeded')};a.submit('expenseForm');assert.equal(a.$('expenseDialog').open,true);
   storagePrototype.setItem=original;a.submit('expenseForm');assert.equal(a.read().expenses.length,2);
+});
+
+
+test('mobile sheets open without focusing a field and follow keyboard resize and pan', async t => {
+  const a = await app(t, undefined, true),viewport=a.w.visualViewport,root=a.w.document.documentElement;
+  a.click('[data-open-expense]');
+  assert.equal(a.w.document.activeElement.className,'sheet-close');
+  viewport.height=390;viewport.dispatchEvent(new a.w.Event('resize'));
+  assert.equal(root.style.getPropertyValue('--visible-height'),'390px');
+  assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-390}px`);
+  assert.ok(root.classList.contains('keyboard-open'));
+  viewport.offsetTop=60;viewport.dispatchEvent(new a.w.Event('scroll'));
+  assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-450}px`);
+  viewport.height=a.w.innerHeight;viewport.offsetTop=0;viewport.dispatchEvent(new a.w.Event('resize'));
+  assert.equal(root.style.getPropertyValue('--keyboard-inset'),'0px');
+  assert.equal(root.classList.contains('keyboard-open'),false);
 });
