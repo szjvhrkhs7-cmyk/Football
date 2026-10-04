@@ -34,3 +34,9 @@ test('backup normalization preserves credit amounts and payment history', () => 
   assert.deepEqual(copy[0].paidMonths, ['2026-02']);
   assert.equal(normalize([loan, loan]).length, 1);
 });
+
+test('missing balances differ from zero and preferred payment days survive short months', () => {
+  const cases = normalize([{...loan,id:'missing',balance:null},{...loan,id:'zero',balance:0},{...loan,id:'absent',balance:undefined},{...loan,id:'clamped',firstDate:'2026-02-28',paymentDay:31}]);
+  assert.equal(cases[0].balance,null);assert.equal(cases[1].balance,0);assert.equal(cases[2].balance,null);
+  assert.equal(cases[3].paymentDay,31);assert.equal(dueDate(cases[3],'2026-03'),'2026-03-31');
+});

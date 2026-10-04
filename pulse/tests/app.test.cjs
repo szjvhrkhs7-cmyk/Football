@@ -158,16 +158,16 @@ test('mandatory payment validation keeps unsafe titles as text', async t => {
   assert.match(a.$('mandatoryPaymentsList').textContent, /<img/);
 });
 
-test('home editors and existing expense/category interactions work without layout patches', async t => {
+test('profile settings and budget dialog keep expense/category interactions working', async t => {
   const a = await app(t);
-  assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'overview');
-  assert.equal(a.$('categoriesCard').closest('.screen').dataset.screen, 'overview');
+  assert.equal(a.$('budgetSettingsCard').closest('.screen').dataset.screen, 'settings');
+  assert.equal(a.$('categoriesCard').closest('.screen').dataset.screen, 'settings');
   a.$('budgetInput').value = '40000'; a.$('saveBudgetButton').click();
   a.click('[data-open-expense]');
   a.$('expenseTitle').value = 'Продукты'; a.$('expenseAmount').value = '1000'; a.submit('expenseForm');
   assert.equal(a.read().expenses.length, 1);
   assert.match(a.$('availableAmount').textContent, /39\s000/);
-  a.$('openCategoriesButton').click(); assert.equal(a.$('categoriesDialog').open, true);
+  a.$('categoriesCard').click(); assert.equal(a.$('categoriesDialog').open, true);
   a.$('closeCategoriesButton').click(); assert.equal(a.$('categoriesDialog').open, false);
   a.click('[data-nav="plans"]'); assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'plans');
   assert.match(a.$('plansList').textContent, /Продукты/);
@@ -189,9 +189,11 @@ test('home completion check hides an expense from overview and keeps it in analy
 
   assert.equal(a.read().expenses[0].status, 'paid');
   assert.doesNotMatch(a.$('upcomingList').textContent, /Продукты/);
+  a.click('[data-filter="paid"]');
   assert.match(a.$('plansList').textContent, /Продукты/);
-  assert.match(a.$('analyticsPaid').textContent, /1\s250/);
-  assert.equal(a.$('analyticsPaidCount').textContent, '1 трата');
+  a.click('[data-analytics-filter="paid"]');
+  assert.match(a.$('analyticsPlanned').textContent, /1\s250/);
+  assert.equal(a.$('analyticsCount').textContent, '1 трата');
   assert.match(a.$('availableAmount').textContent, /38\s750/);
 });
 
@@ -202,4 +204,91 @@ test('old backups migrate without losing expenses or requiring credit records', 
   assert.equal(a.read().settings.defaultBudget, 55);
   assert.equal(a.read().loans.length, 1);
   assert.deepEqual(a.read().mandatoryPayments, []);
+});
+
+test('four-tab navigation opens real profile settings and the budget editor', async t => {
+  const a = await app(t);
+  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'plans', 'loans', 'analytics']);
+  a.$('profileButton').click();
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'settings');
+  a.$('budgetSettingsCard').click();
+  assert.equal(a.$('budgetDialog').open, true);
+  a.$('budgetInput').value = '85000';a.submit('budgetForm');
+  assert.equal(a.$('budgetDialog').open, false);
+  assert.equal(a.read().settings.budgets[new Date().toISOString().slice(0,7)], 85000);
+});
+
+test('payment can be toggled, undone and deleted with undo without counting twice', async t => {
+  const a = await app(t);
+  a.$('budgetInput').value = '40000';a.$('saveBudgetButton').click();
+  a.click('[data-open-expense]');a.$('expenseTitle').value = 'Массаж';a.$('expenseAmount').value = '1250.50';a.submit('expenseForm');
+  const available = a.$('availableAmount').textContent;
+  a.click('#upcomingList [data-complete-expense]');
+  assert.equal(a.read().expenses[0].status, 'paid');assert.equal(a.$('availableAmount').textContent, available);
+  a.click('#toast button');assert.equal(a.read().expenses[0].status, 'planned');
+  a.click('#upcomingList [data-complete-expense]');a.click('[data-filter="paid"]');a.click('#plansList [data-complete-expense]');
+  assert.equal(a.read().expenses[0].status, 'planned');assert.equal(a.$('availableAmount').textContent, available);
+  a.click('#upcomingList [data-expense-id]');a.$('deleteExpenseButton').click();
+  assert.equal(a.read().expenses.length, 0);a.click('#toast button');
+  assert.equal(a.read().expenses.length, 1);assert.equal(a.read().expenses[0].amount, 1250.5);assert.equal(a.$('availableAmount').textContent, available);
+});
+
+test('filters total only matching expenses and analytics excludes unpaid items on request', async t => {
+  const a = await app(t);
+  for (const [title,amount,paid] of [['План',1000,false],['Факт',500,true]]) {
+    a.click('[data-open-expense]');a.$('expenseTitle').value=title;a.$('expenseAmount').value=amount;a.$('expensePaid').checked=paid;a.submit('expenseForm');
+  }
+  assert.equal(a.$('plansTotal').textContent.replace(/\u00a0/g,' '),'1 000 ₽');
+  a.click('[data-filter="paid"]');assert.equal(a.$('plansTotal').textContent.replace(/\u00a0/g,' '),'500 ₽');
+  a.click('[data-filter="all"]');assert.equal(a.$('plansTotal').textContent.replace(/\u00a0/g,' '),'1 500 ₽');
+  assert.equal(a.$('analyticsPlanned').textContent.replace(/\u00a0/g,' '),'1 500 ₽');
+  a.click('[data-analytics-filter="paid"]');assert.equal(a.$('analyticsPlanned').textContent.replace(/\u00a0/g,' '),'500 ₽');assert.equal(a.$('analyticsCount').textContent,'1 трата');
+  a.click('[data-filter="paid"]');a.click('[data-screen="overview"] [data-nav="plans"]');
+  assert.equal(a.$('plansTotal').textContent.replace(/\u00a0/g,' '),'1 000 ₽');
+  assert.equal(a.w.document.querySelector('[data-filter="planned"]').getAttribute('aria-pressed'),'true');
+  assert.ok(Array.from(a.$('weekChart').querySelectorAll('.weekbar')).some(bar=>bar.style.height==='0px'));
+});
+
+test('a regular payment is added once per month and its marker survives reload', async t => {
+  const a = await app(t);
+  a.$('budgetInput').value='40000';a.$('saveBudgetButton').click();
+  a.$('addMandatoryPaymentButton').click();fillMandatoryPayment(a,'Интернет','700','31');a.submit('mandatoryPaymentForm');
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '),'40 000 ₽');
+  a.click('[data-plan-payment]');a.click('[data-plan-payment]');
+  assert.equal(a.read().expenses.length,1);assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '),'39 300 ₽');
+  const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+  b.click('[data-plan-payment]');assert.equal(b.read().expenses.length,1);
+  b.$('overviewNextMonth').click();b.click('[data-plan-payment]');assert.equal(b.read().expenses.length,2);
+});
+
+test('unspecified debt remains null, while an explicitly entered zero remains zero', async t => {
+  const a = await app(t);
+  a.$('addLoanButton').click();fillLoan(a,'Не заполнен');a.$('loanBalance').value='';a.submit('loanForm');
+  assert.equal(a.read().loans[0].balance,null);assert.equal(a.$('loansTotal').textContent,'Не указан');
+  const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+  assert.equal(b.$('loansTotal').textContent,'Не указан');b.click('[data-edit-loan]');b.$('loanBalance').value='0';b.submit('loanForm');
+  assert.equal(b.read().loans[0].balance,0);assert.equal(b.$('loansTotal').textContent,'0 ₽');
+});
+
+test('editing an expense retains its hidden category and the dropdown accepts a new choice', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{categories:[{id:'hidden',name:'Архив',enabled:false},{id:'active',name:'Активная',enabled:true}]},expenses:[{id:'x',title:'Старая',categoryId:'hidden',date:month+'-02',amount:20,status:'planned'}]}));
+  a.click('#upcomingList [data-expense-id]');assert.equal(a.$('categoryPicker').value,'hidden');a.submit('expenseForm');assert.equal(a.read().expenses[0].categoryId,'hidden');
+  a.click('#upcomingList [data-expense-id]');a.$('categoryPicker').value='active';a.$('categoryPicker').dispatchEvent(new a.w.Event('change'));a.submit('expenseForm');assert.equal(a.read().expenses[0].categoryId,'active');
+});
+
+
+test('failed local expense saves keep the form open and do not leave unsaved records in memory', async t => {
+  const a = await app(t);
+  a.click('[data-open-expense]');a.$('expenseTitle').value='Сохраненная';a.$('expenseAmount').value='100';a.submit('expenseForm');
+  const saved=a.w.localStorage.getItem('pulse-finance-v1');
+  const storagePrototype=Object.getPrototypeOf(a.w.localStorage),original=storagePrototype.setItem;
+  storagePrototype.setItem=function(){throw new Error('Quota exceeded')};
+  a.click('#upcomingList [data-expense-id]');a.$('expenseTitle').value='Несохраненная';a.$('expenseAmount').value='200';a.submit('expenseForm');
+  assert.equal(a.$('expenseDialog').open,true);assert.equal(a.w.localStorage.getItem('pulse-finance-v1'),saved);
+  storagePrototype.setItem=original;a.$('expenseDialog').close();a.$('overviewNextMonth').click();a.$('overviewPrevMonth').click();
+  assert.match(a.$('upcomingList').textContent,/Сохраненная/);assert.doesNotMatch(a.$('upcomingList').textContent,/Несохраненная/);
+  a.click('[data-open-expense]');a.$('expenseTitle').value='Новая';a.$('expenseAmount').value='50';
+  storagePrototype.setItem=function(){throw new Error('Quota exceeded')};a.submit('expenseForm');assert.equal(a.$('expenseDialog').open,true);
+  storagePrototype.setItem=original;a.submit('expenseForm');assert.equal(a.read().expenses.length,2);
 });

@@ -7,6 +7,16 @@
     const date = new Date(`${value}T12:00:00`);
     return !Number.isNaN(date.getTime()) && dateKey(date) === value;
   }
+  function normalizedBalance(item) {
+    const value = item.balance !== undefined ? item.balance : item.debt;
+    if (value === null || value === undefined || String(value).trim() === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) / 100 : null;
+  }
+  function paymentDay(item) {
+    const day = Number(item.paymentDay);
+    return Number.isInteger(day) && day >= 1 && day <= 31 ? day : Number(item.firstDate.slice(8));
+  }
   function normalize(items) {
     if (!Array.isArray(items)) return [];
     const seen = new Set();
@@ -16,7 +26,8 @@
         id: item.id,
         title: String(item.title || 'Кредит').slice(0, 60),
         payment: Math.round(Number(item.payment) * 100) / 100,
-        balance: Math.max(0, Math.round(Number(item.balance ?? item.debt ?? 0) * 100) / 100),
+        balance: normalizedBalance(item),
+        paymentDay: paymentDay(item),
         firstDate: item.firstDate,
         endDate: validDate(item.endDate) && item.endDate >= item.firstDate ? item.endDate : '',
         closed: item.closed === true,
@@ -27,7 +38,7 @@
   function dueDate(loan, month) {
     if (loan.closed || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month < loan.firstDate.slice(0, 7)) return null;
     const [year, number] = month.split('-').map(Number);
-    const day = Math.min(Number(loan.firstDate.slice(8)), new Date(year, number, 0).getDate());
+    const day = Math.min(paymentDay(loan), new Date(year, number, 0).getDate());
     const date = `${month}-${String(day).padStart(2, '0')}`;
     return loan.endDate && date > loan.endDate ? null : date;
   }
