@@ -8,7 +8,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifes
 const worker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
 test('iPhone and PWA icons are opaque PNGs at their declared sizes', () => {
-  assert.match(html, /rel="apple-touch-icon" sizes="180x180" href="\.\/apple-touch-icon-v2\.png"/);
+  assert.match(html, /rel="apple-touch-icon"\s+sizes="180x180"\s+href="\.\/apple-touch-icon-v2\.png"/);
   const icons = [{ src: './apple-touch-icon-v2.png', sizes: '180x180' }, ...manifest.icons.filter(icon => icon.type === 'image/png')];
   assert.equal(icons.length, 3);
   for (const icon of icons) {
@@ -20,8 +20,9 @@ test('iPhone and PWA icons are opaque PNGs at their declared sizes', () => {
   }
 });
 
-test('header, favicon and manifest reference existing cached logo assets', () => {
-  assert.match(html, /<img src="\.\/icon-192-v2\.png" width="36" height="36" alt="">/);
+test('header uses the prototype waveform while installed app icons stay cached', () => {
+  assert.match(html, /class="brandmark"/);
+  assert.match(html, /M2 12h5l3-7 4 14 3-7h5/);
   for (const icon of manifest.icons) {
     assert.ok(fs.existsSync(path.join(root, icon.src.split('?')[0])));
     assert.ok(worker.includes(`'${icon.src}'`));

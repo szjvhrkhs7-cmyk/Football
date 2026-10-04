@@ -23,7 +23,8 @@
 
   const now = new Date();
   let selectedMonth = toMonthKey(now);
-  let activeFilter = 'all';
+  let activeFilter = 'planned';
+  let analyticsFilter = 'all';
   let selectedCategoryId = 'food';
   let state = loadState();
   let supabaseClient = null;
@@ -44,6 +45,33 @@
 
   const $ = id => document.getElementById(id);
   const qsa = selector => Array.from(document.querySelectorAll(selector));
+
+
+  const ICONS = {pulse:'<path d="M2 12h5l3-7 4 14 3-7h5"/>',home:'<path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',credit:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/>',chart:'<path d="M4 20V10M12 20V4M20 20v-6"/>',plus:'<path d="M12 5v14M5 12h14"/>',chevron:'<path d="m9 5 7 7-7 7"/>',left:'<path d="m15 5-7 7 7 7"/>',check:'<path d="m5 12 4 4L19 6"/>',edit:'<path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',health:'<path d="M12 20s-8-5-8-11a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 6-8 11-8 11Z"/>',transport:'<path d="m5 8 2-4h10l2 4M4 15v5M20 15v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M6 12h2M16 12h2"/>',tech:'<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M2 20h20M8 16v4M16 16v4"/>',cloud:'<path d="M6 18a4 4 0 0 1 0-8 6 6 0 0 1 12-1 4.5 4.5 0 0 1 0 9Z"/>',download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',cart:'<path d="M3 3h2l3 12h11l3-9H6M10 20h.01M18 20h.01"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',receipt:'<path d="M5 3h14v18l-3-2-4 2-4-2-3 2ZM9 8h6M9 12h6"/>',refresh:'<path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/>'};
+  function icon(name) {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.grid}</svg>`;
+  }
+  function categoryVisual(category) {
+    const presets = {
+      health: ['health', '#f5edf1', '#956c7e'], home: ['home', '#eef0fa', '#6b73a4'],
+      transport: ['transport', '#f7f0e5', '#a17b3b'], credit: ['credit', '#edf2fd', '#587cc2'],
+      tech: ['tech', '#ebf3f1', '#558479'], food: ['cart', '#eef1f6', '#596b83'],
+      shopping: ['grid', '#eef1f6', '#596b83'], other: ['grid', '#eef1f6', '#596b83']
+    };
+    const preset = presets[category.id];
+    return preset ? { markup: icon(preset[0]), soft: preset[1], color: preset[2] }
+      : { markup: escapeHtml(category.emoji), soft: category.soft, color: category.color };
+  }
+  function updateDock() {
+    $('addExpenseButton').classList.toggle('hidden', activeScreen === 'loans' || activeScreen === 'payments');
+    $('addLoanButton').classList.toggle('hidden', activeScreen !== 'loans');
+    $('addMandatoryPaymentButton').classList.toggle('hidden', activeScreen !== 'payments');
+  }
+  function openBudgetDialog() {
+    renderSettings();
+    $('budgetDialog').showModal();
+    $('budgetInput').focus();
+  }
 
   function makeId(prefix = 'id') {
     if (window.crypto?.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
@@ -92,6 +120,7 @@
             amount: Math.max(0, Number(item.amount) || 0),
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
+            ...(typeof item.mandatoryPaymentId === 'string' ? { mandatoryPaymentId: item.mandatoryPaymentId } : {}),
             createdAt: item.createdAt || new Date().toISOString(),
             updatedAt: item.updatedAt || new Date().toISOString()
           }))
@@ -245,16 +274,17 @@
   }
 
   function navigate(screenName) {
-    if (screenName === activeScreen) return;
+    if (!qsa('.screen').some(screen => screen.dataset.screen === screenName)) return;
     screenScroll.set(activeScreen, window.scrollY);
     activeScreen = screenName;
     qsa('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === screenName));
     qsa('.bottom-nav [data-nav]').forEach(button => {
-      const active = button.dataset.nav === (screenName === 'plans' ? 'overview' : screenName);
+      const active = button.dataset.nav === (screenName === 'payments' ? 'plans' : screenName);
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
+    updateDock();
     window.scrollTo({ top: screenScroll.get(screenName) || 0, behavior: 'instant' });
     $('appMain')?.focus({ preventScroll: true });
     if (screenName === 'settings') renderSettings();
@@ -262,73 +292,49 @@
 
   function renderAll() {
     const label = monthLabel(selectedMonth);
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => { if ($(id)) $(id).textContent = label; });
-    renderOverview();
-    renderPlans();
-    renderAnalytics();
-    renderMandatoryPayments();
-    renderLoans();
-    renderSettings();
-    renderCategoryPicker();
-    updateCloudUi();
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => {
+      $(id).innerHTML = `${escapeHtml(label.split(' ')[0])}<span class="year"> ${escapeHtml(selectedMonth.slice(0, 4))}</span>`;
+      $(id).setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
+    });
+    renderOverview(); renderPlans(); renderAnalytics(); renderMandatoryPayments(); renderLoans();
+    renderSettings(); renderCategoryPicker(); updateCloudUi(); updateDock();
   }
 
   function renderOverview() {
     const monthlyExpenses = expensesForMonth();
-    const planned = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const all = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const paid = monthlyExpenses.filter(expense => expense.status === 'paid').reduce((sum, expense) => sum + expense.amount, 0);
     const budget = budgetForMonth();
-    const available = budget - planned;
-
+    const available = budget - all;
     $('availableAmount').textContent = formatMoney(available);
     $('budgetAmount').textContent = formatMoney(budget);
-    $('plannedAmount').textContent = formatMoney(planned);
-    const mandatoryTotal = mandatoryPaymentsTotal();
-    $('mandatoryOverviewAmount').textContent = formatMoney(mandatoryTotal);
-    $('mandatoryOverviewCount').textContent = `${state.mandatoryPayments.length} ${paymentWord(state.mandatoryPayments.length)} в месяц`;
-    const percent = budget > 0 ? Math.min(100, Math.max(0, planned / budget * 100)) : (planned > 0 ? 100 : 0);
-    $('budgetMeterFill').style.width = `${percent}%`;
-
-    const plannedExpenses = plannedExpensesForOverview(monthlyExpenses);
-    renderExpenseList($('upcomingList'), plannedExpenses, { empty: 'Добавь первую планируемую трату', completable: true });
-
-    const card = $('budgetStatusCard');
-    card.classList.remove('warning', 'danger');
-    if (budget <= 0 && planned > 0) {
-      card.classList.add('warning');
-      $('budgetStatusTitle').textContent = 'Задай планируемый бюджет';
-      $('budgetStatusText').textContent = 'Так Пульс сможет показать остаток';
-    } else if (available < 0) {
-      card.classList.add('danger');
-      $('budgetStatusTitle').textContent = 'Расходы выше планируемого бюджета';
-      $('budgetStatusText').textContent = `На ${formatMoney(Math.abs(available))}`;
-    } else if (budget > 0 && planned / budget >= 0.85) {
-      card.classList.add('warning');
-      $('budgetStatusTitle').textContent = 'Планируемый бюджет почти исчерпан';
-      $('budgetStatusText').textContent = `Остаток ${formatMoney(available)}`;
-    } else {
-      $('budgetStatusTitle').textContent = 'Всё под контролем';
-      $('budgetStatusText').textContent = monthlyExpenses.length ? `Остаток ${formatMoney(available)}` : 'Добавь траты';
-    }
+    $('plannedAmount').textContent = formatMoney(all);
+    $('overviewPaid').textContent = $('overviewPaidSummary').textContent = formatMoney(paid);
+    $('overviewPending').textContent = formatMoney(all - paid);
+    $('overviewYear').textContent = selectedMonth.slice(0, 4);
+    $('mandatoryOverviewAmount').textContent = state.mandatoryPayments.length ? formatMoney(mandatoryPaymentsTotal()) : 'Добавить';
+    $('budgetPaidFill').style.width = `${budget > 0 ? Math.min(100, paid / budget * 100) : 0}%`;
+    $('budgetMeterFill').style.width = `${budget > 0 ? Math.min(100, (all - paid) / budget * 100) : 0}%`;
+    $('budgetMeter').setAttribute('aria-label', `Оплачено ${formatMoney(paid)}, предстоит ${formatMoney(all - paid)}`);
+    const pending = plannedExpensesForOverview(monthlyExpenses);
+    $('overviewPlansLink').textContent = `Все ${pending.length}`;
+    renderExpenseList($('upcomingList'), pending, { limit: 3, empty: 'Пока без трат' });
+    const alert = $('budgetAlert');
+    alert.classList.toggle('hidden', available >= 0);
+    alert.textContent = available < 0 ? `План превышает бюджет на ${formatMoney(-available)}` : '';
   }
 
   function renderMandatoryPayments() {
     const payments = mandatoryPaymentsSorted();
     $('mandatoryPaymentsTotal').textContent = formatMoney(mandatoryPaymentsTotal());
-    $('mandatoryPaymentsCount').textContent = `${payments.length} ${paymentWord(payments.length)} в месяц`;
+    $('mandatoryPaymentsCount').textContent = `${payments.length} ${paymentWord(payments.length)}`;
     $('mandatoryPaymentsList').innerHTML = payments.length ? payments.map(payment => `
-      <article class="payment-card">
-        <button class="payment-main" type="button" data-edit-mandatory-payment="${escapeAttr(payment.id)}" aria-label="Изменить обязательный платёж ${escapeAttr(payment.title)}">
-          <span class="payment-symbol" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/></svg>
-          </span>
-          <span class="payment-copy">
-            <strong>${escapeHtml(payment.title)}</strong>
-            <small>Каждый месяц · ${payment.day} числа</small>
-          </span>
-          <b>${escapeHtml(formatMoney(payment.amount))}</b>
-          <span class="payment-chevron" aria-hidden="true">›</span>
-        </button>
-      </article>`).join('') : '<div class="empty-state"><span>◫</span><strong>Обязательных платежей пока нет</strong><small>Добавь регулярный платёж, чтобы видеть сумму на месяц</small></div>';
+      <div class="expense payment-card">
+        <span class="categoryicon home">${icon('receipt')}</span>
+        <button class="details payment-copy" type="button" data-edit-mandatory-payment="${escapeAttr(payment.id)}" aria-label="Изменить регулярный платеж ${escapeAttr(payment.title)}"><strong>${escapeHtml(payment.title)}</strong><small>${payment.day} числа каждого месяца</small></button>
+        <strong class="amount nums">${escapeHtml(formatMoney(payment.amount))}</strong>
+        <button class="textbtn" type="button" data-plan-payment="${escapeAttr(payment.id)}" aria-label="Добавить ${escapeAttr(payment.title)} в план">${icon('plus')}</button>
+      </div>`).join('') : '<div class="empty-state"><strong>Повторяющиеся расходы</strong><small>Например, интернет, аренда или подписка. Сумма и день будут сохранены для следующих месяцев.</small></div>';
   }
 
   function openMandatoryPaymentDialog(id = null) {
@@ -389,30 +395,41 @@
   function handleMandatoryPaymentClick(event) {
     const edit = event.target.closest('[data-edit-mandatory-payment]');
     if (edit) openMandatoryPaymentDialog(edit.dataset.editMandatoryPayment);
+    const plan = event.target.closest('[data-plan-payment]');
+    if (plan) addMandatoryPaymentToPlan(plan.dataset.planPayment);
+  }
+
+  function addMandatoryPaymentToPlan(id) {
+    const payment = state.mandatoryPayments.find(item => item.id === id);
+    if (!payment) return;
+    if (expensesForMonth().some(item => item.mandatoryPaymentId === id)) return showToast('Этот платеж уже добавлен в план');
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const day = Math.min(payment.day, new Date(year, month, 0).getDate());
+    const timestamp = new Date().toISOString();
+    const expense = { id: makeId('expense'), mandatoryPaymentId: id, title: payment.title, amount: payment.amount,
+      categoryId: state.settings.categories.find(item => item.id === 'home')?.id || state.settings.categories[0].id,
+      date: `${selectedMonth}-${String(day).padStart(2, '0')}`, status: 'planned', createdAt: timestamp, updatedAt: timestamp };
+    state.expenses.push(expense);
+    if (!persistState()) { state.expenses = state.expenses.filter(item => item.id !== expense.id); return; }
+    showToast('Платеж добавлен в план');
   }
 
   function renderLoans() {
-    const totalDebt = state.loans.reduce((sum, loan) => sum + (Number(loan.balance) || 0), 0);
-    const monthlyTotal = state.loans.reduce((sum, loan) => sum + (Number(loan.payment) || 0), 0);
-    $('loansTotal').textContent = formatMoney(totalDebt);
-    $('loansCount').textContent = String(state.loans.length);
+    const missing = state.loans.filter(loan => loan.balance === null).length;
+    const totalDebt = state.loans.reduce((sum, loan) => sum + (loan.balance || 0), 0);
+    const monthlyTotal = state.loans.reduce((sum, loan) => sum + loan.payment, 0);
+    $('loansTotal').textContent = missing ? (missing === state.loans.length ? 'Не указан' : 'Сумма неполная') : formatMoney(totalDebt);
+    $('loansTotalHint').textContent = missing ? `${missing < state.loans.length ? `Указано ${formatMoney(totalDebt)}. ` : ''}Заполните остаток долга по ${missing} из ${state.loans.length} кредитов` : 'По всем добавленным кредитам';
+    $('loansCount').textContent = $('loansListCount').textContent = String(state.loans.length);
     $('loansMonthly').textContent = formatMoney(monthlyTotal);
-
-    $('loansDirectory').innerHTML = state.loans.length ? state.loans.map(loan => {
-      const paymentDay = Number(loan.firstDate.slice(8));
-      return `
-        <article class="loan-card">
-          <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}" aria-label="Изменить кредит ${escapeAttr(loan.title)}">
-            <span class="loan-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M3 10h18M7 15h3"/></svg></span>
-            <span class="loan-copy">
-              <strong>${escapeHtml(loan.title)}</strong>
-              <small>Платеж ${escapeHtml(formatMoney(loan.payment))} в месяц · ${paymentDay} числа</small>
-            </span>
-            <span class="loan-amount"><small>Задолженность</small><b>${escapeHtml(formatMoney(loan.balance))}</b></span>
-            <span class="loan-chevron" aria-hidden="true">›</span>
-          </button>
-        </article>`;
-    }).join('') : '<div class="empty-state"><span>◇</span><strong>Кредитов пока нет</strong><small>Добавь кредит, чтобы видеть общую задолженность</small></div>';
+    const loans = [...state.loans].sort((a, b) => a.paymentDay - b.paymentDay || a.title.localeCompare(b.title, 'ru'));
+    $('loansDirectory').innerHTML = loans.length ? loans.map(loan => `
+      <section class="creditrow loan-card">
+        <button class="loan-main" type="button" data-edit-loan="${escapeAttr(loan.id)}" aria-label="Изменить кредит ${escapeAttr(loan.title)}">
+          <span class="categoryicon credit">${icon('credit')}</span><span class="loan-copy"><strong>${escapeHtml(loan.title)}</strong><small>Каждый месяц · ${loan.paymentDay} числа</small></span><strong class="nums" style="font-size:15px">${escapeHtml(formatMoney(loan.payment))}</strong>
+        </button>
+        <div class="credit-bottom"><span>Остаток долга: ${loan.balance === null ? 'не указан' : escapeHtml(formatMoney(loan.balance))}</span><button type="button" data-edit-loan="${escapeAttr(loan.id)}">${loan.balance === null ? 'Указать' : 'Изменить'}</button></div>
+      </section>`).join('') : '<div class="empty-state"><strong>Кредитов пока нет</strong><small>Добавьте кредит, чтобы видеть общую задолженность и платежи в месяц.</small></div>';
   }
 
   function openLoanDialog(id = null) {
@@ -421,11 +438,12 @@
     $('loanError').textContent = '';
     $('loanId').value = loan?.id || '';
     $('loanTitle').value = loan?.title || '';
-    $('loanBalance').value = loan?.balance || '';
+    $('loanBalance').value = loan?.balance ?? '';
+    $('loanDay').value = loan?.paymentDay || Number((loan?.firstDate || toDateKey(new Date())).slice(8));
     $('loanPayment').value = loan?.payment || '';
     $('loanFirstDate').value = loan?.firstDate || (selectedMonth === toMonthKey(new Date()) ? toDateKey(new Date()) : `${selectedMonth}-01`);
     $('loanEndDate').value = loan?.endDate || '';
-    $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Добавить кредит';
+    $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Новый кредит';
     $('deleteLoanButton').classList.toggle('hidden', !loan);
     $('loanDialog').showModal();
   }
@@ -433,13 +451,16 @@
   function saveLoan(event) {
     event.preventDefault();
     const title = $('loanTitle').value.trim();
-    const balance = Number($('loanBalance').value);
+    const balanceText = $('loanBalance').value.trim();
+    const balance = balanceText === '' ? null : Number(balanceText);
+    const paymentDay = Number($('loanDay').value);
     const payment = Number($('loanPayment').value);
     const firstDate = $('loanFirstDate').value;
     const endDate = $('loanEndDate').value;
     let error = '';
     if (!title) error = 'Укажи название кредита';
-    else if (!Number.isFinite(balance) || balance < 0.01 || balance > 1e15) error = 'Укажи остаток задолженности';
+    else if (balance !== null && (!Number.isFinite(balance) || balance < 0 || balance > 1e15)) error = 'Укажи корректный остаток задолженности';
+    else if (!Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31) error = 'Укажи день платежа от 1 до 31';
     else if (!Number.isFinite(payment) || payment < 0.01 || payment > 1e12) error = 'Укажи ежемесячный платеж';
     else if (!isDateKey(firstDate)) error = 'Выбери дату ближайшего платежа';
     else if (endDate && (!isDateKey(endDate) || endDate < firstDate)) error = 'Дата окончания не может быть раньше ближайшего платежа';
@@ -450,7 +471,8 @@
     const loan = {
       id: existing?.id || makeId('loan'),
       title: title.slice(0, 60),
-      balance: Math.round(balance * 100) / 100,
+      balance: balance === null ? null : Math.round(balance * 100) / 100,
+      paymentDay,
       payment: Math.round(payment * 100) / 100,
       firstDate,
       endDate,
@@ -485,116 +507,70 @@
   }
 
   function renderPlans() {
+    qsa('[data-filter]').forEach(button => {
+      const active = button.dataset.filter === activeFilter;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
     const monthlyExpenses = expensesForMonth();
-    const total = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    $('plansTotal').textContent = formatMoney(total);
-    $('plansCount').textContent = `${monthlyExpenses.length} ${expenseWord(monthlyExpenses.length)} в этом месяце`;
-
     const filtered = activeFilter === 'all' ? monthlyExpenses : monthlyExpenses.filter(expense => expense.status === activeFilter);
-    renderExpenseList($('plansList'), filtered, { empty: activeFilter === 'paid' ? 'Оплаченных трат пока нет' : 'На этот месяц пока нет трат' });
+    $('plansTotal').textContent = formatMoney(filtered.reduce((sum, expense) => sum + expense.amount, 0));
+    $('plansCount').textContent = `${filtered.length} ${expenseWord(filtered.length)}`;
+    $('plansTotalLabel').textContent = { planned: 'Предстоит оплатить', paid: 'Уже оплачено', all: 'Все траты в плане' }[activeFilter];
+    $('plansPeriod').textContent = monthLabel(selectedMonth);
+    renderExpenseList($('plansList'), filtered, { empty: activeFilter === 'paid' ? 'Оплаченных трат пока нет' : 'Пока без трат' });
   }
 
   function renderExpenseList(container, expenses, options = {}) {
     if (!container) return;
     const list = typeof options.limit === 'number' ? expenses.slice(0, options.limit) : expenses;
     if (!list.length) {
-      container.innerHTML = `<div class="empty-state"><span>✦</span><strong>${escapeHtml(options.empty || 'Пока пусто')}</strong><small>Новые записи появятся здесь</small></div>`;
+      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(options.empty || 'Пока без трат')}</strong><small>Добавьте трату для выбранного месяца.</small></div>`;
       return;
     }
     container.innerHTML = list.map(expense => {
-      const category = categoryById(expense.categoryId);
-      const paidLabel = expense.status === 'paid' ? '<span class="paid-mark">✓ Оплачено</span>' : escapeHtml(formatDate(expense.date));
-      if (options.completable && expense.status !== 'paid') {
-        return `
-          <div class="expense-row expense-row-completable">
-            <button class="expense-row-main" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Открыть трату ${escapeAttr(expense.title)}">
-              <span class="category-icon" style="background:${escapeAttr(category.soft)};color:${escapeAttr(category.color)}">${escapeHtml(category.emoji)}</span>
-              <span class="expense-main"><strong>${escapeHtml(expense.title)}</strong><small>${paidLabel}</small></span>
-              <b>${escapeHtml(formatMoney(expense.amount))}</b>
-            </button>
-            <button class="expense-complete" type="button" data-complete-expense="${escapeAttr(expense.id)}" aria-label="Отметить трату ${escapeAttr(expense.title)} выполненной" title="Выполнено">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.4 3.4 7.8-8"/></svg>
-            </button>
-          </div>`;
-      }
-      return `
-        <button class="expense-row ${expense.status === 'paid' ? 'paid' : ''}" type="button" data-expense-id="${escapeAttr(expense.id)}">
-          <span class="category-icon" style="background:${escapeAttr(category.soft)};color:${escapeAttr(category.color)}">${escapeHtml(category.emoji)}</span>
-          <span class="expense-main"><strong>${escapeHtml(expense.title)}</strong><small>${paidLabel}</small></span>
-          <b>${escapeHtml(formatMoney(expense.amount))}</b>
-          <span class="row-more">⋯</span>
-        </button>`;
+      const category = categoryById(expense.categoryId), visual = categoryVisual(category), paid = expense.status === 'paid';
+      return `<div class="expense expense-row">
+        <span class="categoryicon category-icon" style="background:${escapeAttr(visual.soft)};color:${escapeAttr(visual.color)}">${visual.markup}</span>
+        <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small>${escapeHtml(category.name)} · ${escapeHtml(formatDate(expense.date))}</small></button>
+        <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
+        <button class="check ${paid ? 'done' : ''}" type="button" data-complete-expense="${escapeAttr(expense.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Вернуть в план: ' : 'Отметить оплату: '}${escapeAttr(expense.title)}">${icon('check')}</button>
+      </div>`;
     }).join('');
-
-    container.querySelectorAll('[data-expense-id]').forEach(button => {
-      button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId));
-    });
-    container.querySelectorAll('[data-complete-expense]').forEach(button => {
-      button.addEventListener('click', () => completeExpense(button.dataset.completeExpense));
-    });
+    container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));
+    container.querySelectorAll('[data-complete-expense]').forEach(button => button.addEventListener('click', () => completeExpense(button.dataset.completeExpense)));
   }
 
   function renderAnalytics() {
-    const monthlyExpenses = expensesForMonth();
-    const planned = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const paidItems = monthlyExpenses.filter(expense => expense.status === 'paid');
-    const paid = paidItems.reduce((sum, expense) => sum + expense.amount, 0);
-    const budget = budgetForMonth();
-    $('analyticsPlanned').textContent = formatMoney(planned);
-    $('analyticsPaid').textContent = formatMoney(paid);
-    $('analyticsBudgetPercent').textContent = budget > 0 ? `${Math.round(planned / budget * 100)}% планируемого бюджета` : 'Планируемый бюджет не задан';
-    $('analyticsPaidCount').textContent = `${paidItems.length} ${expenseWord(paidItems.length)}`;
-    $('donutTotal').textContent = formatMoney(planned, true);
-
+    const items = expensesForMonth().filter(expense => analyticsFilter === 'all' || expense.status === 'paid');
+    const total = items.reduce((sum, expense) => sum + expense.amount, 0), budget = budgetForMonth();
+    $('analyticsTotalLabel').textContent = analyticsFilter === 'paid' ? 'Оплачено' : 'Все траты';
+    $('analyticsPlanned').textContent = formatMoney(total);
+    $('analyticsCount').textContent = `${items.length} ${expenseWord(items.length)}`;
+    $('analyticsBudgetPercent').textContent = budget > 0 ? `${Math.round(total / budget * 100)}%` : '—';
+    $('analyticsBudget').textContent = budget > 0 ? `Бюджет ${formatMoney(budget)}` : 'Бюджет не задан';
+    $('analyticsCategoryLabel').textContent = analyticsFilter === 'paid' ? 'Оплаченные траты' : 'Все запланированные траты';
     const totals = new Map();
-    monthlyExpenses.forEach(expense => totals.set(expense.categoryId, (totals.get(expense.categoryId) || 0) + expense.amount));
-    const rows = Array.from(totals.entries())
-      .map(([categoryId, amount]) => ({ category: categoryById(categoryId), amount }))
-      .sort((a, b) => b.amount - a.amount);
-
-    if (!rows.length || planned <= 0) {
-      $('categoryDonut').style.setProperty('--segments', 'conic-gradient(#e6ecf3 0 100%)');
-      $('categoryBreakdown').innerHTML = '<div class="empty-state"><strong>Нет данных для диаграммы</strong><small>Добавь траты на выбранный месяц</small></div>';
-    } else {
-      let cursor = 0;
-      const segments = rows.map(row => {
-        const start = cursor;
-        cursor += row.amount / planned * 100;
-        return `${row.category.color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
-      });
-      $('categoryDonut').style.setProperty('--segments', `conic-gradient(${segments.join(',')})`);
-      $('categoryBreakdown').innerHTML = rows.map(row => {
-        const percent = Math.round(row.amount / planned * 100);
-        return `
-          <div class="breakdown-row">
-            <span class="dot" style="background:${escapeAttr(row.category.color)}"></span>
-            <span class="breakdown-main">
-              <span><b>${escapeHtml(row.category.name)}</b><small>${percent}%</small></span>
-              <i><b style="width:${percent}%;background:${escapeAttr(row.category.color)}"></b></i>
-            </span>
-            <b>${escapeHtml(formatMoney(row.amount))}</b>
-          </div>`;
-      }).join('');
-    }
-
-    const weekly = [0, 0, 0, 0, 0];
-    monthlyExpenses.forEach(expense => {
-      const day = Number(expense.date.slice(8, 10));
-      const week = Math.min(4, Math.floor((day - 1) / 7));
-      weekly[week] += expense.amount;
-    });
+    items.forEach(expense => totals.set(expense.categoryId, (totals.get(expense.categoryId) || 0) + expense.amount));
+    const rows = [...totals.entries()].map(([id, amount]) => ({ category: categoryById(id), amount })).sort((a, b) => b.amount - a.amount);
+    $('categoryBreakdown').innerHTML = total > 0 ? rows.map(row => {
+      const chartColors = { health: '#936d83', home: '#747da9', transport: '#ac8747', credit: '#6286c5', tech: '#5b8e7b', other: '#8794a6' };
+      const color = chartColors[row.category.id] || categoryVisual(row.category).color;
+      return `<div class="barrow"><div class="bartext"><span class="key"><i style="background:${escapeAttr(color)}"></i>${escapeHtml(row.category.name)}</span><strong class="nums">${escapeHtml(formatMoney(row.amount))}</strong></div><div class="bar"><span style="width:${row.amount / total * 100}%;background:${escapeAttr(color)}"></span></div></div>`;
+    }).join('') : '<p class="note">За этот месяц данных пока нет.</p>';
+    const [year, month] = selectedMonth.split('-').map(Number), days = new Date(year, month, 0).getDate();
+    const weekly = Array(Math.ceil(days / 7)).fill(0);
+    items.forEach(expense => { weekly[Math.floor((Number(expense.date.slice(8)) - 1) / 7)] += expense.amount; });
     const max = Math.max(...weekly, 1);
-    $('weekChart').innerHTML = weekly.map((amount, index) => `
-      <div class="week-bar">
-        <strong>${amount ? escapeHtml(formatMoney(amount, true)) : '0 ₽'}</strong>
-        <i style="height:${Math.max(8, amount / max * 105)}px"></i>
-        <span>${index + 1} нед.</span>
-      </div>`).join('');
+    $('weekChart').innerHTML = weekly.map((amount, index) => `<div class="weekcol"><b>${escapeHtml(new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(amount))}</b><div class="weekbar" style="height:${amount > 0 ? Math.max(3, amount / max * 75) : 0}px"></div><span>${index * 7 + 1}–${Math.min(index * 7 + 7, days)}</span></div>`).join('');
+    $('weekChart').setAttribute('aria-label', `Суммы по семидневным периодам: ${weekly.map(amount => formatMoney(amount)).join(', ')}`);
   }
 
   function renderSettings() {
-    const directBudget = state.settings.budgets[selectedMonth];
-    if (document.activeElement !== $('budgetInput')) $('budgetInput').value = directBudget ?? state.settings.defaultBudget ?? 0;
+    if (!$('budgetDialog').open) $('budgetInput').value = budgetForMonth();
+    $('settingsBudgetLabel').textContent = `${monthLabel(selectedMonth)} · ${formatMoney(budgetForMonth())}`;
+    $('budgetDialogPeriod').textContent = `${monthLabel(selectedMonth)}. Сумма, которую вы выделили на траты.`;
+    $('budgetDialogHint').textContent = `Все траты в плане: ${formatMoney(expensesForMonth().reduce((sum, expense) => sum + expense.amount, 0))}. Остаток = планируемый бюджет − все траты в плане.`;
     renderCategoryManagement();
   }
 
@@ -623,20 +599,10 @@
   }
 
   function renderCategoryPicker() {
-    const enabled = state.settings.categories.filter(category => category.enabled !== false);
-    if (!enabled.some(category => category.id === selectedCategoryId)) selectedCategoryId = enabled[0]?.id || state.settings.categories[0]?.id;
-    $('categoryPicker').innerHTML = enabled.map(category => `
-      <button class="category-choice ${category.id === selectedCategoryId ? 'active' : ''}" type="button" role="radio" aria-checked="${category.id === selectedCategoryId}" data-category-id="${escapeAttr(category.id)}">
-        <span>${escapeHtml(category.emoji)}</span>
-        <small>${escapeHtml(category.name)}</small>
-      </button>`).join('');
-
-    $('categoryPicker').querySelectorAll('[data-category-id]').forEach(button => {
-      button.addEventListener('click', () => {
-        selectedCategoryId = button.dataset.categoryId;
-        renderCategoryPicker();
-      });
-    });
+    const editing = Boolean($('expenseId').value);
+    const available = state.settings.categories.filter(category => category.enabled !== false || (editing && category.id === selectedCategoryId));
+    if (!available.some(category => category.id === selectedCategoryId)) selectedCategoryId = available[0]?.id || state.settings.categories[0]?.id;
+    $('categoryPicker').innerHTML = available.map(category => `<option value="${escapeAttr(category.id)}" ${category.id === selectedCategoryId ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('');
   }
 
   function openExpenseDialog(expenseId = null) {
@@ -644,9 +610,9 @@
     const expense = expenseId ? state.expenses.find(item => item.id === expenseId) : null;
     $('expenseForm').reset();
     $('expenseId').value = expense?.id || '';
-    $('expenseDialogEyebrow').textContent = expense ? 'Редактирование' : 'Новая запись';
-    $('expenseDialogTitle').textContent = expense ? 'Изменить трату' : 'Добавить трату';
-    $('saveExpenseButton').textContent = expense ? 'Сохранить изменения' : 'Сохранить трату';
+    $('expenseError').textContent = '';
+    $('expenseDialogTitle').textContent = expense ? 'Редактировать трату' : 'Новая трата';
+    $('saveExpenseButton').textContent = expense ? 'Сохранить изменения' : 'Добавить в план';
     $('deleteExpenseButton').classList.toggle('hidden', !expense);
 
     if (expense) {
@@ -665,7 +631,7 @@
     }
     renderCategoryPicker();
     dialog.showModal();
-    setTimeout(() => $('expenseTitle').focus(), 80);
+    $('expenseAmount').focus();
   }
 
   function closeExpenseDialog() {
@@ -677,11 +643,14 @@
     const title = $('expenseTitle').value.trim();
     const amount = Number($('expenseAmount').value);
     const date = $('expenseDate').value;
-    if (!title) return showToast('Укажи название траты');
-    if (!Number.isFinite(amount) || amount <= 0) return showToast('Укажи сумму больше нуля');
-    if (!isDateKey(date)) return showToast('Выбери дату');
+    if (!title) { $('expenseError').textContent = 'Укажите название траты'; return; }
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) { $('expenseError').textContent = 'Укажите сумму больше нуля'; return; }
+    if (!isDateKey(date)) { $('expenseError').textContent = 'Выберите дату'; return; }
     if (!state.settings.categories.some(category => category.id === selectedCategoryId)) return showToast('Выбери категорию');
 
+    const previousExpenses = state.expenses.map(expense => ({ ...expense }));
+    const previousMonth = selectedMonth;
+    const previousUpdatedAt = state.meta.updatedAt;
     const id = $('expenseId').value;
     const existing = id ? state.expenses.find(item => item.id === id) : null;
     const timestamp = new Date().toISOString();
@@ -707,46 +676,58 @@
       });
     }
     selectedMonth = date.slice(0, 7);
-    if (!persistState()) return;
+    if (!persistState()) {
+      state.expenses = previousExpenses;
+      state.meta.updatedAt = previousUpdatedAt;
+      selectedMonth = previousMonth;
+      return;
+    }
     closeExpenseDialog();
     showToast(existing ? 'Трата обновлена' : 'Трата добавлена');
   }
 
   function completeExpense(id) {
     const expense = state.expenses.find(item => item.id === id);
-    if (!expense || expense.status === 'paid') return;
-    const previousStatus = expense.status;
-    const previousUpdatedAt = expense.updatedAt;
-    expense.status = 'paid';
-    expense.updatedAt = new Date().toISOString();
-    if (!persistState()) {
-      expense.status = previousStatus;
-      expense.updatedAt = previousUpdatedAt;
-      return;
-    }
-    showToast('Трата выполнена');
+    if (!expense) return;
+    const previousStatus = expense.status, previousUpdatedAt = expense.updatedAt;
+    expense.status = expense.status === 'paid' ? 'planned' : 'paid';
+    const expectedUpdatedAt = expense.updatedAt = new Date().toISOString(), expectedStatus = expense.status;
+    if (!persistState()) { expense.status = previousStatus; expense.updatedAt = previousUpdatedAt; return; }
+    showToast(expense.status === 'paid' ? 'Отмечено как оплаченное' : 'Трата возвращена в план', () => {
+      const current = state.expenses.find(item => item.id === id);
+      if (!current || current.updatedAt !== expectedUpdatedAt || current.status !== expectedStatus) return showToast('Трата уже изменена');
+      current.status = previousStatus;
+      current.updatedAt = new Date().toISOString();
+      if (!persistState()) { current.status = expectedStatus; current.updatedAt = expectedUpdatedAt; }
+    });
   }
 
   function deleteExpense() {
-    const id = $('expenseId').value;
-    if (!id) return;
-    const expense = state.expenses.find(item => item.id === id);
+    const id = $('expenseId').value, expense = state.expenses.find(item => item.id === id);
     if (!expense) return;
-    if (!window.confirm(`Удалить «${expense.title}»?`)) return;
+    const before = state.expenses;
     state.expenses = state.expenses.filter(item => item.id !== id);
-    if (!persistState()) return;
+    if (!persistState()) { state.expenses = before; return; }
     closeExpenseDialog();
-    showToast('Трата удалена');
+    showToast('Трата удалена', () => {
+      if (state.expenses.some(item => item.id === id)) return;
+      const restored = { ...expense, updatedAt: new Date().toISOString() };
+      state.expenses.push(restored);
+      if (!persistState()) state.expenses = state.expenses.filter(item => item.id !== id);
+    });
   }
 
-  function saveBudget() {
+  function saveBudget(event) {
+    event?.preventDefault();
     const amount = Number($('budgetInput').value);
-    if (!Number.isFinite(amount) || amount < 0) return showToast('Укажи корректный планируемый бюджет');
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1e15) return showToast('Укажите корректный планируемый бюджет');
+    const previous = { ...state.settings, budgets: { ...state.settings.budgets } };
     state.settings.budgets[selectedMonth] = amount;
     if ($('defaultBudgetToggle').checked) state.settings.defaultBudget = amount;
-    persistState();
+    if (!persistState()) { state.settings = previous; return; }
     $('defaultBudgetToggle').checked = false;
-    showToast('Планируемый бюджет сохранён');
+    $('budgetDialog').close();
+    showToast('Планируемый бюджет сохранен');
   }
 
   function openCategoryDialog() {
@@ -1128,12 +1109,16 @@
     realtimeChannel = null;
   }
 
-  function showToast(message) {
+  function showToast(message, undo = null) {
     const toast = $('toast');
     clearTimeout(toastTimer);
     toast.textContent = message;
+    if (undo) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Отменить';
+      button.addEventListener('click', () => { toast.classList.remove('show'); undo(); }); toast.append(button);
+    }
     toast.classList.add('show');
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
   }
 
   function escapeHtml(value) {
@@ -1145,15 +1130,16 @@
   }
 
   function bindEvents() {
-    qsa('[data-nav]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.nav)));
+    qsa('[data-nav]').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.nav === 'plans' && button.closest('[data-screen="overview"]')) activeFilter = 'planned';
+      navigate(button.dataset.nav);
+      renderPlans();
+    }));
     qsa('[data-open-expense]').forEach(button => button.addEventListener('click', () => openExpenseDialog()));
     qsa('[data-close-dialog]').forEach(button => button.addEventListener('click', closeExpenseDialog));
     qsa('[data-close-category]').forEach(button => button.addEventListener('click', () => $('categoryDialog').close()));
 
-    $('profileButton').addEventListener('click', () => {
-      navigate('settings');
-      setTimeout(() => $('cloudCard').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
-    });
+    $('profileButton').addEventListener('click', () => navigate('settings'));
 
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],
@@ -1165,21 +1151,22 @@
 
     qsa('[data-filter]').forEach(button => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
-      qsa('[data-filter]').forEach(item => {
-        const active = item.dataset.filter === activeFilter;
-        item.classList.toggle('active', active);
-        item.setAttribute('aria-selected', String(active));
-      });
       renderPlans();
     }));
 
+    qsa('[data-analytics-filter]').forEach(button => button.addEventListener('click', () => {
+      analyticsFilter = button.dataset.analyticsFilter;
+      qsa('[data-analytics-filter]').forEach(item => { const active = item.dataset.analyticsFilter === analyticsFilter; item.classList.toggle('active', active); item.setAttribute('aria-pressed', String(active)); });
+      renderAnalytics();
+    }));
     $('expenseForm').addEventListener('submit', saveExpense);
     $('deleteExpenseButton').addEventListener('click', deleteExpense);
-    $('saveBudgetButton').addEventListener('click', saveBudget);
-    $('categorySettingsButton').addEventListener('click', () => {
-      $('categoriesDialog').showModal();
-    });
-    $('openCategoriesButton').addEventListener('click', () => $('categoriesDialog').showModal());
+    $('budgetForm').addEventListener('submit', saveBudget);
+    $('openBudgetButton').addEventListener('click', openBudgetDialog);
+    $('budgetSettingsCard').addEventListener('click', openBudgetDialog);
+    $('closeBudgetButton').addEventListener('click', () => $('budgetDialog').close());
+    $('categoriesCard').addEventListener('click', () => $('categoriesDialog').showModal());
+    $('categoryPicker').addEventListener('change', () => { selectedCategoryId = $('categoryPicker').value; });
     $('closeCategoriesButton').addEventListener('click', () => $('categoriesDialog').close());
     $('categoriesDialog').addEventListener('click', event => {
       if (event.target !== $('categoriesDialog')) return;
@@ -1194,6 +1181,12 @@
     $('addLoanButton').addEventListener('click', () => openLoanDialog());
     $('closeLoanButton').addEventListener('click', () => $('loanDialog').close());
     $('loanForm').addEventListener('submit', saveLoan);
+    $('loanDay').addEventListener('change', () => {
+      const day = Number($('loanDay').value);
+      if (!Number.isInteger(day) || day < 1 || day > 31) return;
+      const [year, month] = $('loanFirstDate').value.slice(0, 7).split('-').map(Number);
+      $('loanFirstDate').value = `${year}-${String(month).padStart(2, '0')}-${String(Math.min(day, new Date(year, month, 0).getDate())).padStart(2, '0')}`;
+    });
     $('deleteLoanButton').addEventListener('click', deleteLoan);
     $('loansDirectory').addEventListener('click', handleLoanClick);
     $('loanDialog').addEventListener('click', event => {
@@ -1222,7 +1215,13 @@
     $('importButton').addEventListener('click', () => $('importFile').click());
     $('importFile').addEventListener('change', event => importData(event.target.files?.[0]));
 
+    $('budgetDialog').addEventListener('click', event => {
+      if (event.target !== $('budgetDialog')) return;
+      const rect = $('budgetDialog').getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('budgetDialog').close();
+    });
     $('expenseDialog').addEventListener('click', event => {
+      if (event.target !== $('expenseDialog')) return;
       const rect = $('expenseDialog').getBoundingClientRect();
       const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
       if (!inside) closeExpenseDialog();

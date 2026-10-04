@@ -6,11 +6,11 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f8fb",
-  "theme_color": "#f7f9fc",
+  "background_color": "#f5f6f8",
+  "theme_color": "#f5f6f8",
   "icons": [
     {
-      "src": "./icon.svg?v=1.1.0",
+      "src": "./icon.svg?v=1.4.0",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
