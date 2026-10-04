@@ -12,17 +12,17 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.4.0" />
-    <link rel="icon" href="./icon.svg?v=1.4.0" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.4.1" />
+    <link rel="icon" href="./icon.svg?v=1.4.1" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.4.0" />
+    <link rel="stylesheet" href="./styles.css?v=1.4.1" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.4.0"></script>
-    <script defer src="./app.js?v=1.4.0"></script>
+    <script defer src="./loans.js?v=1.4.1"></script>
+    <script defer src="./app.js?v=1.4.1"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -425,7 +425,7 @@
                 </button>
               </div>
               <button class="text-button" id="resendEmailButton" type="button">
-                Отправить письмо подтверждения повторно
+                Отправить письмо повторно
               </button>
               <p class="helper-text">
                 После входа Пульс синхронизирует данные между твоими
@@ -523,7 +523,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.4.0</p>
+          <p class="note">Пульс · версия 1.4.1</p>
         </section>
       </main>
       <footer class="dock">
@@ -613,7 +613,6 @@
           inputmode="decimal"
           placeholder="0"
           required
-          autofocus
         />
         <label class="field-label" for="expenseTitle">Название</label
         ><input
@@ -638,8 +637,7 @@
           ><input id="expensePaid" type="checkbox" />Уже оплачено</label
         >
         <p class="note">
-          Сумма уменьшит остаток по плану. Отметка об оплате сохранит ее в общем
-          учете.
+          Оплата меняет статус траты и не вычитает сумму повторно.
         </p>
         <p class="inline-message form-error" id="expenseError" role="alert"></p>
         <button class="primary" id="saveExpenseButton" type="submit">

@@ -70,7 +70,7 @@
   function openBudgetDialog() {
     renderSettings();
     $('budgetDialog').showModal();
-    $('budgetInput').focus();
+    $('closeBudgetButton').focus({ preventScroll: true });
   }
 
   function makeId(prefix = 'id') {
@@ -285,8 +285,8 @@
       else button.removeAttribute('aria-current');
     });
     updateDock();
-    window.scrollTo({ top: screenScroll.get(screenName) || 0, behavior: 'instant' });
     $('appMain')?.focus({ preventScroll: true });
+    window.scrollTo({ top: screenScroll.get(screenName) || 0, behavior: 'instant' });
     if (screenName === 'settings') renderSettings();
   }
 
@@ -631,7 +631,7 @@
     }
     renderCategoryPicker();
     dialog.showModal();
-    $('expenseAmount').focus();
+    dialog.querySelector('.sheet-close').focus({ preventScroll: true });
   }
 
   function closeExpenseDialog() {
@@ -1129,7 +1129,29 @@
     return escapeHtml(value);
   }
 
+  function bindVisualViewport() {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      document.documentElement.style.setProperty('--visible-height', `${viewport.height}px`);
+      document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
+      document.documentElement.classList.toggle('keyboard-open', inset > 100);
+    };
+    viewport.addEventListener('resize', () => {
+      update();
+      const field = document.activeElement;
+      if (field?.matches('dialog input, dialog select')) {
+        requestAnimationFrame(() => field.scrollIntoView({ block: 'nearest' }));
+      }
+    });
+    viewport.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    update();
+  }
+
   function bindEvents() {
+    bindVisualViewport();
     qsa('[data-nav]').forEach(button => button.addEventListener('click', () => {
       if (button.dataset.nav === 'plans' && button.closest('[data-screen="overview"]')) activeFilter = 'planned';
       navigate(button.dataset.nav);
