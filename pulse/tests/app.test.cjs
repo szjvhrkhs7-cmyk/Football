@@ -324,3 +324,26 @@ test('budget preview follows input without saving or changing planned expenses',
   assert.equal(a.w.localStorage.getItem('pulse-finance-v1'),before);
   a.$('budgetInput').value='';a.$('budgetInput').dispatchEvent(new a.w.Event('input'));assert.equal(a.$('budgetRemainingAmount').textContent,'—');
 });
+
+test('overview renders all planned expenses and lets the last one be paid without changing the balance', async t => {
+  const today = new Date(), month = today.toISOString().slice(0, 7);
+  const otherMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth() - 1, 1)).toISOString().slice(0, 7);
+  const planned = Array.from({ length: 8 }, (_, i) => ({
+    id: `planned-${i + 1}`, title: `Трата ${i + 1}`, categoryId: 'other',
+    amount: 100 * (i + 1), date: `${month}-${String(i + 1).padStart(2, '0')}`, status: 'planned'
+  }));
+  const a = await app(t, JSON.stringify({ settings: { defaultBudget: 85000 }, expenses: [
+    ...planned,
+    { id: 'paid', title: 'Уже оплаченная', categoryId: 'other', amount: 500, date: `${month}-01`, status: 'paid' },
+    { id: 'other-month', title: 'Другой месяц', categoryId: 'other', amount: 999, date: `${otherMonth}-01`, status: 'planned' }
+  ] }));
+  const visibleIds = () => Array.from(a.$('upcomingList').querySelectorAll('[data-expense-id]'), button => button.dataset.expenseId);
+  assert.deepEqual(visibleIds(), planned.map(expense => expense.id));
+  assert.equal(a.$('overviewPlansLink').textContent, 'Все 8');
+  const balance = a.$('availableAmount').textContent;
+  a.click('#upcomingList [data-complete-expense="planned-8"]');
+  assert.deepEqual(visibleIds(), planned.slice(0, -1).map(expense => expense.id));
+  assert.equal(a.$('overviewPlansLink').textContent, 'Все 7');
+  assert.equal(a.$('availableAmount').textContent, balance);
+  assert.equal(a.read().expenses.find(expense => expense.id === 'planned-8').status, 'paid');
+});
