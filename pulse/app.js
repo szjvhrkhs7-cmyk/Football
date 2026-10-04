@@ -318,7 +318,7 @@
     $('budgetMeter').setAttribute('aria-label', `Оплачено ${formatMoney(paid)}, предстоит ${formatMoney(all - paid)}`);
     const pending = plannedExpensesForOverview(monthlyExpenses);
     $('overviewPlansLink').textContent = `Все ${pending.length}`;
-    renderExpenseList($('upcomingList'), pending, { limit: 3, empty: 'Пока без трат' });
+    renderExpenseList($('upcomingList'), pending, { empty: 'Пока без трат' });
     const alert = $('budgetAlert');
     alert.classList.toggle('hidden', available >= 0);
     alert.textContent = available < 0 ? `План превышает бюджет на ${formatMoney(-available)}` : '';
