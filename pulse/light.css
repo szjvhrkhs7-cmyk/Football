@@ -146,3 +146,6 @@ dialog.designed-sheet::backdrop{background:#29293566}
 .month button.month-label{width:auto;min-width:62px}
 .month button.month-label .year{display:none}
 .builder-edit summary{border-radius:8px}
+
+/* Prevent tap-driven page zoom while retaining normal touch scrolling. */
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
