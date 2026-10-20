@@ -23,6 +23,7 @@
 
   const now = new Date();
   let selectedMonth = toMonthKey(now);
+  let overviewDay = null;
   let activeFilter = 'planned';
   let analyticsFilter = 'all';
   let selectedCategoryId = 'food';
@@ -266,6 +267,7 @@
 
   function setSelectedMonth(monthKey) {
     selectedMonth = monthKey;
+    overviewDay = null;
     renderAll();
   }
 
@@ -279,7 +281,7 @@
     activeScreen = screenName;
     qsa('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === screenName));
     qsa('.bottom-nav [data-nav]').forEach(button => {
-      const active = button.dataset.nav === (screenName === 'payments' ? 'plans' : screenName);
+      const active = button.dataset.nav === (['payments', 'plans', 'loans', 'settings'].includes(screenName) ? 'overview' : screenName);
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
@@ -296,6 +298,8 @@
       $(id).innerHTML = `${escapeHtml(label.split(' ')[0])}<span class="year"> ${escapeHtml(selectedMonth.slice(0, 4))}</span>`;
       $(id).setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
     });
+    $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
+    $('overviewMonthLabel').textContent = selectedMonth.slice(0, 4);
     renderOverview(); renderPlans(); renderAnalytics(); renderMandatoryPayments(); renderLoans();
     renderSettings(); renderCategoryPicker(); updateCloudUi(); updateDock();
   }
@@ -306,22 +310,109 @@
     const paid = monthlyExpenses.filter(expense => expense.status === 'paid').reduce((sum, expense) => sum + expense.amount, 0);
     const budget = budgetForMonth();
     const available = budget - all;
-    $('availableAmount').textContent = formatMoney(available);
-    $('budgetAmount').textContent = formatMoney(budget);
-    $('plannedAmount').textContent = formatMoney(all);
-    $('overviewPaid').textContent = $('overviewPaidSummary').textContent = formatMoney(paid);
-    $('overviewPending').textContent = formatMoney(all - paid);
+    $('availableAmount').textContent = formatMoney(available, true);
+    $('availableAmount').setAttribute('aria-label', formatMoney(available));
+    $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
+    $('budgetAmount').textContent = formatMoney(budget, true);
+    $('overviewPaidSummary').textContent = formatMoney(paid);
     $('overviewYear').textContent = selectedMonth.slice(0, 4);
-    $('mandatoryOverviewAmount').textContent = state.mandatoryPayments.length ? formatMoney(mandatoryPaymentsTotal()) : 'Добавить';
-    $('budgetPaidFill').style.width = `${budget > 0 ? Math.min(100, paid / budget * 100) : 0}%`;
-    $('budgetMeterFill').style.width = `${budget > 0 ? Math.min(100, (all - paid) / budget * 100) : 0}%`;
-    $('budgetMeter').setAttribute('aria-label', `Оплачено ${formatMoney(paid)}, предстоит ${formatMoney(all - paid)}`);
+    $('mandatoryOverviewAmount').textContent = state.mandatoryPayments.length ? `${state.mandatoryPayments.length}` : '+';
+    renderOverviewCalendar(monthlyExpenses);
     const pending = plannedExpensesForOverview(monthlyExpenses);
     $('overviewPlansLink').textContent = `Все ${pending.length}`;
-    renderExpenseList($('upcomingList'), pending, { empty: 'Пока без трат' });
+    const shown = overviewDay ? pending.filter(item => item.date === overviewDay) : pending;
+    $('upcomingHeading').textContent = overviewDay ? formatDate(overviewDay) : 'К оплате';
+    renderExpenseList($('upcomingList'), shown, { empty: overviewDay ? 'На этот день платежей нет' : 'Пока без трат' });
     const alert = $('budgetAlert');
     alert.classList.toggle('hidden', available >= 0);
     alert.textContent = available < 0 ? `План превышает бюджет на ${formatMoney(-available)}` : '';
+  }
+
+  function renderOverviewCalendar(expenses) {
+    const today = toDateKey(new Date());
+    const anchor = new Date(`${selectedMonth === today.slice(0, 7) ? today : selectedMonth + '-01'}T12:00:00`);
+    anchor.setDate(anchor.getDate() - (anchor.getDay() + 6) % 7);
+    const days = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+    $('overviewCalendar').innerHTML = days.map((label, index) => {
+      const date = new Date(anchor); date.setDate(anchor.getDate() + index);
+      const key = toDateKey(date), outside = key.slice(0, 7) !== selectedMonth;
+      const count = expenses.filter(item => item.date === key && item.status !== 'paid').length;
+      return `<button type="button" data-overview-day="${key}" class="${key === today ? 'is-today' : ''}" aria-pressed="${key === overviewDay}" aria-label="${escapeAttr(formatDate(key))}, платежей: ${count}" ${outside ? 'disabled' : ''}><small>${label}</small><strong>${date.getDate()}</strong><i class="${count ? 'has-payments' : ''}" aria-hidden="true"></i></button>`;
+    }).join('');
+  }
+
+  function openMonthBuilder() {
+    $('builderMonth').value = addMonths(selectedMonth, 1);
+    $('builderError').textContent = '';
+    renderMonthBuilder();
+    $('monthBuilderDialog').showModal();
+    $('builderTitle').focus({ preventScroll: true });
+  }
+
+  function renderMonthBuilder() {
+    const month = $('builderMonth').value;
+    if (!/^\d{4}-\d{2}$/.test(month)) { $('builderRows').innerHTML = ''; updateBuilderSummary(); return; }
+    const [year, number] = month.split('-').map(Number);
+    const last = new Date(year, number, 0).getDate();
+    const planned = state.expenses.filter(item => item.date.slice(0, 7) === month);
+    $('builderRows').innerHTML = mandatoryPaymentsSorted().map(payment => {
+      const existing = planned.find(item => item.mandatoryPaymentId === payment.id);
+      const date = existing?.date || `${month}-${String(Math.min(payment.day, last)).padStart(2, '0')}`;
+      const amount = existing?.amount ?? payment.amount;
+      return `<article class="builder-row ${existing ? 'already-planned' : ''}" data-builder-id="${escapeAttr(payment.id)}">
+        <div class="builder-selection"><label><input type="checkbox" data-builder-selected checked ${existing ? 'disabled' : ''}/><span><strong>${escapeHtml(payment.title)}</strong><small>${existing ? 'Уже в плане' : escapeHtml(formatDate(date))}</small></span></label><span class="nums">${escapeHtml(formatMoney(amount))}</span></div>
+        ${existing ? '' : `<details class="builder-edit"><summary>Сумма и дата ${icon('edit')}</summary><div class="builder-fields"><label>Сумма, ₽<input type="number" data-builder-amount min="0.01" step="0.01" inputmode="decimal" value="${amount}" aria-label="${escapeAttr(payment.title)}: сумма" /></label><label>Дата<input type="date" data-builder-date min="${month}-01" max="${month}-${last}" value="${date}" aria-label="${escapeAttr(payment.title)}: дата" /></label></div></details>`}
+      </article>`;
+    }).join('') || '<div class="empty-state"><strong>Пока нет регулярных платежей</strong><small>Сначала добавь интернет, подписки или другие повторяющиеся расходы.</small></div>';
+    updateBuilderSummary();
+  }
+
+  function selectedBuilderRows() {
+    return qsa('#builderRows [data-builder-id]').filter(row => {
+      const checkbox = row.querySelector('[data-builder-selected]');
+      return checkbox.checked && !checkbox.disabled;
+    });
+  }
+
+  function updateBuilderSummary() {
+    const rows = selectedBuilderRows();
+    for (const row of rows) {
+      const amount = Number(row.querySelector('[data-builder-amount]').value);
+      const date = row.querySelector('[data-builder-date]').value;
+      row.querySelector('.builder-selection > .nums').textContent = Number.isFinite(amount) ? formatMoney(amount) : '—';
+      if (isDateKey(date)) row.querySelector('.builder-selection small').textContent = formatDate(date);
+    }
+    const total = rows.reduce((sum, row) => sum + Number(row.querySelector('[data-builder-amount]').value || 0), 0);
+    $('builderCount').textContent = `Выбрано ${rows.length} ${paymentWord(rows.length)}`;
+    $('builderTotal').textContent = Number.isFinite(total) ? formatMoney(total) : 'Проверь сумму';
+    $('builderSubmit').disabled = rows.length === 0;
+  }
+
+  function saveMonthBuilder(event) {
+    event.preventDefault();
+    const month = $('builderMonth').value, rows = selectedBuilderRows();
+    const error = $('builderError'); error.textContent = '';
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) { error.textContent = 'Выбери месяц плана.'; return; }
+    const additions = [];
+    for (const row of rows) {
+      const payment = state.mandatoryPayments.find(item => item.id === row.dataset.builderId);
+      if (!payment || state.expenses.some(item => item.mandatoryPaymentId === payment.id && item.date.slice(0, 7) === month)) continue;
+      const amount = Number(row.querySelector('[data-builder-amount]').value);
+      const date = row.querySelector('[data-builder-date]').value;
+      if (!Number.isFinite(amount) || amount < 0.01 || amount > 999999999) { error.textContent = 'Укажи сумму платежа от 0,01 до 999 999 999 ₽.'; row.querySelector('details').open = true; row.querySelector('[data-builder-amount]').focus(); return; }
+      if (!isDateKey(date) || date.slice(0, 7) !== month) { error.textContent = 'Дата платежа должна попадать в выбранный месяц.'; row.querySelector('details').open = true; row.querySelector('[data-builder-date]').focus(); return; }
+      const timestamp = new Date().toISOString();
+      additions.push({ id: makeId('expense'), mandatoryPaymentId: payment.id, title: payment.title, amount, date,
+        categoryId: state.settings.categories.find(item => item.id === 'home')?.id || state.settings.categories[0].id,
+        status: 'planned', createdAt: timestamp, updatedAt: timestamp });
+    }
+    if (!additions.length) { renderMonthBuilder(); return; }
+    const before = state.expenses, previousUpdatedAt = state.meta.updatedAt;
+    state.expenses = [...state.expenses, ...additions];
+    if (!persistState()) { state.expenses = before; state.meta.updatedAt = previousUpdatedAt; error.textContent = 'Не удалось сохранить платежи. Освободи место на устройстве и повтори.'; return; }
+    $('monthBuilderDialog').close();
+    setSelectedMonth(month);
+    showToast(`Добавлено ${additions.length} ${paymentWord(additions.length)} в ${monthLabel(month)}`);
   }
 
   function renderMandatoryPayments() {
@@ -532,6 +623,7 @@
     container.innerHTML = list.map(expense => {
       const category = categoryById(expense.categoryId), visual = categoryVisual(category), paid = expense.status === 'paid';
       return `<div class="expense expense-row">
+        ${container.id === 'upcomingList' ? `<span class="expense-date" aria-hidden="true"><strong>${Number(expense.date.slice(8))}</strong><small>${MONTHS[Number(expense.date.slice(5,7)) - 1].slice(0,3)}</small></span>` : ''}
         <span class="categoryicon category-icon" style="background:${escapeAttr(visual.soft)};color:${escapeAttr(visual.color)}">${visual.markup}</span>
         <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small>${escapeHtml(category.name)} · ${escapeHtml(formatDate(expense.date))}</small></button>
         <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
@@ -659,9 +751,14 @@
 
     const previousExpenses = state.expenses.map(expense => ({ ...expense }));
     const previousMonth = selectedMonth;
+    const previousDay = overviewDay;
     const previousUpdatedAt = state.meta.updatedAt;
     const id = $('expenseId').value;
     const existing = id ? state.expenses.find(item => item.id === id) : null;
+    if (existing?.mandatoryPaymentId && state.expenses.some(item => item.id !== existing.id && item.mandatoryPaymentId === existing.mandatoryPaymentId && item.date.slice(0, 7) === date.slice(0, 7))) {
+      $('expenseError').textContent = 'Этот регулярный платеж уже есть в выбранном месяце.';
+      return;
+    }
     const timestamp = new Date().toISOString();
     if (existing) {
       Object.assign(existing, {
@@ -685,10 +782,12 @@
       });
     }
     selectedMonth = date.slice(0, 7);
+    if (overviewDay && overviewDay !== date) overviewDay = null;
     if (!persistState()) {
       state.expenses = previousExpenses;
       state.meta.updatedAt = previousUpdatedAt;
       selectedMonth = previousMonth;
+      overviewDay = previousDay;
       return;
     }
     closeExpenseDialog();
@@ -1171,6 +1270,17 @@
     qsa('[data-close-category]').forEach(button => button.addEventListener('click', () => $('categoryDialog').close()));
 
     $('profileButton').addEventListener('click', () => navigate('settings'));
+    $('overviewCalendar').addEventListener('click', event => {
+      const button = event.target.closest('[data-overview-day]');
+      if (!button || button.disabled) return;
+      overviewDay = overviewDay === button.dataset.overviewDay ? null : button.dataset.overviewDay;
+      renderOverview();
+    });
+    $('openMonthBuilder').addEventListener('click', openMonthBuilder);
+    $('closeMonthBuilder').addEventListener('click', () => $('monthBuilderDialog').close());
+    $('builderMonth').addEventListener('change', () => { $('builderError').textContent = ''; renderMonthBuilder(); });
+    $('builderRows').addEventListener('input', updateBuilderSummary);
+    $('monthBuilderForm').addEventListener('submit', saveMonthBuilder);
 
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],

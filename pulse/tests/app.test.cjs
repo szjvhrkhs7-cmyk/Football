@@ -45,7 +45,7 @@ function fillMandatoryPayment(a, title = 'Аренда', amount = '5000', day = 
 }
 test('credit create, edit, reload and delete work without a payment schedule', async t => {
   const a = await app(t);
-  a.click('.bottom-nav [data-nav="loans"]');
+  a.click('[data-screen="settings"] [data-nav="loans"]');
   assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'loans');
   assert.equal(a.$('loansSchedule'), null);
   assert.equal(a.$('loansPrevMonth'), null);
@@ -119,7 +119,7 @@ test('mandatory payments support CRUD, sort by day and stay outside budget math'
   a.submit('mandatoryPaymentForm');
 
   assert.match(a.$('mandatoryPaymentsTotal').textContent, /25\s000/);
-  assert.match(a.$('mandatoryOverviewAmount').textContent, /25\s000/);
+  assert.equal(a.$('mandatoryOverviewAmount').textContent, '2');
   assert.match(a.$('availableAmount').textContent, /39\s000/);
   assert.deepEqual(
     Array.from(a.w.document.querySelectorAll('#mandatoryPaymentsList .payment-copy strong'), node => node.textContent),
@@ -210,9 +210,9 @@ test('old backups migrate without losing expenses or requiring credit records', 
   assert.deepEqual(a.read().mandatoryPayments, []);
 });
 
-test('four-tab navigation opens real profile settings and the budget editor', async t => {
+test('two-tab navigation retains real profile settings and the budget editor', async t => {
   const a = await app(t);
-  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'plans', 'loans', 'analytics']);
+  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'analytics']);
   a.$('profileButton').click();
   assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'settings');
   a.$('budgetSettingsCard').click();
@@ -346,4 +346,79 @@ test('overview renders all planned expenses and lets the last one be paid withou
   assert.equal(a.$('overviewPlansLink').textContent, 'Все 7');
   assert.equal(a.$('availableAmount').textContent, balance);
   assert.equal(a.read().expenses.find(expense => expense.id === 'planned-8').status, 'paid');
+});
+
+test('month builder selects regular payments, edits a single occurrence and blocks duplicates after reload', async t => {
+  const a = await app(t);
+  for (const [name,amount,day] of [['Интернет','1000','19'],['Квартира','5000','31']]) {
+    a.$('addMandatoryPaymentButton').click();fillMandatoryPayment(a,name,amount,day);a.submit('mandatoryPaymentForm');
+  }
+  a.$('openMonthBuilder').click();
+  assert.equal(a.$('monthBuilderDialog').open,true);
+  a.$('builderMonth').value='2027-02';a.$('builderMonth').dispatchEvent(new a.w.Event('change'));
+  const rows=a.$('builderRows').querySelectorAll('[data-builder-id]');
+  assert.equal(rows.length,2);
+  const rent=Array.from(rows).find(row=>row.textContent.includes('Квартира'));
+  assert.equal(rent.querySelector('[data-builder-date]').value,'2027-02-28');
+  rent.querySelector('[data-builder-amount]').value='4800';
+  rent.querySelector('[data-builder-amount]').dispatchEvent(new a.w.Event('input',{bubbles:true}));
+  assert.match(a.$('builderTotal').textContent,/5\s800/);
+  a.submit('monthBuilderForm');
+  assert.equal(a.read().expenses.length,2);
+  assert.equal(a.read().expenses.find(e=>e.title==='Квартира').amount,4800);
+  assert.equal(a.read().mandatoryPayments.find(e=>e.title==='Квартира').amount,5000);
+  assert.equal(a.$('monthBuilderDialog').open,false);
+  const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+  b.$('openMonthBuilder').click();b.$('builderMonth').value='2027-02';b.$('builderMonth').dispatchEvent(new b.w.Event('change'));
+  assert.equal(b.$('builderSubmit').disabled,true);
+  assert.equal(b.$('builderRows').querySelectorAll('input[type="checkbox"]:disabled').length,2);
+  b.submit('monthBuilderForm');assert.equal(b.read().expenses.length,2);
+});
+
+test('month builder excludes unchecked payments and rejects dates outside selected month',async t=>{
+  const a=await app(t);
+  for(const name of ['Один','Два']){a.$('addMandatoryPaymentButton').click();fillMandatoryPayment(a,name,'100','15');a.submit('mandatoryPaymentForm');}
+  a.$('openMonthBuilder').click();a.$('builderMonth').value='2027-03';a.$('builderMonth').dispatchEvent(new a.w.Event('change'));
+  const rows=a.$('builderRows').querySelectorAll('[data-builder-id]');
+  rows[1].querySelector('[data-builder-selected]').checked=false;
+  const date=rows[0].querySelector('[data-builder-date]');date.value='2027-04-01';
+  a.submit('monthBuilderForm');assert.equal(a.read().expenses.length,0);assert.match(a.$('builderError').textContent,/месяц/);
+  date.value='2027-03-18';a.submit('monthBuilderForm');
+  assert.equal(a.read().expenses.length,1);assert.equal(a.read().expenses[0].date,'2027-03-18');
+});
+
+test('month builder keeps the draft open when saving fails and creates no partial batch',async t=>{
+  const a=await app(t);a.$('addMandatoryPaymentButton').click();fillMandatoryPayment(a);a.submit('mandatoryPaymentForm');a.$('openMonthBuilder').click();
+  const originalSetItem=a.w.Storage.prototype.setItem;
+  a.w.Storage.prototype.setItem=function(){throw new Error('QuotaExceededError');};
+  a.submit('monthBuilderForm');assert.equal(a.$('monthBuilderDialog').open,true);assert.match(a.$('builderError').textContent,/сохранить/);
+  a.w.Storage.prototype.setItem=originalSetItem;
+  a.submit('monthBuilderForm');
+  assert.equal(a.read().expenses.length,1);
+  assert.equal(a.$('monthBuilderDialog').open,false);
+});
+
+test('overview removes crossed-out totals and calendar filters without changing the budget',async t=>{
+  const a=await app(t);
+  assert.equal(a.$('budgetMeter'),null);assert.equal(a.$('plannedAmount'),null);
+  a.$('budgetInput').value='56000';a.$('saveBudgetButton').click();
+  a.click('[data-open-expense]');a.$('expenseTitle').value='Интернет';a.$('expenseAmount').value='1000';a.submit('expenseForm');
+  const before=a.$('availableAmount').textContent;
+  const today=a.w.document.querySelector(`[data-overview-day="${a.read().expenses[0].date}"]`);
+  assert.ok(today);today.click();assert.match(a.$('upcomingList').textContent,/Интернет/);assert.equal(a.$('availableAmount').textContent,before);
+});
+
+test('moving to a different expense month clears the calendar day filter',async t=>{
+ const a=await app(t);
+ const day=a.w.document.querySelector('[data-overview-day]:not([disabled])');day.click();
+ a.click('[data-open-expense]');a.$('expenseTitle').value='Новый месяц';a.$('expenseAmount').value='250';a.$('expenseDate').value='2027-08-12';a.submit('expenseForm');
+ assert.match(a.$('upcomingList').textContent,/Новый месяц/);assert.equal(a.$('upcomingHeading').textContent,'К оплате');
+});
+
+test('moving a recurring occurrence into an occupied month is rejected',async t=>{
+ const month=new Date().toISOString().slice(0,7);
+ const saved=JSON.stringify({mandatoryPayments:[{id:'template',title:'Интернет',amount:1000,day:15}],expenses:[{id:'one',mandatoryPaymentId:'template',title:'Интернет',amount:1000,date:month+'-15',status:'planned',categoryId:'food'},{id:'two',mandatoryPaymentId:'template',title:'Интернет',amount:1000,date:'2027-08-15',status:'planned',categoryId:'food'}]});
+ const a=await app(t,saved);a.click('#upcomingList [data-expense-id="one"]');a.$('expenseDate').value='2027-08-20';a.submit('expenseForm');
+ assert.equal(a.$('expenseDialog').open,true);assert.match(a.$('expenseError').textContent,/уже/);
+ assert.equal(a.read().expenses.filter(e=>e.date.startsWith('2027-08')).length,1);
 });

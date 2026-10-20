@@ -4,25 +4,27 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#f5f6f8" />
+    <meta name="theme-color" content="#fafafc" />
+    <meta name="color-scheme" content="light" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.4.3" />
-    <link rel="icon" href="./icon.svg?v=1.4.3" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.5.0" />
+    <link rel="icon" href="./icon.svg?v=1.5.0" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.4.3" />
+    <link rel="stylesheet" href="./styles.css?v=1.5.0" />
+    <link rel="stylesheet" href="./light.css?v=1.5.0" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.4.3"></script>
-    <script defer src="./app.js?v=1.4.3"></script>
+    <script defer src="./loans.js?v=1.5.0"></script>
+    <script defer src="./app.js?v=1.5.0"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -82,46 +84,11 @@
               </button>
             </div>
           </div>
-          <section class="hero" aria-label="Остаток по плану">
-            <div class="hero-top">
-              <span class="label">Остаток по плану</span
-              ><button
-                class="hero-edit"
-                id="openBudgetButton"
-                type="button"
-                aria-label="Изменить планируемый бюджет"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z" />
-                </svg>
-              </button>
-            </div>
-            <div class="value nums" id="availableAmount">0 ₽</div>
-            <div class="helper">После всех трат в плане</div>
-            <div class="hero-stats">
-              <div>
-                <small>Планируемый бюджет</small
-                ><strong class="nums" id="budgetAmount">0 ₽</strong>
-              </div>
-              <div>
-                <small>Все траты в плане</small
-                ><strong class="nums" id="plannedAmount">0 ₽</strong>
-              </div>
-            </div>
-            <div class="track" id="budgetMeter" role="img">
-              <span class="paid" id="budgetPaidFill"></span
-              ><span class="planned" id="budgetMeterFill"></span>
-            </div>
-            <div class="legend">
-              <span
-                ><i style="background: #80c7b1"></i>Оплачено
-                <span id="overviewPaid">0 ₽</span></span
-              ><span
-                ><i style="background: #88aaff"></i>Предстоит
-                <span id="overviewPending">0 ₽</span></span
-              >
-            </div>
+          <section class="balance-composition" aria-label="План месяца">
+            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После всех трат в плане</span></div>
+            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z" /></svg><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong></button>
           </section>
+          <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
           <div
             class="balance-alert hidden"
             id="budgetAlert"
@@ -130,14 +97,14 @@
           <button class="linkrow" type="button" data-nav="payments">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 3h14v18l-3-2-4 2-4-2-3 2ZM9 8h6M9 12h6" /></svg
-            ><span class="grow">Регулярные платежи</span
+            ><span class="grow">Регулярные платежи<small>Подготовить следующий месяц</small></span
             ><strong id="mandatoryOverviewAmount">Добавить</strong
             ><svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m9 5 7 7-7 7" />
             </svg>
           </button>
           <div class="sectionhead">
-            <h2>Предстоит оплатить</h2>
+            <h2 id="upcomingHeading">К оплате</h2>
             <button class="textbtn" type="button" data-nav="plans">
               <span id="overviewPlansLink">Все траты</span>
               <svg
@@ -239,6 +206,7 @@
             >Траты
           </button>
           <div class="heading"><h1 id="paymentsTitle">Регулярные</h1></div>
+          <button class="assemble-month" id="openMonthBuilder" type="button"><span><strong>Собрать месяц</strong><small>Выбрать платежи, суммы и даты</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></button>
           <p class="note" style="padding-top: 0">
             Сохраните повторяющиеся расходы. Добавляйте их в план отдельно,
             чтобы избежать двойного учета.
@@ -470,6 +438,7 @@
             ></p>
           </article>
           <div class="settings-list">
+            <button class="linkrow" type="button" data-nav="loans"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg><span class="grow">Мои кредиты</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
             <button class="linkrow" id="budgetSettingsCard" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z" /></svg
@@ -523,7 +492,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.4.3</p>
+          <p class="note">Пульс · версия 1.5.0</p>
         </section>
       </main>
       <footer class="dock">
@@ -536,11 +505,11 @@
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg
-            >Добавить трату</button
+            ><span class="sr">Добавить трату</span></button
           ><button class="primary hidden" id="addLoanButton" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg
-            >Добавить кредит</button
+            ><span class="sr">Добавить кредит</span></button
           ><button
             class="primary hidden"
             id="addMandatoryPaymentButton"
@@ -548,7 +517,7 @@
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg
-            >Добавить платеж
+            ><span class="sr">Добавить платеж</span>
           </button>
         </div>
         <nav class="nav bottom-nav" aria-label="Основная навигация">
@@ -562,19 +531,6 @@
               <path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z" /></svg
             ><span>Обзор</span>
           </button>
-          <button type="button" data-nav="plans">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"
-              /></svg
-            ><span>Траты</span>
-          </button>
-          <button type="button" data-nav="loans">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="14" rx="3" />
-              <path d="M3 10h18M7 15h3" /></svg
-            ><span>Кредиты</span>
-          </button>
           <button type="button" data-nav="analytics">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 20V10M12 20V4M20 20v-6" /></svg
@@ -583,6 +539,18 @@
         </nav>
       </footer>
     </div>
+    <dialog class="sheet designed-sheet month-builder" id="monthBuilderDialog" aria-labelledby="builderTitle">
+      <form id="monthBuilderForm" novalidate>
+        <header class="sheet-head"><div class="dialog-heading"><h2 id="builderTitle" tabindex="-1" autofocus>Собрать месяц</h2><p>Выбери платежи для своего плана</p></div><button class="sheet-close" id="closeMonthBuilder" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></header>
+        <div class="dialog-body">
+          <label class="builder-month-label" for="builderMonth">Месяц плана</label><input id="builderMonth" type="month" required />
+          <div id="builderRows" class="builder-rows"></div>
+          <p class="dialog-hint">Добавленные платежи не повторятся. Изменения сумм и дат относятся только к этому месяцу.</p>
+          <p class="inline-message form-error" id="builderError" role="alert"></p>
+        </div>
+        <footer class="dialog-footer"><div class="builder-summary" aria-live="polite"><span id="builderCount">Выбрано 0</span><strong id="builderTotal" class="nums">0 ₽</strong></div><button id="builderSubmit" class="primary" type="submit">Добавить в план</button></footer>
+      </form>
+    </dialog>
     <dialog class="sheet designed-sheet" id="expenseDialog" aria-labelledby="expenseDialogTitle">
       <form id="expenseForm" novalidate>
         <header class="sheet-head">
