@@ -13,18 +13,18 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.6.2" />
-    <link rel="icon" href="./icon.svg?v=1.6.2" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.6.3" />
+    <link rel="icon" href="./icon.svg?v=1.6.3" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.6.2" />
-    <link rel="stylesheet" href="./light.css?v=1.6.2" />
+    <link rel="stylesheet" href="./styles.css?v=1.6.3" />
+    <link rel="stylesheet" href="./light.css?v=1.6.3" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.6.2"></script>
-    <script defer src="./app.js?v=1.6.2"></script>
+    <script defer src="./loans.js?v=1.6.3"></script>
+    <script defer src="./app.js?v=1.6.3"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -86,7 +86,7 @@
           </div>
           <section class="balance-composition" aria-label="План месяца">
             <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После неоплаченных трат</span></div>
-            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z" /></svg><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong></button>
+            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong></button>
           </section>
           <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
           <div
@@ -94,14 +94,10 @@
             id="budgetAlert"
             role="status"
           ></div>
-          <button class="linkrow" type="button" data-nav="payments">
+          <button class="linkrow" type="button" data-nav="payments" aria-label="Открыть регулярные платежи">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 3h14v18l-3-2-4 2-4-2-3 2ZM9 8h6M9 12h6" /></svg
-            ><span class="grow">Регулярные платежи<small>Подготовить следующий месяц</small></span
-            ><strong id="mandatoryOverviewAmount">Добавить</strong
-            ><svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m9 5 7 7-7 7" />
-            </svg>
+              <path d="M5 3h14v18l-3-2-4 2-4-2-3 2ZM9 8h6M9 12h6" /></svg>
+            <span class="grow">Регулярные платежи<small>Подготовить следующий месяц</small></span>
           </button>
           <div class="sectionhead">
             <h2 id="upcomingHeading">К оплате</h2>
@@ -493,7 +489,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.6.2</p>
+          <p class="note">Пульс · версия 1.6.3</p>
         </section>
       </main>
       <footer class="dock">
