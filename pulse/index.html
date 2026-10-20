@@ -85,7 +85,7 @@
             </div>
           </div>
           <section class="balance-composition" aria-label="План месяца">
-            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После всех трат в плане</span></div>
+            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После неоплаченных трат</span></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z" /></svg><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong></button>
           </section>
           <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
@@ -591,7 +591,7 @@
           <label class="option-row" for="expensePaid">
             <span>
               <strong>Уже оплачено</strong>
-              <small id="expensePaidHint">Без повторного вычета из бюджета</small>
+              <small id="expensePaidHint">Оплаченные траты не уменьшают остаток</small>
             </span>
             <input class="dialog-switch" id="expensePaid" type="checkbox" aria-describedby="expensePaidHint" />
           </label>
@@ -626,7 +626,7 @@
           </div>
           <div class="budget-preview" id="budgetDialogHint">
             <div>
-              <span>Траты в плане</span>
+              <span>Неоплаченные траты</span>
               <strong id="budgetPlannedAmount"></strong>
             </div>
             <div>
