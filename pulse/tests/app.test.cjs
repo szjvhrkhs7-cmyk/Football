@@ -543,13 +543,17 @@ test('unplanned CRUD, history, filters and statistics never alter the planned bu
   assert.equal(a.$('unplannedTotal').textContent,'0 ₽');
   a.$('unplannedFilterCategory').value='all';
   a.$('unplannedFilterCategory').dispatchEvent(new a.w.Event('change'));
-  a.$('unplannedPeriod').value='custom';a.$('unplannedPeriod').dispatchEvent(new a.w.Event('change'));
-  a.$('unplannedFrom').value='2020-01-01';a.$('unplannedTo').value='2020-12-31';
-  a.$('unplannedFrom').dispatchEvent(new a.w.Event('change'));
-  a.$('unplannedTo').dispatchEvent(new a.w.Event('change'));
+  const monthBefore=a.$('unplannedMonthLabel').textContent;
+  a.$('unplannedNextMonth').click();
+  assert.notEqual(a.$('unplannedMonthLabel').textContent,monthBefore);
   assert.equal(a.$('unplannedTotal').textContent,'0 ₽');
-  a.$('unplannedPeriod').value='month';a.$('unplannedPeriod').dispatchEvent(new a.w.Event('change'));
+  assert.equal(a.$('unplannedAnalyticsCount').textContent,'0');
+  assert.equal(a.$('unplannedAnalyticsMonthLabel').textContent,a.$('unplannedMonthLabel').textContent);
+  a.$('unplannedPrevMonth').click();
+  assert.equal(a.$('unplannedMonthLabel').textContent,monthBefore);
   assert.match(a.$('unplannedTotal').textContent,/3\s000/);
+  assert.match(a.$('unplannedAnalyticsTotal').textContent,/3\s000/);
+  assert.equal(a.$('openUnplannedDialog').textContent.trim(),'Добавить');
   a.click('.bottom-nav [data-nav="analytics"]');
   assert.ok(a.$('unplannedCategoryChart').querySelector('[data-unplanned-detail]'));
   a.click('[data-unplanned-detail]');
@@ -590,4 +594,34 @@ test('unplanned custom categories, validation, persistence and backup migration'
   const migrated=await app(t,JSON.stringify({expenses:[],settings:{defaultBudget:1}}));
   assert.deepEqual(migrated.read()?.unplannedExpenses||[],[]);
   assert.equal(migrated.$('unplannedTotal').textContent,'0 ₽');
+});
+
+test('unplanned period is strictly the shared calendar month in every screen', async t=>{
+  const a=await app(t,JSON.stringify({settings:{defaultBudget:58000},unplannedExpenses:[
+    {id:'oct',date:'2026-10-20',amount:400,categoryId:'food',comment:'октябрь'},
+    {id:'nov',date:'2026-11-20',amount:900,categoryId:'food',comment:'ноябрь'}
+  ]}));
+  // Shift from the local current month to October 2026 through the date controls.
+  const current=new Date(),shift=(2026-current.getFullYear())*12+9-current.getMonth();
+  const button=shift<0?'unplannedPrevMonth':'unplannedNextMonth';
+  for(let i=0;i<Math.abs(shift);i++)a.$(button).click();
+  assert.match(a.$('unplannedTotal').textContent,/400/);
+  assert.match(a.$('unplannedAnalyticsTotal').textContent,/400/);
+  assert.equal(a.$('unplannedAnalyticsCount').textContent,'1');
+  assert.match(a.$('unplannedList').textContent,/октябрь/);
+  assert.doesNotMatch(a.$('unplannedList').textContent,/ноябрь/);
+  a.$('unplannedNextMonth').click();
+  assert.match(a.$('unplannedTotal').textContent,/900/);
+  assert.match(a.$('unplannedAnalyticsTotal').textContent,/900/);
+  assert.equal(a.$('unplannedAnalyticsCount').textContent,'1');
+  a.$('analyticsPrevMonth').click();
+  assert.match(a.$('unplannedTotal').textContent,/400/);
+  assert.match(a.$('unplannedAnalyticsTotal').textContent,/400/);
+  assert.equal(a.$('unplannedAnalyticsGranularity').querySelectorAll('option').length,2);
+  assert.equal(a.$('unplannedPeriod'),null);
+  assert.equal(a.$('unplannedAnalyticsPeriod'),null);
+  const css=fs.readFileSync(path.join(root,'unplanned.css'),'utf8');
+  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css,/\.dock \.nav button:nth-child\(2\)\{grid-column:2/);
+  assert.match(css,/\.dock \.nav button:last-child\{grid-column:4/);
 });
