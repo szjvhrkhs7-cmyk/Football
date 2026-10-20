@@ -287,7 +287,7 @@
     activeScreen = screenName;
     qsa('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === screenName));
     qsa('.bottom-nav [data-nav]').forEach(button => {
-      const active = button.dataset.nav === (['payments', 'plans', 'loans', 'settings'].includes(screenName) ? 'overview' : screenName);
+      const active = button.dataset.nav === (['payments', 'plans', 'loans'].includes(screenName) ? 'overview' : screenName);
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
@@ -1480,7 +1480,6 @@ function renderUnplannedAnalytics(){
     qsa('[data-close-dialog]').forEach(button => button.addEventListener('click', closeExpenseDialog));
     qsa('[data-close-category]').forEach(button => button.addEventListener('click', () => closeSheet($('categoryDialog'))));
 
-    $('profileButton').addEventListener('click', () => navigate('settings'));
     $('overviewCalendar').addEventListener('click', event => {
       const button = event.target.closest('[data-overview-day]');
       if (!button || button.disabled) return;
