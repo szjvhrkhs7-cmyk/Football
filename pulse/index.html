@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.0" />
-    <link rel="icon" href="./icon.svg?v=1.7.0" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.1" />
+    <link rel="icon" href="./icon.svg?v=1.7.1" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.0" />
-    <link rel="stylesheet" href="./light.css?v=1.7.0" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.0" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.1" />
+    <link rel="stylesheet" href="./light.css?v=1.7.1" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.1" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.0"></script>
-    <script defer src="./unplanned.js?v=1.7.0"></script>
-    <script defer src="./app.js?v=1.7.0"></script>
+    <script defer src="./loans.js?v=1.7.1"></script>
+    <script defer src="./unplanned.js?v=1.7.1"></script>
+    <script defer src="./app.js?v=1.7.1"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -335,17 +335,11 @@
               <div><h3>Незапланированные траты</h3><small>Отдельно от основного бюджета</small></div>
               <button class="unplanned-inline-link" type="button" data-nav="unplanned">Все операции →</button>
             </div>
-            <div class="unplanned-filters">
-              <label>Период
-                <select id="unplannedAnalyticsPeriod" aria-label="Период анализа незапланированных трат">
-                  <option value="month">Месяц</option><option value="quarter">Квартал</option>
-                  <option value="year">Год</option><option value="all">Всё время</option>
-                </select>
-              </label>
+            <div class="unplanned-analytics-controls">
+              <span id="unplannedAnalyticsMonthLabel" class="unplanned-analytics-month">Октябрь 2026</span>
               <label>Динамика
                 <select id="unplannedAnalyticsGranularity" aria-label="Группировка незапланированных трат">
                   <option value="day">По дням</option><option value="week" selected>По неделям</option>
-                  <option value="month">По месяцам</option>
                 </select>
               </label>
             </div>
@@ -368,26 +362,19 @@
         </section>
         <section class="screen unplanned-screen" data-screen="unplanned" aria-labelledby="unplannedTitle">
           <div class="heading"><h1 id="unplannedTitle">Незапланированные траты</h1></div>
-          <p class="unplanned-intro">Фактические расходы вне финансового плана. Основной остаток не изменяется.</p>
-          <section class="unplanned-total" aria-label="Итого за выбранный период">
+          <div class="unplanned-month-nav" aria-label="Календарный месяц незапланированных трат">
+            <button type="button" id="unplannedPrevMonth" aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+            <button type="button" id="unplannedMonthLabel" aria-label="Перейти к текущему месяцу">Октябрь 2026</button>
+            <button type="button" id="unplannedNextMonth" aria-label="Следующий месяц"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          </div>
+          <section class="unplanned-total" aria-label="Всего незапланированных расходов за календарный месяц">
             <span>Всего потрачено</span><strong id="unplannedTotal" class="nums">0 ₽</strong>
             <small id="unplannedTotalCount">0 операций</small>
           </section>
-          <div class="unplanned-filters">
-            <label>Период
-              <select id="unplannedPeriod" aria-label="Период незапланированных трат">
-                <option value="month">Месяц</option><option value="quarter">Квартал</option>
-                <option value="year">Год</option><option value="all">Всё время</option>
-                <option value="custom">Свой период</option>
-              </select>
-            </label>
+          <div class="unplanned-filters unplanned-category-filter">
             <label>Категория<select id="unplannedFilterCategory" aria-label="Фильтр по категории"></select></label>
           </div>
-          <div class="unplanned-dates hidden" id="unplannedCustomDates">
-            <label>С даты<input id="unplannedFrom" type="date"/></label>
-            <label>По дату<input id="unplannedTo" type="date"/></label>
-          </div>
-          <div class="sectionhead"><h2>Операции</h2><button type="button" class="unplanned-inline-link" id="openUnplannedDialog">+ Добавить</button></div>
+          <div class="sectionhead"><h2>Операции</h2><button type="button" class="unplanned-inline-link" id="openUnplannedDialog">Добавить</button></div>
           <div id="unplannedList" class="unplanned-list" aria-live="polite"></div>
         </section>
         <section
@@ -550,7 +537,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.7.0</p>
+          <p class="note">Пульс · версия 1.7.1</p>
         </section>
       </main>
       <footer class="dock">
