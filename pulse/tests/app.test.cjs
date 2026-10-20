@@ -465,8 +465,10 @@ test('budget preview and overview exclude paid expenses, without changing saved 
   a.$('openBudgetButton').click();
   assert.equal(a.$('budgetPlannedAmount').textContent.replace(/\u00a0/g,' '), '18 000 ₽');
   assert.equal(a.$('budgetRemainingAmount').textContent.replace(/\u00a0/g,' '), '40 000 ₽');
+  a.$('closeBudgetButton').click();
   a.click('#upcomingList [data-complete-expense="unpaid"]');
   assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '), '58 000 ₽');
+  a.$('openBudgetButton').click();
   a.$('budgetInput').value='60000';
   a.$('budgetInput').dispatchEvent(new a.w.Event('input'));
   assert.equal(a.$('budgetRemainingAmount').textContent.replace(/\u00a0/g,' '), '60 000 ₽');
