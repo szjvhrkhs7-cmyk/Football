@@ -69,27 +69,112 @@
 .unplanned-timeline-bar{width:min(100%,24px);border-radius:5px 5px 0 0;background:linear-gradient(180deg,#f27458,#e64f38);transition:height .24s ease}
 .unplanned-timeline-col>span{font-size:8px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:clip;max-width:100%}
 .unplanned-timeline-hint{font-size:10px;line-height:1.4;margin-top:8px;color:var(--muted)}
-.dock .nav{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) 52px minmax(0,1fr);column-gap:3px}
-.dock .nav button:nth-child(2){grid-column:2}
+/* Four equal columns: Overview | Outside plan | Add | Analytics.
+   FAB has its own reserved slot, so no navigation label collides with it. */
+.dock{
+  width:calc(100% - 28px);max-width:390px;height:72px;
+  border-radius:38px;
+}
+.dock .nav{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0;
+  padding:8px;
+  align-items:center;
+  height:100%;
+}
+.dock .nav button{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  grid-column:auto;
+  height:54px;min-height:54px;
+  padding:5px 2px;
+  gap:5px;
+  font-size:11px;
+  font-weight:550;
+  line-height:1.1;
+  white-space:nowrap;
+  min-width:0;
+}
+.dock .nav button:first-child{grid-column:1}
+.dock .nav button:nth-child(2){grid-column:2;font-size:11px}
 .dock .nav button:last-child{grid-column:4}
-.dock .nav button{gap:5px;font-size:11px;padding-inline:2px}
-.dock .nav button:nth-child(2){font-size:10px}
-.dock .nav button svg{width:18px;height:18px}
-.dock .addwrap{left:62%;top:8px}
+.dock .nav button svg{width:20px;height:20px;flex:none}
+.dock .nav button.active,.dock .nav button.active span{color:#fff}
+.dock .nav button.active svg{color:#ff816b}
+.dock .nav button.active::before,.dock .nav button.active::after{content:none;display:none}
+.dock .addwrap{
+  left:62.5%;top:10px;
+  width:50px;height:50px;
+  transform:translateX(-50%);
+}
+.dock .primary{
+  width:50px;height:50px;min-height:50px;
+  background:#f15137;
+  border-radius:50%;
+  box-shadow:0 5px 14px #f151373d;
+}
+.unplanned-month-nav{
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) 44px;
+  align-items:center;
+  height:46px;
+  width:min(270px,100%);
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:#fff;
+  margin:12px 0 18px;
+}
+.unplanned-month-nav button{
+  display:grid;place-items:center;
+  min-width:0;min-height:44px;
+  padding:0 4px;
+  color:var(--ink);
+  border:0;background:transparent;
+  font-size:14px;font-weight:600;
+  white-space:nowrap;
+}
+.unplanned-month-nav button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.unplanned-category-filter{grid-template-columns:minmax(0,1fr)}
+.unplanned-category-filter label{max-width:100%}
+.unplanned-analytics-controls{
+  display:flex;justify-content:space-between;align-items:end;
+  flex-wrap:wrap;gap:12px;
+  margin-top:16px;
+}
+.unplanned-analytics-month{
+  font-size:12px;font-weight:650;
+  color:var(--ink);padding:0 0 13px;
+}
+.unplanned-analytics-controls label{
+  display:grid;gap:6px;
+  color:var(--muted);font-size:11px;
+  min-width:136px;
+}
+.unplanned-analytics-controls select{
+  min-height:44px;max-width:100%;width:100%;
+  border:1px solid var(--line);border-radius:13px;
+  padding:8px 12px;
+  font-size:16px;color:var(--ink);background:#fff;
+}
+.unplanned-screen .heading{margin-bottom:2px}
+.unplanned-screen .unplanned-total{margin-bottom:18px}
 @media(max-width:360px){
-  .dock .nav{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 46px minmax(0,1fr);column-gap:1px}
-  .dock .nav button{gap:3px;font-size:10px}
-  .dock .nav button:nth-child(2){font-size:9px}
-  .dock .nav button svg{width:16px;height:16px}
-  .dock .addwrap{width:46px;height:46px;top:11px}
-  .dock .primary{width:46px;height:46px;min-height:46px}
+  .dock{width:calc(100% - 20px)}
+  .dock .nav{padding:6px}
+  .dock .nav button,.dock .nav button:nth-child(2){font-size:10px;gap:4px}
+  .dock .nav button svg{width:19px;height:19px}
+  .dock .addwrap{width:48px;height:48px;top:11px}
+  .dock .primary{width:48px;height:48px;min-height:48px}
   .unplanned-operation{grid-template-columns:59px minmax(0,1fr) auto;gap:7px;padding:10px}
   .unplanned-operation-amount{font-size:12px}
   .unplanned-chart-row{grid-template-columns:78px minmax(0,1fr);gap:9px}
   .unplanned-donut{width:78px;height:78px}
   .unplanned-donut:before{inset:17px}
   .unplanned-category-row{font-size:11px}
-}
+}}
 @media(prefers-reduced-motion:reduce){
   .unplanned-timeline-bar,.unplanned-operation{transition:none!important}
 }
