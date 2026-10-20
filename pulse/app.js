@@ -317,7 +317,6 @@
     $('budgetAmount').textContent = formatMoney(budget, true);
     $('overviewPaidSummary').textContent = formatMoney(paid);
     $('overviewYear').textContent = selectedMonth.slice(0, 4);
-    $('mandatoryOverviewAmount').textContent = state.mandatoryPayments.length ? `${state.mandatoryPayments.length}` : '+';
     renderOverviewCalendar(monthlyExpenses);
     $('overviewPlansLink').textContent = `Все ${pending.length}`;
     const shown = overviewDay ? pending.filter(item => item.date === overviewDay) : pending;
