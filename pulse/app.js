@@ -26,8 +26,8 @@
   let overviewDay = null;
   let activeFilter = 'planned';
   let analyticsFilter = 'all';
-  let unplannedPeriod = 'month', unplannedCategoryFilter = 'all';
-  let unplannedAnalyticsPeriod = 'month', unplannedGranularity = 'week', unplannedDetailCategory = '';
+  let unplannedCategoryFilter = 'all';
+  let unplannedGranularity = 'week', unplannedDetailCategory = '';
   const Unplanned = window.PulseUnplanned;
   let selectedCategoryId = 'food';
   let state = loadState();
@@ -300,6 +300,9 @@
 
   function renderAll() {
     const label = monthLabel(selectedMonth);
+    $('unplannedMonthLabel').textContent = label;
+    $('unplannedMonthLabel').setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
+    $('unplannedAnalyticsMonthLabel').textContent = label;
     ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => {
       $(id).innerHTML = `${escapeHtml(label.split(' ')[0])}<span class="year"> ${escapeHtml(selectedMonth.slice(0, 4))}</span>`;
       $(id).setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
@@ -672,11 +675,8 @@ function populateUnplannedCategoryOptions(){
   if(state.settings.categories.some(cat=>cat.id===current))categoryInput.value=current;
 }
 
-function unplannedScope(which){
-  const type=which==='analytics'?unplannedAnalyticsPeriod:unplannedPeriod;
-  const from=which==='analytics'?'':$('unplannedFrom').value;
-  const to=which==='analytics'?'':$('unplannedTo').value;
-  return Unplanned.periodBounds(type,selectedMonth,from,to);
+function unplannedScope(){
+  return Unplanned.periodBounds('month',selectedMonth);
 }
 
 function unplannedEntries(which,category='all'){
@@ -689,8 +689,6 @@ function renderUnplanned(){
   if(unplannedCategoryFilter!=='all'&&!categories.some(cat=>cat.id===unplannedCategoryFilter))unplannedCategoryFilter='all';
   categoryInput.innerHTML='<option value="all">Все категории</option>'+categories.map(cat=>`<option value="${escapeAttr(cat.id)}">${escapeHtml(cat.name)}</option>`).join('');
   categoryInput.value=unplannedCategoryFilter;
-  $('unplannedPeriod').value=unplannedPeriod;
-  $('unplannedCustomDates').classList.toggle('hidden',unplannedPeriod!=='custom');
   const items=unplannedEntries('list',unplannedCategoryFilter);
   const stats=Unplanned.summary(items,categories);
   $('unplannedTotal').textContent=formatMoney(stats.total);
@@ -702,7 +700,7 @@ function renderUnplanned(){
       <span class="unplanned-operation-info"><strong>${escapeHtml(category.name)}</strong>${item.comment?`<small>${escapeHtml(item.comment)}</small>`:''}</span>
       <strong class="unplanned-operation-amount nums">${escapeHtml(formatMoney(item.amount))}</strong>
     </button>`;
-  }).join(''):'<div class="unplanned-empty"><strong>Пока без незапланированных трат</strong><p>Добавь первую операцию. Она не уменьшит основной остаток.</p></div>';
+  }).join(''):'<div class="unplanned-empty"><strong>Пока без незапланированных трат</strong></div>';
 }
 
 function openUnplannedDialog(id=''){
@@ -711,7 +709,7 @@ function openUnplannedDialog(id=''){
   $('unplannedForm').reset();
   $('unplannedId').value=record?.id||'';
   $('unplannedAmount').value=record?.amount??'';
-  $('unplannedDate').value=record?.date||toDateKey(new Date());
+  $('unplannedDate').value=record?.date||(selectedMonth===toMonthKey(new Date())?toDateKey(new Date()):selectedMonth+'-01');
   $('unplannedComment').value=record?.comment||'';
   $('unplannedError').textContent='';
   $('unplannedDialogTitle').textContent=record?'Изменить трату':'Незапланированная трата';
@@ -763,7 +761,6 @@ function deleteUnplanned(){
 }
 
 function renderUnplannedAnalytics(){
-  $('unplannedAnalyticsPeriod').value=unplannedAnalyticsPeriod;
   $('unplannedAnalyticsGranularity').value=unplannedGranularity;
   const items=unplannedEntries('analytics'),summary=Unplanned.summary(items,state.settings.categories);
   $('unplannedAnalyticsTotal').textContent=formatMoney(summary.total);
@@ -1499,10 +1496,11 @@ function renderUnplannedAnalytics(){
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],
       ['plansPrevMonth', -1], ['plansNextMonth', 1],
-      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1]
+      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1],
+      ['unplannedPrevMonth', -1], ['unplannedNextMonth', 1]
     ];
     monthControls.forEach(([id, delta]) => $(id).addEventListener('click', () => setSelectedMonth(addMonths(selectedMonth, delta))));
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'unplannedMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
 
     qsa('[data-filter]').forEach(button => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
@@ -1581,11 +1579,7 @@ function renderUnplannedAnalytics(){
       const row=event.target.closest('[data-edit-unplanned]');
       if(row)openUnplannedDialog(row.dataset.editUnplanned);
     });
-    $('unplannedPeriod').addEventListener('change', event => { unplannedPeriod=event.target.value;renderUnplanned(); });
     $('unplannedFilterCategory').addEventListener('change', event => { unplannedCategoryFilter=event.target.value;renderUnplanned(); });
-    $('unplannedFrom').addEventListener('change', renderUnplanned);
-    $('unplannedTo').addEventListener('change', renderUnplanned);
-    $('unplannedAnalyticsPeriod').addEventListener('change', event => { unplannedAnalyticsPeriod=event.target.value;renderUnplannedAnalytics(); });
     $('unplannedAnalyticsGranularity').addEventListener('change', event => { unplannedGranularity=event.target.value;renderUnplannedAnalytics(); });
     $('unplannedCategoryChart').addEventListener('click', event => {
       const row=event.target.closest('[data-unplanned-detail]');
