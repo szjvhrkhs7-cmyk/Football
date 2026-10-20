@@ -192,3 +192,30 @@ test('new edits during forced upload stay pending until uploaded',async()=>{
  const syncing=f.api.syncBidirectional();await new Promise(setImmediate);f.api.mutate();finish({});await syncing;
  assert.notEqual(f.api.status(),'online');assert.equal(f.api.state().settings.defaultBudget,99);assert.equal(f.timers.size,1);
 });
+
+test('cloud payload stores independent unplanned expenses for the signed-in user',async()=>{
+ const f=fixture();
+ const row={id:'unplanned-01',amount:99.5,categoryId:'food',date:'2026-10-19',comment:'Такси'};
+ f.api.state().unplannedExpenses.push(row);
+ let saved;
+ f.api.connect(db(async()=>({data:null}),async data=>{saved=data;return {};}));
+ await f.api.pushCloudState(true);
+ assert.equal(saved.user_id,'test-user');
+ assert.equal(saved.payload.unplannedExpenses.length,1);
+ assert.equal(saved.payload.unplannedExpenses[0].id,'unplanned-01');
+ assert.deepEqual(saved.payload.expenses,[]);
+});
+test('cloud download restores unplanned records without duplicating stable ids',async()=>{
+ const f=fixture();
+ const remote={meta:{updatedAt:'2099-01-01T00:00:00Z'},settings:{defaultBudget:60000},expenses:[],
+  unplannedExpenses:[
+   {id:'u1',amount:100,date:'2026-10-19',categoryId:'food',updatedAt:'2026-10-19T10:00:00Z'},
+   {id:'u1',amount:150,date:'2026-10-19',categoryId:'food',updatedAt:'2026-10-19T12:00:00Z'}
+  ]};
+ f.api.connect(db(async()=>({data:{payload:remote}}),async()=>({})));
+ await f.api.syncBidirectional();
+ assert.equal(f.api.state().unplannedExpenses.length,1);
+ assert.equal(f.api.state().unplannedExpenses[0].amount,150);
+ assert.equal(f.api.state().settings.defaultBudget,60000);
+ assert.deepEqual(f.api.state().expenses,[]);
+});
