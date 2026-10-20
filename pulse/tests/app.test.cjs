@@ -22,6 +22,7 @@ async function app(t, saved, mockViewport = false) {
   w.HTMLDialogElement.prototype.close = function () { this.open = false; };
   if (saved) w.localStorage.setItem('pulse-finance-v1', saved);
   w.eval(fs.readFileSync(path.join(root, 'loans.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(root, 'unplanned.js'), 'utf8'));
   w.eval(fs.readFileSync(path.join(root, 'app.js'), 'utf8'));
   await new Promise(resolve => w.document.addEventListener('DOMContentLoaded', resolve, { once: true }));
   const $ = id => w.document.getElementById(id);
