@@ -162,14 +162,42 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adju
 .list,.box,.settings-card{border-radius:22px}
 .expense .details strong{font-weight:550}
 .empty-state{border:1px solid #efedf4;border-radius:22px}
-.dock{width:calc(100% - 48px);max-width:370px;height:72px;border-radius:40px;background:#222229;border:1px solid #303039;box-shadow:0 8px 28px #24232e26;bottom:calc(12px + env(safe-area-inset-bottom))}
-.dock .nav{height:70px;padding:8px}
-.dock .nav button{height:48px;min-height:48px;border-radius:28px;flex-direction:row;gap:7px;width:34%;font-size:12px;color:#cbc9d5}
-.dock .nav button svg{margin-top:0;width:19px;height:19px}
-.dock .nav button.active{background:#fff;color:#25242b;font-weight:600;box-shadow:0 2px 8px #0000000c}
-.dock .addwrap{top:11px;width:48px;height:48px}
-.dock .primary{width:48px;height:48px;min-height:48px;border-radius:50%;background:#44424d;color:white}
-.dock .primary svg{width:22px;height:22px}
+/* Balanced three-zone dock: equal hit areas, low-contrast active tab and a centered action. */
+.dock{
+  width:calc(100% - 40px);max-width:364px;height:68px;
+  border-radius:34px;background:#25242b;border:1px solid #34333b;
+  box-shadow:0 12px 32px #1a192333;
+  bottom:calc(12px + env(safe-area-inset-bottom));
+}
+.dock .nav{
+  display:grid;grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr);
+  column-gap:6px;align-items:center;justify-content:initial;
+  width:100%;height:100%;padding:7px;
+}
+.dock .nav button{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:100%;min-width:0;height:52px;min-height:52px;padding:0 4px;
+  flex:none;flex-direction:row;gap:7px;border-radius:26px;
+  background:transparent;color:#cccbd2;
+  font-size:12px;font-weight:550;line-height:1;white-space:nowrap;
+}
+.dock .nav button:first-child{grid-column:1}
+.dock .nav button:last-child{grid-column:3}
+.dock .nav button svg{margin:0;width:19px;height:19px;flex:none}
+.dock .nav button.active{background:transparent;color:#fff;font-weight:650;box-shadow:none}
+.dock .nav button.active::before{display:none}
+.dock .nav button.active::after{
+  content:'';position:absolute;left:calc(50% - 11px);bottom:1px;
+  width:22px;height:3px;border-radius:3px;background:#ff725c;
+}
+.dock .nav button.active svg{color:#ff725c}
+.dock .addwrap{top:8px;left:50%;width:50px;height:50px;pointer-events:none}
+.dock .primary{
+  width:50px;height:50px;min-height:50px;border-radius:50%;
+  background:#f15137;color:white;box-shadow:0 4px 12px #f1513745;
+  pointer-events:auto;
+}
+.dock .primary svg{width:25px;height:25px}
 .cloud-operation{display:flex;align-items:center;gap:10px;margin:16px 0 4px;font-size:12px;line-height:1.5;color:var(--muted)}
 .cloud-operation::before{content:'';width:15px;height:15px;border:2px solid #dbd6e4;border-top-color:var(--blue);border-radius:50%;flex:none;animation:cloud-spin .8s linear infinite}
 .sync-dot.syncing{background:var(--blue);animation:cloud-pulse 1.1s ease-in-out infinite}
@@ -201,6 +229,6 @@ dialog.designed-sheet[open]::backdrop{animation:pulse-backdrop-enter .2s ease-ou
 @keyframes pulse-backdrop-enter{from{opacity:0}to{opacity:1}}
 @keyframes cloud-spin{to{transform:rotate(360deg)}}
 @keyframes cloud-pulse{50%{opacity:.35}}
-@media(max-width:360px){.dock{width:calc(100% - 28px)}.dock .nav button{font-size:11px;gap:5px}.dialog-footer{padding-bottom:max(16px,env(safe-area-inset-bottom))}.balance-composition{gap:8px}}
+@media(max-width:360px){.dock{width:calc(100% - 28px)}.dock .nav{column-gap:4px;padding:6px}.dock .nav button{font-size:11px;gap:5px}.dialog-footer{padding-bottom:max(16px,env(safe-area-inset-bottom))}.balance-composition{gap:8px}}
 @media(min-width:821px){.dock{bottom:24px}}
 @media(prefers-reduced-motion:reduce){.screen.active,dialog.designed-sheet[open],dialog.designed-sheet[open]::backdrop,.cloud-operation::before,.sync-dot.syncing{animation:none!important}dialog.designed-sheet[open]::backdrop{backdrop-filter:none}}
