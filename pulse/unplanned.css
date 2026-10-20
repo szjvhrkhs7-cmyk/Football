@@ -93,10 +93,12 @@
 }
 .dock .nav > button{
   position:relative;
-  display:flex;
-  flex-direction:column;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:28px 14px;
+  align-content:center;
   align-items:center;
-  justify-content:center;
+  justify-items:center;
   width:100%;
   min-width:0;
   height:58px;
@@ -107,9 +109,9 @@
   border-radius:20px;
   background:transparent;
   box-shadow:none;
-  gap:5px;
+  row-gap:3px;
   font-size:10px;
-  line-height:1.15;
+  line-height:14px;
   font-weight:540;
   white-space:nowrap;
   color:#c7c4ce;
@@ -118,11 +120,29 @@
 .dock .nav > button:nth-child(2){grid-column:2;font-size:10px}
 .dock .nav > button[data-nav="analytics"]{grid-column:4}
 .dock .nav > button.dock-profile{grid-column:5}
-.dock .nav > button svg{
+.dock .nav > button > svg{
   display:block;
+  grid-row:1;
+  grid-column:1;
+  justify-self:center;
+  align-self:center;
   width:20px;height:20px;
   margin:0;
   flex:none;
+}
+.dock .nav > button > span:not(.dock-profile-avatar){
+  display:block;
+  grid-row:2;
+  grid-column:1;
+  justify-self:center;
+  align-self:center;
+  margin:0;
+  padding:0;
+  min-width:0;
+  font-size:10px;
+  line-height:14px;
+  white-space:nowrap;
+  text-align:center;
 }
 .dock .nav > button.active{
   color:#fff;
@@ -171,8 +191,12 @@
 .dock-profile-avatar{
   position:relative;
   display:grid;
+  grid-row:1;
+  grid-column:1;
+  justify-self:center;
+  align-self:center;
   place-items:center;
-  width:28px;height:28px;
+  width:24px;height:24px;
   border-radius:50%;
   background:#47454f;
   color:#eeedf0;
@@ -188,11 +212,20 @@
 }
 .dock-profile-avatar .sync-dot{
   position:absolute;
-  width:9px;height:9px;
-  bottom:-1px;right:-1px;
+  width:8px;height:8px;
+  bottom:-1px;right:-2px;
   border:2px solid #25242b;
 }
-.dock-profile-label{font-size:10px;line-height:1.15}
+.dock .nav > button > .dock-profile-label{
+  grid-row:2;
+  grid-column:1;
+  display:block;
+  align-self:center;
+  justify-self:center;
+  font-size:10px;
+  line-height:14px;
+  white-space:nowrap;
+}
 .unplanned-month-nav{
   display:grid;
   grid-template-columns:44px minmax(0,1fr) 44px;
@@ -242,11 +275,12 @@
   .dock{width:calc(100% - 18px)}
   .dock .nav{padding:6px}
   .dock .nav > button,
-  .dock .nav > button:nth-child(2){font-size:9px;gap:4px}
+  .dock .nav > button:nth-child(2){font-size:9px;row-gap:3px}
+  .dock .nav > button > span:not(.dock-profile-avatar){font-size:9px;line-height:14px}
   .dock .nav > button svg{width:19px;height:19px}
   .dock .nav > .addwrap{width:50px;height:56px}
   .dock .nav > .addwrap .primary{width:48px;height:48px;min-width:48px;min-height:48px}
-  .dock-profile-label{font-size:9px}
+  .dock .nav > button > .dock-profile-label{font-size:9px}
   .unplanned-operation{grid-template-columns:59px minmax(0,1fr) auto;gap:7px;padding:10px}
   .unplanned-operation-amount{font-size:12px}
   .unplanned-chart-row{grid-template-columns:78px minmax(0,1fr);gap:9px}
