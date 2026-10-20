@@ -11,7 +11,7 @@ function fixture() {
   const stored = new Map();
   const context = vm.createContext({
     Date, console: { warn() {}, error() {} },
-    window: { PulseLoans: require('../loans.js'), location: { origin: 'https://example.com', pathname: '/pulse/' } },
+    window: { PulseLoans: require('../loans.js'), PulseUnplanned: require('../unplanned.js'), location: { origin: 'https://example.com', pathname: '/pulse/' } },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', style: {}, disabled: false, checkValidity: () => true, classList: { add() {}, remove() {}, toggle() {} } });
       return elements.get(id);
