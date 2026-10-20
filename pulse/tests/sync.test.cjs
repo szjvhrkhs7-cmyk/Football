@@ -203,7 +203,7 @@ test('cloud payload stores independent unplanned expenses for the signed-in user
  assert.equal(saved.user_id,'test-user');
  assert.equal(saved.payload.unplannedExpenses.length,1);
  assert.equal(saved.payload.unplannedExpenses[0].id,'unplanned-01');
- assert.deepEqual(saved.payload.expenses,[]);
+ assert.equal(saved.payload.expenses.length,0);
 });
 test('cloud download restores unplanned records without duplicating stable ids',async()=>{
  const f=fixture();
@@ -217,5 +217,5 @@ test('cloud download restores unplanned records without duplicating stable ids',
  assert.equal(f.api.state().unplannedExpenses.length,1);
  assert.equal(f.api.state().unplannedExpenses[0].amount,150);
  assert.equal(f.api.state().settings.defaultBudget,60000);
- assert.deepEqual(f.api.state().expenses,[]);
+ assert.equal(f.api.state().expenses.length,0);
 });
