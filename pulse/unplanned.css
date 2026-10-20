@@ -174,7 +174,7 @@
   .unplanned-donut{width:78px;height:78px}
   .unplanned-donut:before{inset:17px}
   .unplanned-category-row{font-size:11px}
-}}
+}
 @media(prefers-reduced-motion:reduce){
   .unplanned-timeline-bar,.unplanned-operation{transition:none!important}
 }
