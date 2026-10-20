@@ -570,7 +570,7 @@ test('unplanned custom categories, validation, persistence and backup migration'
   const a=await app(t);
   a.$('openUnplannedDialog').click();
   a.$('unplannedAmount').value='-5';a.submit('unplannedForm');
-  assert.equal(a.read().unplannedExpenses.length,0);
+  assert.equal(a.w.localStorage.getItem('pulse-finance-v1'),null);
   assert.match(a.$('unplannedError').textContent,/положительную/);
   a.$('unplannedCreateCategory').click();
   a.$('categoryName').value='Для себя';
