@@ -214,7 +214,7 @@ test('old backups migrate without losing expenses or requiring credit records', 
 
 test('two-tab navigation retains real profile settings and the budget editor', async t => {
   const a = await app(t);
-  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'analytics']);
+  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'unplanned', 'analytics']);
   a.$('profileButton').click();
   assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'settings');
   a.$('budgetSettingsCard').click();
@@ -498,4 +498,96 @@ test('overview removes decorative controls but retains budget, recurring payment
   assert.equal(a.w.document.querySelector('.bottom-nav [data-nav="analytics"]').classList.contains('active'),true);
   const css=fs.readFileSync(path.join(root,'light.css'),'utf8');
   assert.match(css,/\.dock \.nav button\.active::before,\.dock \.nav button\.active::after\{content:none;display:none\}/);
+});
+
+test('unplanned CRUD, history, filters and statistics never alter the planned budget or payments',async t=>{
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({
+    settings:{defaultBudget:58000},
+    expenses:[{id:'bill',title:'Кредит',amount:5800,date:month+'-20',status:'planned',categoryId:'other'}],
+    mandatoryPayments:[{id:'regular',title:'Интернет',amount:1000,day:20}]
+  }));
+  const beforeBudget=a.$('availableAmount').textContent;
+  const beforePlans=a.$('plansTotal').textContent;
+  const beforePayments=a.$('mandatoryPaymentsTotal').textContent;
+  a.click('.bottom-nav [data-nav="unplanned"]');
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen,'unplanned');
+  assert.equal(a.$('addUnplannedButton').classList.contains('hidden'),false);
+  assert.equal(a.$('addExpenseButton').classList.contains('hidden'),true);
+  a.$('addUnplannedButton').click();
+  a.$('unplannedAmount').value='2575.50';
+  a.$('unplannedDate').value=month+'-19';
+  a.$('unplannedComment').value='Разовый расход';
+  a.submit('unplannedForm');
+  assert.equal(a.read().unplannedExpenses.length,1);
+  assert.equal(a.$('unplannedTotal').textContent.replace(/\u00a0/g,' '),'2 575,5 ₽');
+  assert.equal(a.$('unplannedAnalyticsCount').textContent,'1');
+  assert.equal(a.$('unplannedAnalyticsAverage').textContent.replace(/\u00a0/g,' '),'2 575,5 ₽');
+  assert.equal(a.$('availableAmount').textContent,beforeBudget);
+  assert.equal(a.$('plansTotal').textContent,beforePlans);
+  assert.equal(a.$('mandatoryPaymentsTotal').textContent,beforePayments);
+  assert.equal(a.read().expenses[0].status,'planned');
+  assert.match(a.$('unplannedList').textContent,/Разовый расход/);
+  a.click('[data-edit-unplanned]');
+  const stableId=a.$('unplannedId').value;
+  a.$('unplannedAmount').value='3000';
+  a.$('unplannedComment').value='<img src=x onerror=alert(1)>';
+  a.submit('unplannedForm');
+  assert.equal(a.read().unplannedExpenses[0].id,stableId);
+  assert.equal(a.read().unplannedExpenses[0].amount,3000);
+  assert.equal(a.$('unplannedList').querySelector('img'),null);
+  assert.ok(a.$('unplannedList').textContent.includes('<img src=x'));
+  assert.match(a.$('unplannedAnalyticsTotal').textContent,/3\s000/);
+  a.$('unplannedFilterCategory').value='home';
+  a.$('unplannedFilterCategory').dispatchEvent(new a.w.Event('change'));
+  assert.equal(a.$('unplannedTotal').textContent,'0 ₽');
+  a.$('unplannedFilterCategory').value='all';
+  a.$('unplannedFilterCategory').dispatchEvent(new a.w.Event('change'));
+  a.$('unplannedPeriod').value='custom';a.$('unplannedPeriod').dispatchEvent(new a.w.Event('change'));
+  a.$('unplannedFrom').value='2020-01-01';a.$('unplannedTo').value='2020-12-31';
+  a.$('unplannedFrom').dispatchEvent(new a.w.Event('change'));
+  a.$('unplannedTo').dispatchEvent(new a.w.Event('change'));
+  assert.equal(a.$('unplannedTotal').textContent,'0 ₽');
+  a.$('unplannedPeriod').value='month';a.$('unplannedPeriod').dispatchEvent(new a.w.Event('change'));
+  assert.match(a.$('unplannedTotal').textContent,/3\s000/);
+  a.click('.bottom-nav [data-nav="analytics"]');
+  assert.ok(a.$('unplannedCategoryChart').querySelector('[data-unplanned-detail]'));
+  a.click('[data-unplanned-detail]');
+  assert.match(a.$('unplannedDrilldown').textContent,/3\s000/);
+  a.click('[data-unplanned-detail-close]');
+  assert.equal(a.$('unplannedDrilldown').classList.contains('hidden'),true);
+  a.click('.bottom-nav [data-nav="unplanned"]');
+  a.click('[data-edit-unplanned]');
+  a.$('deleteUnplannedButton').click();
+  assert.equal(a.read().unplannedExpenses.length,0);
+  assert.equal(a.$('unplannedAnalyticsCount').textContent,'0');
+  assert.equal(a.$('availableAmount').textContent,beforeBudget);
+  assert.equal(a.$('plansTotal').textContent,beforePlans);
+  assert.equal(a.$('mandatoryPaymentsTotal').textContent,beforePayments);
+});
+
+test('unplanned custom categories, validation, persistence and backup migration',async t=>{
+  const a=await app(t);
+  a.$('openUnplannedDialog').click();
+  a.$('unplannedAmount').value='-5';a.submit('unplannedForm');
+  assert.equal(a.read().unplannedExpenses.length,0);
+  assert.match(a.$('unplannedError').textContent,/положительную/);
+  a.$('unplannedCreateCategory').click();
+  a.$('categoryName').value='Для себя';
+  a.$('categoryEmoji').value='✦';
+  a.submit('categoryForm');
+  const category=a.read().settings.categories.find(x=>x.name==='Для себя');
+  assert.ok(category);
+  assert.equal(a.$('unplannedCategory').value,category.id);
+  a.$('unplannedAmount').value='125.50';
+  a.$('unplannedDate').value=new Date().toISOString().slice(0,10);
+  a.submit('unplannedForm');
+  assert.equal(a.read().unplannedExpenses[0].categoryId,category.id);
+  const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+  assert.equal(b.read().unplannedExpenses.length,1);
+  assert.equal(b.read().settings.categories.find(x=>x.id===category.id).name,'Для себя');
+  assert.match(b.$('unplannedList').textContent,/Для себя/);
+  const migrated=await app(t,JSON.stringify({expenses:[],settings:{defaultBudget:1}}));
+  assert.deepEqual(migrated.read()?.unplannedExpenses||[],[]);
+  assert.equal(migrated.$('unplannedTotal').textContent,'0 ₽');
 });
