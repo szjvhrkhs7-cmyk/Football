@@ -642,4 +642,10 @@ test('unplanned period is strictly the shared calendar month in every screen', a
   assert.match(css,/\.dock \.nav > \.addwrap\{[\s\S]*?grid-column:3/);
   assert.match(css,/\.dock \.nav > button\[data-nav="analytics"\]\{grid-column:4/);
   assert.match(css,/\.dock \.nav > button\.dock-profile\{grid-column:5/);
+  assert.match(css,/grid-template-rows:28px 14px/);
+  assert.match(css,/\.dock \.nav > button > svg\{[\s\S]*?grid-row:1/);
+  assert.match(css,/\.dock \.nav > button > span:not\(\.dock-profile-avatar\)\{[\s\S]*?grid-row:2/);
+  assert.match(css,/\.dock-profile-avatar\{[\s\S]*?grid-row:1;[\s\S]*?width:24px;height:24px/);
+  assert.match(css,/\.dock \.nav > button > \.dock-profile-label\{[\s\S]*?grid-row:2/);
+  assert.match(css,/\.dock \.nav > \.addwrap\{[\s\S]*?grid-column:3/);
 });
