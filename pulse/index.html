@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.1" />
-    <link rel="icon" href="./icon.svg?v=1.7.1" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.2" />
+    <link rel="icon" href="./icon.svg?v=1.7.2" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.1" />
-    <link rel="stylesheet" href="./light.css?v=1.7.1" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.1" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.2" />
+    <link rel="stylesheet" href="./light.css?v=1.7.2" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.2" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.1"></script>
-    <script defer src="./unplanned.js?v=1.7.1"></script>
-    <script defer src="./app.js?v=1.7.1"></script>
+    <script defer src="./loans.js?v=1.7.2"></script>
+    <script defer src="./unplanned.js?v=1.7.2"></script>
+    <script defer src="./app.js?v=1.7.2"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -41,15 +41,6 @@
             ><svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M2 12h5l3-7 4 14 3-7h5" /></svg></span
           ><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
-        </button>
-        <button
-          class="avatar"
-          id="profileButton"
-          type="button"
-          aria-label="Открыть настройки"
-        >
-          <span id="profileInitial">В</span
-          ><i class="sync-dot" id="syncDot" aria-hidden="true"></i>
         </button>
       </header>
       <main class="main app-main" id="appMain" tabindex="-1">
@@ -537,10 +528,25 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.7.1</p>
+          <p class="note">Пульс · версия 1.7.2</p>
         </section>
       </main>
       <footer class="dock">
+        <nav class="nav bottom-nav" aria-label="Основная навигация">
+          <button
+            class="active"
+            type="button"
+            data-nav="overview"
+            aria-current="page"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z" /></svg
+            ><span>Обзор</span>
+          </button>
+          <button type="button" data-nav="unplanned" aria-label="Незапланированные траты">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM7 10h10M7 14h6"/></svg>
+            <span>Вне плана</span>
+          </button>
         <div class="addwrap">
           <button
             class="primary"
@@ -568,25 +574,17 @@
             ><span class="sr">Добавить платеж</span>
           </button>
         </div>
-        <nav class="nav bottom-nav" aria-label="Основная навигация">
-          <button
-            class="active"
-            type="button"
-            data-nav="overview"
-            aria-current="page"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z" /></svg
-            ><span>Обзор</span>
-          </button>
-          <button type="button" data-nav="unplanned" aria-label="Незапланированные траты">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM7 10h10M7 14h6"/></svg>
-            <span>Вне плана</span>
-          </button>
           <button type="button" data-nav="analytics">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 20V10M12 20V4M20 20v-6" /></svg
             ><span>Анализ</span>
+          </button>
+          <button type="button" class="dock-profile" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
+            <span class="dock-profile-avatar">
+              <span id="profileInitial">В</span>
+              <i class="sync-dot" id="syncDot" aria-hidden="true"></i>
+            </span>
+            <span class="dock-profile-label">Профиль</span>
           </button>
         </nav>
       </footer>
