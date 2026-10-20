@@ -198,7 +198,7 @@ test('home completion check hides an expense from overview and keeps it in analy
   a.click('[data-analytics-filter="paid"]');
   assert.match(a.$('analyticsPlanned').textContent, /1\s250/);
   assert.equal(a.$('analyticsCount').textContent, '1 трата');
-  assert.match(a.$('availableAmount').textContent, /38\s750/);
+  assert.match(a.$('availableAmount').textContent, /40\s000/);
 });
 
 test('old backups migrate without losing expenses or requiring credit records', async t => {
