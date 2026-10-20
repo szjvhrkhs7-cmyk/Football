@@ -119,7 +119,8 @@ test('mandatory payments support CRUD, sort by day and stay outside budget math'
   a.submit('mandatoryPaymentForm');
 
   assert.match(a.$('mandatoryPaymentsTotal').textContent, /25\s000/);
-  assert.equal(a.$('mandatoryOverviewAmount').textContent, '2');
+  assert.equal(a.w.document.querySelector('[data-screen="overview"] > .linkrow[data-nav="payments"]').querySelectorAll('svg').length, 1);
+  assert.equal(a.read().mandatoryPayments.length, 2);
   assert.match(a.$('availableAmount').textContent, /39\s000/);
   assert.deepEqual(
     Array.from(a.w.document.querySelectorAll('#mandatoryPaymentsList .payment-copy strong'), node => node.textContent),
