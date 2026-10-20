@@ -222,14 +222,17 @@ test('two-tab navigation retains real profile settings and the budget editor', a
   assert.equal(a.read().settings.budgets[new Date().toISOString().slice(0,7)], 85000);
 });
 
-test('payment can be toggled, undone and deleted with undo without counting twice', async t => {
+test('payment can be toggled, undone and deleted while only unpaid expenses reduce the balance', async t => {
   const a = await app(t);
   a.$('budgetInput').value = '40000';a.$('saveBudgetButton').click();
   a.click('[data-open-expense]');a.$('expenseTitle').value = 'Массаж';a.$('expenseAmount').value = '1250.50';a.submit('expenseForm');
   const available = a.$('availableAmount').textContent;
+  assert.equal(available.replace(/\u00a0/g,' '),'38 749,5 ₽');
   a.click('#upcomingList [data-complete-expense]');
-  assert.equal(a.read().expenses[0].status, 'paid');assert.equal(a.$('availableAmount').textContent, available);
+  assert.equal(a.read().expenses[0].status, 'paid');
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '),'40 000 ₽');
   a.click('#toast button');assert.equal(a.read().expenses[0].status, 'planned');
+  assert.equal(a.$('availableAmount').textContent, available);
   a.click('#upcomingList [data-complete-expense]');a.click('[data-filter="paid"]');a.click('#plansList [data-complete-expense]');
   assert.equal(a.read().expenses[0].status, 'planned');assert.equal(a.$('availableAmount').textContent, available);
   a.click('#upcomingList [data-expense-id]');a.$('deleteExpenseButton').click();
@@ -325,7 +328,7 @@ test('budget preview follows input without saving or changing planned expenses',
   a.$('budgetInput').value='';a.$('budgetInput').dispatchEvent(new a.w.Event('input'));assert.equal(a.$('budgetRemainingAmount').textContent,'—');
 });
 
-test('overview renders all planned expenses and lets the last one be paid without changing the balance', async t => {
+test('overview subtracts only unpaid expenses for the selected month and updates after payment', async t => {
   const today = new Date(), month = today.toISOString().slice(0, 7);
   const otherMonth = new Date(Date.UTC(today.getFullYear(), today.getMonth() - 1, 1)).toISOString().slice(0, 7);
   const planned = Array.from({ length: 8 }, (_, i) => ({
@@ -341,10 +344,11 @@ test('overview renders all planned expenses and lets the last one be paid withou
   assert.deepEqual(visibleIds(), planned.map(expense => expense.id));
   assert.equal(a.$('overviewPlansLink').textContent, 'Все 8');
   const balance = a.$('availableAmount').textContent;
+  assert.equal(balance.replace(/\u00a0/g,' '),'81 400 ₽');
   a.click('#upcomingList [data-complete-expense="planned-8"]');
   assert.deepEqual(visibleIds(), planned.slice(0, -1).map(expense => expense.id));
   assert.equal(a.$('overviewPlansLink').textContent, 'Все 7');
-  assert.equal(a.$('availableAmount').textContent, balance);
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '),'82 200 ₽');
   assert.equal(a.read().expenses.find(expense => expense.id === 'planned-8').status, 'paid');
 });
 
@@ -444,4 +448,28 @@ test('a rapid second save while the expense sheet is closing creates no duplicat
  a.$('expenseDialog').animate=()=>({finished:new Promise(resolve=>complete=resolve),cancel(){}});
  a.$('expenseTitle').value='Разовая покупка';a.$('expenseAmount').value='300';a.submit('expenseForm');a.submit('expenseForm');
  assert.equal(a.read().expenses.length,1);complete();await Promise.resolve();
+});
+
+
+test('budget preview and overview exclude paid expenses, without changing saved records', async t => {
+  const month = new Date().toISOString().slice(0, 7);
+  const a = await app(t, JSON.stringify({
+    settings: { defaultBudget: 58000, budgets: { [month]: 58000 } },
+    expenses: [
+      { id: 'unpaid', title: 'Предстоящая', categoryId: 'food', amount: 18000, date: month + '-10', status: 'planned' },
+      { id: 'settled', title: 'Оплаченная', categoryId: 'food', amount: 31133, date: month + '-11', status: 'paid' }
+    ]
+  }));
+  assert.equal(a.$('budgetAmount').textContent.replace(/\u00a0/g,' '), '58 000 ₽');
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '), '40 000 ₽');
+  a.$('openBudgetButton').click();
+  assert.equal(a.$('budgetPlannedAmount').textContent.replace(/\u00a0/g,' '), '18 000 ₽');
+  assert.equal(a.$('budgetRemainingAmount').textContent.replace(/\u00a0/g,' '), '40 000 ₽');
+  a.click('#upcomingList [data-complete-expense="unpaid"]');
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '), '58 000 ₽');
+  a.$('budgetInput').value='60000';
+  a.$('budgetInput').dispatchEvent(new a.w.Event('input'));
+  assert.equal(a.$('budgetRemainingAmount').textContent.replace(/\u00a0/g,' '), '60 000 ₽');
+  assert.equal(a.read().expenses.length, 2);
+  assert.equal(a.read().expenses[1].status, 'paid');
 });
