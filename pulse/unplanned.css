@@ -69,53 +69,130 @@
 .unplanned-timeline-bar{width:min(100%,24px);border-radius:5px 5px 0 0;background:linear-gradient(180deg,#f27458,#e64f38);transition:height .24s ease}
 .unplanned-timeline-col>span{font-size:8px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:clip;max-width:100%}
 .unplanned-timeline-hint{font-size:10px;line-height:1.4;margin-top:8px;color:var(--muted)}
-/* Four equal columns: Overview | Outside plan | Add | Analytics.
-   FAB has its own reserved slot, so no navigation label collides with it. */
+/* Five equal, genuinely centered navigation cells: Overview / Outside / + / Analysis / Profile.
+   The FAB occupies a regular grid cell rather than floating over nearby buttons. */
 .dock{
-  width:calc(100% - 28px);max-width:390px;height:72px;
+  width:calc(100% - 28px);
+  max-width:390px;
+  height:74px;
+  bottom:calc(12px + env(safe-area-inset-bottom));
   border-radius:38px;
+  background:#25242b;
+  border:1px solid #36343d;
+  box-shadow:0 12px 28px #1716212b;
 }
 .dock .nav{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:0;
-  padding:8px;
-  align-items:center;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  width:100%;
   height:100%;
+  padding:7px 8px;
+  gap:0;
+  align-items:center;
+  justify-items:stretch;
 }
-.dock .nav button{
+.dock .nav > button{
+  position:relative;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  grid-column:auto;
-  height:54px;min-height:54px;
-  padding:5px 2px;
-  gap:5px;
-  font-size:11px;
-  font-weight:550;
-  line-height:1.1;
-  white-space:nowrap;
+  width:100%;
   min-width:0;
+  height:58px;
+  min-height:58px;
+  padding:4px 1px;
+  margin:0;
+  border:0;
+  border-radius:20px;
+  background:transparent;
+  box-shadow:none;
+  gap:5px;
+  font-size:10px;
+  line-height:1.15;
+  font-weight:540;
+  white-space:nowrap;
+  color:#c7c4ce;
 }
-.dock .nav button:first-child{grid-column:1}
-.dock .nav button:nth-child(2){grid-column:2;font-size:11px}
-.dock .nav button:last-child{grid-column:4}
-.dock .nav button svg{width:20px;height:20px;flex:none}
-.dock .nav button.active,.dock .nav button.active span{color:#fff}
-.dock .nav button.active svg{color:#ff816b}
-.dock .nav button.active::before,.dock .nav button.active::after{content:none;display:none}
-.dock .addwrap{
-  left:62.5%;top:10px;
-  width:50px;height:50px;
-  transform:translateX(-50%);
+.dock .nav > button:first-child{grid-column:1}
+.dock .nav > button:nth-child(2){grid-column:2;font-size:10px}
+.dock .nav > button[data-nav="analytics"]{grid-column:4}
+.dock .nav > button.dock-profile{grid-column:5}
+.dock .nav > button svg{
+  display:block;
+  width:20px;height:20px;
+  margin:0;
+  flex:none;
 }
-.dock .primary{
-  width:50px;height:50px;min-height:50px;
+.dock .nav > button.active{
+  color:#fff;
+  background:transparent;
+  box-shadow:none;
+  font-weight:650;
+}
+.dock .nav > button.active svg{color:#ff8069}
+.dock .nav > button.active::before,
+.dock .nav > button.active::after{display:none;content:none}
+.dock .nav > .addwrap{
+  grid-column:3;
+  grid-row:1;
+  position:static;
+  inset:auto;
+  left:auto;top:auto;
+  transform:none;
+  display:grid;
+  place-items:center;
+  justify-self:center;
+  align-self:center;
+  width:54px;height:58px;
+  margin:0;
+  padding:0;
+  z-index:2;
+  pointer-events:auto;
+}
+.dock .nav > .addwrap .primary{
+  position:static;
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:52px;height:52px;
+  min-width:52px;min-height:52px;
+  margin:0;padding:0;
+  border:0;border-radius:50%;
   background:#f15137;
-  border-radius:50%;
-  box-shadow:0 5px 14px #f151373d;
+  color:#fff;
+  box-shadow:0 5px 14px #f1513740;
+  pointer-events:auto;
+  font-size:0;
+  transition:background .18s ease,transform .18s ease;
 }
+.dock .nav > .addwrap .primary:active{transform:scale(.95)}
+.dock .nav > .addwrap .primary svg{display:block;width:25px;height:25px;flex:none;margin:0}
+.dock-profile-avatar{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:28px;height:28px;
+  border-radius:50%;
+  background:#47454f;
+  color:#eeedf0;
+  font-size:13px;
+  line-height:1;
+  font-weight:650;
+  flex:none;
+  transition:background .18s ease,color .18s ease;
+}
+.dock .nav > button.dock-profile.active .dock-profile-avatar{
+  background:#ff8069;
+  color:#24232b;
+}
+.dock-profile-avatar .sync-dot{
+  position:absolute;
+  width:9px;height:9px;
+  bottom:-1px;right:-1px;
+  border:2px solid #25242b;
+}
+.dock-profile-label{font-size:10px;line-height:1.15}
 .unplanned-month-nav{
   display:grid;
   grid-template-columns:44px minmax(0,1fr) 44px;
@@ -162,12 +239,14 @@
 .unplanned-screen .heading{margin-bottom:2px}
 .unplanned-screen .unplanned-total{margin-bottom:18px}
 @media(max-width:360px){
-  .dock{width:calc(100% - 20px)}
+  .dock{width:calc(100% - 18px)}
   .dock .nav{padding:6px}
-  .dock .nav button,.dock .nav button:nth-child(2){font-size:10px;gap:4px}
-  .dock .nav button svg{width:19px;height:19px}
-  .dock .addwrap{width:48px;height:48px;top:11px}
-  .dock .primary{width:48px;height:48px;min-height:48px}
+  .dock .nav > button,
+  .dock .nav > button:nth-child(2){font-size:9px;gap:4px}
+  .dock .nav > button svg{width:19px;height:19px}
+  .dock .nav > .addwrap{width:50px;height:56px}
+  .dock .nav > .addwrap .primary{width:48px;height:48px;min-width:48px;min-height:48px}
+  .dock-profile-label{font-size:9px}
   .unplanned-operation{grid-template-columns:59px minmax(0,1fr) auto;gap:7px;padding:10px}
   .unplanned-operation-amount{font-size:12px}
   .unplanned-chart-row{grid-template-columns:78px minmax(0,1fr);gap:9px}
