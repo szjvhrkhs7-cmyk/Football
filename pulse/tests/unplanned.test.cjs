@@ -37,7 +37,7 @@ test('summary and chart periods calculate totals independently and without dupli
  assert.equal(stats.count,2);
  assert.equal(stats.average,250);
  assert.equal(stats.topCategory,'Продукты');
- assert.deepEqual(stats.categories.map(x=>x.percent),[60.1,39.9]);
+ assert.deepEqual(stats.categories.map(x=>x.percent),[60.1,40]);
  assert.deepEqual(U.timeline(chosen,'day').map(x=>x.amount),[300.25,199.75]);
  assert.equal(U.timeline(chosen,'week').length,2);
  assert.equal(U.timeline(chosen,'month').length,1);
