@@ -212,11 +212,28 @@ test('old backups migrate without losing expenses or requiring credit records', 
   assert.deepEqual(a.read().mandatoryPayments, []);
 });
 
-test('two-tab navigation retains real profile settings and the budget editor', async t => {
+test('five-slot dock retains profile settings and budget editor', async t => {
   const a = await app(t);
-  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'unplanned', 'analytics']);
+  assert.deepEqual(Array.from(a.w.document.querySelectorAll('.bottom-nav [data-nav]'), e => e.dataset.nav), ['overview', 'unplanned', 'analytics', 'settings']);
+  const footer=a.w.document.querySelector('.dock');
+  const nav=footer.querySelector('.bottom-nav');
+  assert.equal(a.w.document.querySelector('.topbar #profileButton'),null);
+  assert.equal(nav.querySelectorAll(':scope > button').length,4);
+  assert.equal(nav.children.length,5);
+  assert.equal(nav.children[2].classList.contains('addwrap'),true);
+  assert.ok(nav.querySelector('#profileButton #profileInitial'));
+  assert.ok(nav.querySelector('#profileButton #syncDot'));
+  assert.equal(nav.querySelector('#profileButton').dataset.nav,'settings');
   a.$('profileButton').click();
   assert.equal(a.w.document.querySelector('.screen.active').dataset.screen, 'settings');
+  assert.equal(a.$('profileButton').getAttribute('aria-current'),'page');
+  assert.equal(a.$('profileButton').classList.contains('active'),true);
+  a.click('.bottom-nav [data-nav="overview"]');
+  assert.equal(a.$('profileButton').classList.contains('active'),false);
+  a.click('.bottom-nav [data-nav="unplanned"]');
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen,'unplanned');
+  assert.equal(a.$('addUnplannedButton').classList.contains('hidden'),false);
+  a.$('profileButton').click();
   a.$('budgetSettingsCard').click();
   assert.equal(a.$('budgetDialog').open, true);
   a.$('budgetInput').value = '85000';a.submit('budgetForm');
@@ -621,7 +638,8 @@ test('unplanned period is strictly the shared calendar month in every screen', a
   assert.equal(a.$('unplannedPeriod'),null);
   assert.equal(a.$('unplannedAnalyticsPeriod'),null);
   const css=fs.readFileSync(path.join(root,'unplanned.css'),'utf8');
-  assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(css,/\.dock \.nav button:nth-child\(2\)\{grid-column:2/);
-  assert.match(css,/\.dock \.nav button:last-child\{grid-column:4/);
+  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(css,/\.dock \.nav > \.addwrap\{[\s\S]*?grid-column:3/);
+  assert.match(css,/\.dock \.nav > button\[data-nav="analytics"\]\{grid-column:4/);
+  assert.match(css,/\.dock \.nav > button\.dock-profile\{grid-column:5/);
 });
