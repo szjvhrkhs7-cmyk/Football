@@ -475,3 +475,25 @@ test('budget preview and overview exclude paid expenses, without changing saved 
   assert.equal(a.read().expenses.length, 2);
   assert.equal(a.read().expenses[1].status, 'paid');
 });
+
+test('overview removes decorative controls but retains budget, recurring payment and tab navigation',async t=>{
+  const a=await app(t);
+  const budget=a.$('openBudgetButton');
+  assert.equal(budget.querySelector('svg'),null);
+  assert.equal(budget.getAttribute('aria-label'),'Изменить планируемый бюджет');
+  budget.click();
+  assert.equal(a.$('budgetDialog').open,true);
+  a.$('closeBudgetButton').click();
+  const recurring=a.w.document.querySelector('[data-screen="overview"] > .linkrow[data-nav="payments"]');
+  assert.ok(recurring);
+  assert.equal(recurring.querySelectorAll('svg').length,1);
+  assert.equal(recurring.querySelector('strong'),null);
+  assert.match(recurring.textContent,/Регулярные платежи/);
+  recurring.click();
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen,'payments');
+  a.click('.bottom-nav [data-nav="analytics"]');
+  assert.equal(a.w.document.querySelector('.screen.active').dataset.screen,'analytics');
+  assert.equal(a.w.document.querySelector('.bottom-nav [data-nav="analytics"]').classList.contains('active'),true);
+  const css=fs.readFileSync(path.join(root,'light.css'),'utf8');
+  assert.match(css,/\.dock \.nav button\.active::before,\.dock \.nav button\.active::after\{content:none;display:none\}/);
+});
