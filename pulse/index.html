@@ -13,18 +13,18 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.5.1" />
-    <link rel="icon" href="./icon.svg?v=1.5.1" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.6.0" />
+    <link rel="icon" href="./icon.svg?v=1.6.0" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.5.1" />
-    <link rel="stylesheet" href="./light.css?v=1.5.1" />
+    <link rel="stylesheet" href="./styles.css?v=1.6.0" />
+    <link rel="stylesheet" href="./light.css?v=1.6.0" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.5.1"></script>
-    <script defer src="./app.js?v=1.5.1"></script>
+    <script defer src="./loans.js?v=1.6.0"></script>
+    <script defer src="./app.js?v=1.6.0"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -38,7 +38,7 @@
           <span class="brandmark"
             ><svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M2 12h5l3-7 4 14 3-7h5" /></svg></span
-          >Пульс
+          ><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
         <button
           class="avatar"
@@ -359,6 +359,7 @@
               </div>
             </div>
 
+            <p id="cloudOperationStatus" class="cloud-operation" role="status" aria-live="polite" hidden></p>
             <form id="signedOutCloud" class="cloud-panel" novalidate>
               <label class="field-label" for="cloudEmail">Email</label>
               <input
@@ -492,7 +493,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.5.1</p>
+          <p class="note">Пульс · версия 1.6.0</p>
         </section>
       </main>
       <footer class="dock">

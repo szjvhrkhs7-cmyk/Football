@@ -70,7 +70,7 @@
   }
   function openBudgetDialog() {
     renderSettings();
-    $('budgetDialog').showModal();
+    showSheet($('budgetDialog'));
     $('budgetDialogTitle').focus({ preventScroll: true });
   }
 
@@ -345,7 +345,7 @@
     $('builderMonth').value = addMonths(selectedMonth, 1);
     $('builderError').textContent = '';
     renderMonthBuilder();
-    $('monthBuilderDialog').showModal();
+    showSheet($('monthBuilderDialog'));
     $('builderTitle').focus({ preventScroll: true });
   }
 
@@ -410,7 +410,7 @@
     const before = state.expenses, previousUpdatedAt = state.meta.updatedAt;
     state.expenses = [...state.expenses, ...additions];
     if (!persistState()) { state.expenses = before; state.meta.updatedAt = previousUpdatedAt; error.textContent = 'Не удалось сохранить платежи. Освободи место на устройстве и повтори.'; return; }
-    $('monthBuilderDialog').close();
+    closeSheet($('monthBuilderDialog'));
     setSelectedMonth(month);
     showToast(`Добавлено ${additions.length} ${paymentWord(additions.length)} в ${monthLabel(month)}`);
   }
@@ -438,7 +438,7 @@
     $('mandatoryPaymentDay').value = payment?.day || new Date().getDate();
     $('mandatoryPaymentDialogTitle').textContent = payment ? 'Изменить платёж' : 'Добавить платёж';
     $('deleteMandatoryPaymentButton').classList.toggle('hidden', !payment);
-    $('mandatoryPaymentDialog').showModal();
+    showSheet($('mandatoryPaymentDialog'));
   }
 
   function saveMandatoryPayment(event) {
@@ -469,7 +469,7 @@
       $('mandatoryPaymentError').textContent = 'Не удалось сохранить платёж. Освободи место на устройстве и повтори.';
       return;
     }
-    $('mandatoryPaymentDialog').close();
+    closeSheet($('mandatoryPaymentDialog'));
     showToast(existing ? 'Платёж обновлён' : 'Платёж добавлен');
   }
 
@@ -479,7 +479,7 @@
     const before = state.mandatoryPayments;
     state.mandatoryPayments = state.mandatoryPayments.filter(item => item.id !== payment.id);
     if (!persistState()) { state.mandatoryPayments = before; return; }
-    $('mandatoryPaymentDialog').close();
+    closeSheet($('mandatoryPaymentDialog'));
     showToast('Платёж удалён');
   }
 
@@ -536,7 +536,7 @@
     $('loanEndDate').value = loan?.endDate || '';
     $('loanDialogTitle').textContent = loan ? 'Изменить кредит' : 'Новый кредит';
     $('deleteLoanButton').classList.toggle('hidden', !loan);
-    $('loanDialog').showModal();
+    showSheet($('loanDialog'));
     $('loanDialogTitle').focus({ preventScroll: true });
   }
 
@@ -579,7 +579,7 @@
       $('loanError').textContent = 'Не удалось сохранить кредит. Освободи место на устройстве и повтори.';
       return;
     }
-    $('loanDialog').close();
+    closeSheet($('loanDialog'));
     showToast(existing ? 'Кредит обновлен' : 'Кредит добавлен');
   }
 
@@ -594,7 +594,7 @@
     const previous = state.loans;
     state.loans = state.loans.filter(item => item.id !== loan.id);
     if (!persistState()) { state.loans = previous; return; }
-    $('loanDialog').close();
+    closeSheet($('loanDialog'));
     showToast('Кредит удалён');
   }
 
@@ -731,12 +731,12 @@
       selectedCategoryId = first?.id || state.settings.categories[0]?.id || 'other';
     }
     renderCategoryPicker();
-    dialog.showModal();
+    showSheet(dialog);
     $('expenseDialogTitle').focus({ preventScroll: true });
   }
 
   function closeExpenseDialog() {
-    if ($('expenseDialog').open) $('expenseDialog').close();
+    if ($('expenseDialog').open) closeSheet($('expenseDialog'));
   }
 
   function saveExpense(event) {
@@ -834,13 +834,13 @@
     if ($('defaultBudgetToggle').checked) state.settings.defaultBudget = amount;
     if (!persistState()) { state.settings = previous; return; }
     $('defaultBudgetToggle').checked = false;
-    $('budgetDialog').close();
+    closeSheet($('budgetDialog'));
     showToast('Планируемый бюджет сохранен');
   }
 
   function openCategoryDialog() {
     $('categoryForm').reset();
-    $('categoryDialog').showModal();
+    showSheet($('categoryDialog'));
     setTimeout(() => $('categoryName').focus(), 80);
   }
 
@@ -862,7 +862,7 @@
     state.settings.categories.push(category);
     selectedCategoryId = category.id;
     persistState();
-    $('categoryDialog').close();
+    closeSheet($('categoryDialog'));
     showToast('Категория добавлена');
   }
 
@@ -897,12 +897,77 @@
     }
   }
 
+  const closingSheets = new WeakMap();
+
+  function showSheet(dialog) {
+    const closing = closingSheets.get(dialog);
+    if (closing) { closingSheets.delete(dialog); closing.cancel(); }
+    dialog.inert = false;
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function closeSheet(dialog) {
+    if (!dialog?.open || closingSheets.has(dialog)) return;
+    if (!dialog.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { dialog.close(); return; }
+    const motion = dialog.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(20px)' }], { duration: 160, easing: 'cubic-bezier(.4,0,1,1)' });
+    closingSheets.set(dialog, motion);
+    dialog.inert = true;
+    const finish = () => { if (closingSheets.get(dialog) !== motion) return; closingSheets.delete(dialog); dialog.close(); dialog.inert = false; };
+    motion.finished.then(finish, finish);
+  }
+
+  function withCloudTimeout(operation, milliseconds = 15000) {
+    let timer;
+    return Promise.race([operation, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error('Cloud request timed out'), { code: 'cloud_timeout' })), milliseconds);
+    })]).finally(() => clearTimeout(timer));
+  }
+
+  async function cloudFetch(input, options = {}) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    options.signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(abort, 12000);
+    try { return await window.fetch(input, { ...options, signal: controller.signal }); }
+    catch (error) {
+      if (controller.signal.aborted && !options.signal?.aborted) throw Object.assign(new Error('Cloud request timed out'), { code: 'cloud_timeout' });
+      throw error;
+    } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', abort); }
+  }
+
+  function humanizeCloudError(error = {}) {
+    const code = String(error.code || ''), message = String(error.message || error || '').toLowerCase();
+    if (code === 'cloud_timeout' || message.includes('timed out') || message.includes('timeout')) return 'Сервер не ответил вовремя. Данные сохранены на устройстве. Попробуй подключиться еще раз.';
+    if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) return 'Облако отказало в доступе. Данные сохранены на устройстве. Войди в свой аккаунт повторно.';
+    if (code === 'PGRST205' || code === '42P01') return 'Облачное хранилище недоступно. Данные сохранены на устройстве.';
+    if (message.includes('quota') || message.includes('storage')) return 'Не удалось сохранить облачную копию на устройстве. Освободи место и повтори.';
+    return 'Нет подключения к облачному серверу. Данные сохранены на устройстве. Повтори синхронизацию после восстановления связи.';
+  }
+
+  function applyRemoteState(remote) {
+    // Persist first: a full device must not replace its in-memory budget with unsaved data.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    suppressCloudPush = true;
+    try { state = remote; localRevision += 1; renderAll(); }
+    finally { suppressCloudPush = false; }
+  }
+
   function setSyncState(status, text = '') {
     cloudStatus = status;
     const dot = $('syncDot');
     dot.classList.remove('online', 'syncing', 'error');
     if (status) dot.classList.add(status);
     if (text) $('lastSyncText').textContent = text;
+    const busy = status === 'syncing';
+    $('cloudCard')?.setAttribute?.('aria-busy', String(busy));
+    $('syncNowButton').disabled = busy;
+    $('syncNowButton').textContent = busy ? 'Синхронизация…' : 'Синхронизировать';
+    const operation = $('cloudOperationStatus');
+    if (operation) { operation.hidden = !busy; operation.textContent = text || 'Подключаемся к облаку…'; }
+    const header = $('headerCloudStatus');
+    if (header) header.textContent = busy ? 'Обновляем…' : status === 'online' ? 'В облаке' : 'На устройстве';
+    if (currentUser) $('cloudSubtitle').textContent = busy ? 'Обновляем облачную копию' : status === 'online' ? 'Данные сохранены в облаке' : status === 'error' ? 'Нет связи с облаком. Данные на устройстве' : 'Аккаунт подключен';
   }
 
   function cloudAvailable() {
@@ -913,9 +978,10 @@
     if (cloudInitPromise) return cloudInitPromise;
     cloudInitPromise = connectCloud();
     try { await cloudInitPromise; }
-    catch {
+    catch (error) {
+      if (!currentUser) supabaseClient = null;
       setSyncState('error');
-      showCloudMessage('Не удалось подключиться к облаку. Проверь интернет и повтори подключение.', true);
+      showCloudMessage(humanizeCloudError(error), true);
       $('retryCloudButton')?.classList.remove('hidden');
     } finally { cloudInitPromise = null; }
   }
@@ -935,6 +1001,7 @@
     }
 
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { fetch: cloudFetch },
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -942,7 +1009,7 @@
       }
     });
 
-    const { data, error } = await supabaseClient.auth.getSession();
+    const { data, error } = await withCloudTimeout(supabaseClient.auth.getSession());
     if (error) { supabaseClient = null; throw error; }
     $('retryCloudButton')?.classList.add('hidden');
     currentUser = data?.session?.user || null;
@@ -996,7 +1063,7 @@
     if (password.length < 6) return showCloudMessage('Укажи пароль от 6 символов', true);
     setCloudBusy(true);
     try {
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { error } = await withCloudTimeout(supabaseClient.auth.signInWithPassword({ email, password }));
       if (error) return showCloudMessage(humanizeAuthError(error), true);
       $('cloudPassword').value = '';
       showCloudMessage('Вход выполнен. Синхронизируем данные.');
@@ -1085,6 +1152,7 @@
 
   function humanizeAuthError(error = '') {
     const lower = (typeof error === 'string' ? error : `${error.code || ''} ${error.message || ''}`).toLowerCase();
+    if (lower.includes('cloud_timeout') || lower.includes('timed out') || lower.includes('failed to fetch') || lower.includes('network')) return 'Не удалось подключиться к облачному серверу. Данные сохранены на устройстве. Попробуй еще раз.';
     if (lower.includes('email address not authorized') || lower.includes('email_address_not_authorized')) return 'Supabase не разрешает отправку на этот адрес. Нужно настроить почтовый сервис для приложения.';
     if (lower.includes('sending confirmation email') || lower.includes('smtp')) return 'Не удалось отправить письмо подтверждения. Нужно проверить почтовый сервис приложения.';
     if (lower.includes('email rate limit') || lower.includes('over_email_send_rate_limit')) return 'Лимит отправки писем исчерпан. Подожди час перед следующей попыткой.';
@@ -1113,14 +1181,15 @@
     if (!currentUser || !supabaseClient || syncInFlight) return;
     syncInFlight = true;
     const revision = localRevision;
+    let syncedRevision = revision;
     const userId = currentUser.id;
     setSyncState('syncing', 'Синхронизация...');
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await withCloudTimeout(supabaseClient
         .from(CLOUD_TABLE)
         .select('payload,updated_at')
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
+        .eq('user_id', userId)
+        .maybeSingle());
       if (error) throw error;
 
       if (currentUser?.id !== userId) return;
@@ -1129,24 +1198,24 @@
         await pushCloudState(true);
       } else {
         const remote = normalizeState(data.payload);
-        const remoteTime = Date.parse(remote.meta.updatedAt || data.updated_at || 0) || 0;
+        const remoteTime = Date.parse(data.payload.meta?.updatedAt || data.updated_at || 0) || 0;
         const localTime = Date.parse(state.meta.updatedAt || 0) || 0;
         if (remoteTime > localTime) {
-          suppressCloudPush = true;
-          state = remote;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-          renderAll();
-          suppressCloudPush = false;
+          applyRemoteState(remote);
+          syncedRevision = localRevision;
         } else if (localTime > remoteTime) {
           await pushCloudState(true);
         }
       }
+      if (currentUser?.id !== userId) return;
+      if (pendingPush || localRevision !== syncedRevision) { pendingPush = true; setSyncState('syncing', 'Сохраняем новые изменения…'); return; }
       setSyncState('online', `Синхронизировано ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
       showCloudMessage('');
     } catch (error) {
+      if (currentUser?.id !== userId) return;
       console.error('Cloud sync failed', error);
       setSyncState('error', 'Не удалось синхронизировать');
-      showCloudMessage('Облако временно недоступно. Локальные данные сохранены.', true);
+      showCloudMessage(humanizeCloudError(error), true);
     } finally {
       syncInFlight = false;
       if (pendingPush) { pendingPush = false; scheduleCloudPush(); }
@@ -1156,35 +1225,32 @@
   async function pushCloudState(force = false) {
     if (!currentUser || !supabaseClient) return;
     if (syncInFlight && !force) { pendingPush = true; return; }
-    if (!force) {
-      syncInFlight = true;
-      setSyncState('syncing', 'Сохраняем в облако...');
-    }
+    const userId = currentUser.id, revision = localRevision;
+    const snapshot = JSON.parse(JSON.stringify(state));
+    if (!force) { syncInFlight = true; setSyncState('syncing', 'Сохраняем в облако…'); }
     try {
-      const { error } = await supabaseClient
-        .from(CLOUD_TABLE)
-        .upsert({
-          user_id: currentUser.id,
-          payload: state,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+      const { error } = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE).upsert({
+        user_id: userId, payload: snapshot, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' }));
+      if (currentUser?.id !== userId) return;
       if (error) throw error;
-      setSyncState('online', `Синхронизировано ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+      if (localRevision !== revision) { pendingPush = true; setSyncState('syncing', 'Сохраняем новые изменения…'); }
+      else { setSyncState('online', `Синхронизировано ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`); showCloudMessage(''); }
     } catch (error) {
+      if (currentUser?.id !== userId) return;
       console.error('Cloud push failed', error);
       setSyncState('error', 'Локально сохранено, облако недоступно');
+      showCloudMessage(humanizeCloudError(error), true);
       if (force) throw error;
     } finally {
-      if (!force) {
-        syncInFlight = false;
-        if (pendingPush) { pendingPush = false; scheduleCloudPush(); }
-      }
+      if (!force) { syncInFlight = false; if (pendingPush) { pendingPush = false; scheduleCloudPush(); } }
     }
   }
 
   function subscribeRealtime() {
     if (!supabaseClient || !currentUser) return;
     unsubscribeRealtime();
+    const subscribedUserId = currentUser.id;
     realtimeChannel = supabaseClient
       .channel(`pulse-user-${currentUser.id}`)
       .on('postgres_changes', {
@@ -1194,17 +1260,13 @@
         filter: `user_id=eq.${currentUser.id}`
       }, payload => {
         const remotePayload = payload.new?.payload;
-        if (!remotePayload || syncInFlight || pendingPush || syncTimer) return;
+        if (currentUser?.id !== subscribedUserId || !remotePayload || syncInFlight || pendingPush || syncTimer) return;
         const remote = normalizeState(remotePayload);
         const remoteTime = Date.parse(remote.meta.updatedAt || 0) || 0;
         const localTime = Date.parse(state.meta.updatedAt || 0) || 0;
         if (remoteTime > localTime) {
-          suppressCloudPush = true;
-          state = remote;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-          renderAll();
-          suppressCloudPush = false;
-          showToast('Данные обновлены из облака');
+          try { applyRemoteState(remote); setSyncState('online', 'Данные обновлены из облака'); showToast('Данные обновлены из облака'); }
+          catch (error) { setSyncState('error', 'Не удалось сохранить облачную копию'); showCloudMessage(humanizeCloudError(error), true); }
         }
       })
       .subscribe(status => {
@@ -1260,6 +1322,12 @@
 
   function bindEvents() {
     bindVisualViewport();
+    qsa('dialog').forEach(dialog => {
+      dialog.addEventListener('cancel', event => { event.preventDefault(); closeSheet(dialog); });
+      dialog.addEventListener('submit', event => {
+        if (closingSheets.has(dialog)) { event.preventDefault(); event.stopImmediatePropagation(); }
+      }, true);
+    });
     qsa('[data-nav]').forEach(button => button.addEventListener('click', () => {
       if (button.dataset.nav === 'plans' && button.closest('[data-screen="overview"]')) activeFilter = 'planned';
       navigate(button.dataset.nav);
@@ -1267,7 +1335,7 @@
     }));
     qsa('[data-open-expense]').forEach(button => button.addEventListener('click', () => openExpenseDialog()));
     qsa('[data-close-dialog]').forEach(button => button.addEventListener('click', closeExpenseDialog));
-    qsa('[data-close-category]').forEach(button => button.addEventListener('click', () => $('categoryDialog').close()));
+    qsa('[data-close-category]').forEach(button => button.addEventListener('click', () => closeSheet($('categoryDialog'))));
 
     $('profileButton').addEventListener('click', () => navigate('settings'));
     $('overviewCalendar').addEventListener('click', event => {
@@ -1277,7 +1345,7 @@
       renderOverview();
     });
     $('openMonthBuilder').addEventListener('click', openMonthBuilder);
-    $('closeMonthBuilder').addEventListener('click', () => $('monthBuilderDialog').close());
+    $('closeMonthBuilder').addEventListener('click', () => closeSheet($('monthBuilderDialog')));
     $('builderMonth').addEventListener('change', () => { $('builderError').textContent = ''; renderMonthBuilder(); });
     $('builderRows').addEventListener('input', updateBuilderSummary);
     $('monthBuilderForm').addEventListener('submit', saveMonthBuilder);
@@ -1306,14 +1374,14 @@
     $('budgetInput').addEventListener('input', renderBudgetPreview);
     $('openBudgetButton').addEventListener('click', openBudgetDialog);
     $('budgetSettingsCard').addEventListener('click', openBudgetDialog);
-    $('closeBudgetButton').addEventListener('click', () => $('budgetDialog').close());
-    $('categoriesCard').addEventListener('click', () => $('categoriesDialog').showModal());
+    $('closeBudgetButton').addEventListener('click', () => closeSheet($('budgetDialog')));
+    $('categoriesCard').addEventListener('click', () => showSheet($('categoriesDialog')));
     $('categoryPicker').addEventListener('change', () => { selectedCategoryId = $('categoryPicker').value; });
-    $('closeCategoriesButton').addEventListener('click', () => $('categoriesDialog').close());
+    $('closeCategoriesButton').addEventListener('click', () => closeSheet($('categoriesDialog')));
     $('categoriesDialog').addEventListener('click', event => {
       if (event.target !== $('categoriesDialog')) return;
       const rect = $('categoriesDialog').getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('categoriesDialog').close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet($('categoriesDialog'));
     });
     $('addCategoryButton').addEventListener('click', openCategoryDialog);
     $('categoryForm').addEventListener('submit', saveCategory);
@@ -1321,7 +1389,7 @@
     $('signedOutCloud').addEventListener('submit', event => { event.preventDefault(); signIn(); });
     $('retryCloudButton').addEventListener('click', initCloud);
     $('addLoanButton').addEventListener('click', () => openLoanDialog());
-    $('closeLoanButton').addEventListener('click', () => $('loanDialog').close());
+    $('closeLoanButton').addEventListener('click', () => closeSheet($('loanDialog')));
     $('loanForm').addEventListener('submit', saveLoan);
     $('loanDay').addEventListener('change', () => {
       const day = Number($('loanDay').value);
@@ -1334,18 +1402,18 @@
     $('loanDialog').addEventListener('click', event => {
       if (event.target !== $('loanDialog')) return;
       const rect = $('loanDialog').getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('loanDialog').close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet($('loanDialog'));
     });
 
     $('addMandatoryPaymentButton').addEventListener('click', () => openMandatoryPaymentDialog());
-    $('closeMandatoryPaymentButton').addEventListener('click', () => $('mandatoryPaymentDialog').close());
+    $('closeMandatoryPaymentButton').addEventListener('click', () => closeSheet($('mandatoryPaymentDialog')));
     $('mandatoryPaymentForm').addEventListener('submit', saveMandatoryPayment);
     $('deleteMandatoryPaymentButton').addEventListener('click', deleteMandatoryPayment);
     $('mandatoryPaymentsList').addEventListener('click', handleMandatoryPaymentClick);
     $('mandatoryPaymentDialog').addEventListener('click', event => {
       if (event.target !== $('mandatoryPaymentDialog')) return;
       const rect = $('mandatoryPaymentDialog').getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('mandatoryPaymentDialog').close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet($('mandatoryPaymentDialog'));
     });
 
     $('signUpButton').addEventListener('click', signUp);
@@ -1360,7 +1428,7 @@
     $('budgetDialog').addEventListener('click', event => {
       if (event.target !== $('budgetDialog')) return;
       const rect = $('budgetDialog').getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('budgetDialog').close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet($('budgetDialog'));
     });
     $('expenseDialog').addEventListener('click', event => {
       if (event.target !== $('expenseDialog')) return;
@@ -1371,7 +1439,7 @@
     $('categoryDialog').addEventListener('click', event => {
       const rect = $('categoryDialog').getBoundingClientRect();
       const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-      if (!inside) $('categoryDialog').close();
+      if (!inside) closeSheet($('categoryDialog'));
     });
 
     document.addEventListener('visibilitychange', () => {
@@ -1392,7 +1460,7 @@
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
     try {
-      await navigator.serviceWorker.register('./sw.js', { scope: './' });
+      await navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' });
     } catch (error) {
       console.warn('Service worker registration failed', error);
     }

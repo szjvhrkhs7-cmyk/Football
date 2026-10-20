@@ -422,3 +422,26 @@ test('moving a recurring occurrence into an occupied month is rejected',async t=
  assert.equal(a.$('expenseDialog').open,true);assert.match(a.$('expenseError').textContent,/уже/);
  assert.equal(a.read().expenses.filter(e=>e.date.startsWith('2027-08')).length,1);
 });
+
+test('a closing sheet stays open for its short animation and closes on completion',async t=>{
+ const a=await app(t);a.click('[data-open-expense]');const dialog=a.$('expenseDialog');let complete;
+ dialog.animate=()=>({finished:new Promise(resolve=>complete=resolve),cancel(){}});
+ a.click('[data-close-dialog]');assert.equal(dialog.open,true);complete();await Promise.resolve();assert.equal(dialog.open,false);
+});
+
+test('reopening a closing sheet cancels its obsolete close callback',async t=>{
+ const a=await app(t);a.click('[data-open-expense]');const dialog=a.$('expenseDialog');let complete;let cancelled=0;
+ dialog.animate=()=>({finished:new Promise(resolve=>complete=resolve),cancel(){cancelled++;}});
+ a.click('[data-close-dialog]');a.click('[data-open-expense]');complete();await Promise.resolve();assert.equal(dialog.open,true);assert.equal(cancelled,1);
+});
+
+test('reduced motion closes sheets immediately',async t=>{
+ const a=await app(t);a.w.matchMedia=()=>({matches:true});a.click('[data-open-expense]');a.$('expenseDialog').animate=()=>{throw Error('Animation should be skipped');};a.click('[data-close-dialog]');assert.equal(a.$('expenseDialog').open,false);
+});
+
+test('a rapid second save while the expense sheet is closing creates no duplicate',async t=>{
+ const a=await app(t);a.click('[data-open-expense]');let complete;
+ a.$('expenseDialog').animate=()=>({finished:new Promise(resolve=>complete=resolve),cancel(){}});
+ a.$('expenseTitle').value='Разовая покупка';a.$('expenseAmount').value='300';a.submit('expenseForm');a.submit('expenseForm');
+ assert.equal(a.read().expenses.length,1);complete();await Promise.resolve();
+});

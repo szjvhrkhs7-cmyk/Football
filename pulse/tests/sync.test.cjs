@@ -25,6 +25,7 @@ function fixture() {
     subscribeRealtime = () => {};
     globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, signUp, resendConfirmation, humanizeAuthError, normalizeState,
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
+      disconnect() { currentUser = null; setSyncState(''); },
       state: () => state, status: () => cloudStatus,
       plannedExpensesForOverview,
       mutate() { state.settings.defaultBudget = 99; persistState(); }
@@ -145,4 +146,49 @@ test('cloud downloads preserve mandatory payments', async () => {
   assert.equal(f.api.state().mandatoryPayments.length, 2);
   assert.equal(f.api.state().mandatoryPayments[0].amount, 45000);
   assert.equal(f.api.state().mandatoryPayments[1].day, 20);
+});
+
+test('a failed local download keeps the old state and does not disable later uploads', async () => {
+  const f=fixture();let writes=0;
+  f.api.connect(db(async()=>({data:{payload:{meta:{updatedAt:'2099-01-01'},settings:{defaultBudget:7}}}}),async()=>{writes++;return {};}));
+  const original=f.context.localStorage.setItem;
+  f.context.localStorage.setItem=()=>{throw new Error('QuotaExceededError');};
+  await f.api.syncBidirectional();
+  assert.equal(f.api.state().settings.defaultBudget,120000);
+  assert.equal(f.api.status(),'error');
+  f.context.localStorage.setItem=original;f.api.mutate();
+  assert.equal(f.timers.size,1);
+});
+
+test('an upload completing after sign-out cannot show an online state',async()=>{
+ const f=fixture();let finish;
+ f.api.connect(db(async()=>({data:null}),()=>new Promise(resolve=>finish=resolve)));
+ const upload=f.api.pushCloudState();
+ vm.runInContext('globalThis.api.disconnect()',f.context);
+ finish({});await upload;assert.notEqual(f.api.status(),'online');
+});
+
+test('network errors explain that local data is retained',async()=>{
+ const f=fixture();f.api.connect(db(async()=>{throw Object.assign(new Error('Failed to fetch'),{code:'cloud_timeout'});},async()=>({})));
+ await f.api.syncBidirectional();assert.match(f.elements.get('cloudMessage').textContent,/время|подключ|сервер/i);assert.match(f.elements.get('cloudMessage').textContent,/устройств|локальн/i);
+});
+
+test('retry after failed session initialization creates a working client',async()=>{
+ const f=fixture();let attempts=0;
+ f.context.window.supabase={createClient:()=>{attempts++;return {auth:{getSession:async()=>{if(attempts===1)throw new Error('network');return {data:{session:null}};},onAuthStateChange(){}}};}};
+ await f.api.initCloud();await f.api.initCloud();assert.equal(attempts,2);
+});
+
+test('initial forced upload cannot announce success after sign-out',async()=>{
+ const f=fixture();let finish;
+ f.api.connect(db(async()=>({data:null}),()=>new Promise(resolve=>finish=resolve)));
+ const syncing=f.api.syncBidirectional();await new Promise(setImmediate);f.api.disconnect();finish({});await syncing;
+ assert.notEqual(f.api.status(),'online');
+});
+
+test('new edits during forced upload stay pending until uploaded',async()=>{
+ const f=fixture();let finish;
+ f.api.connect(db(async()=>({data:null}),()=>new Promise(resolve=>finish=resolve)));
+ const syncing=f.api.syncBidirectional();await new Promise(setImmediate);f.api.mutate();finish({});await syncing;
+ assert.notEqual(f.api.status(),'online');assert.equal(f.api.state().settings.defaultBudget,99);assert.equal(f.timers.size,1);
 });
