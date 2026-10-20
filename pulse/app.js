@@ -306,10 +306,11 @@
 
   function renderOverview() {
     const monthlyExpenses = expensesForMonth();
-    const all = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const pending = plannedExpensesForOverview(monthlyExpenses);
+    const unpaidTotal = pending.reduce((sum, expense) => sum + expense.amount, 0);
     const paid = monthlyExpenses.filter(expense => expense.status === 'paid').reduce((sum, expense) => sum + expense.amount, 0);
     const budget = budgetForMonth();
-    const available = budget - all;
+    const available = budget - unpaidTotal;
     $('availableAmount').textContent = formatMoney(available, true);
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
@@ -318,7 +319,6 @@
     $('overviewYear').textContent = selectedMonth.slice(0, 4);
     $('mandatoryOverviewAmount').textContent = state.mandatoryPayments.length ? `${state.mandatoryPayments.length}` : '+';
     renderOverviewCalendar(monthlyExpenses);
-    const pending = plannedExpensesForOverview(monthlyExpenses);
     $('overviewPlansLink').textContent = `Все ${pending.length}`;
     const shown = overviewDay ? pending.filter(item => item.date === overviewDay) : pending;
     $('upcomingHeading').textContent = overviewDay ? formatDate(overviewDay) : 'К оплате';
@@ -660,7 +660,7 @@
   }
 
   function renderBudgetPreview() {
-    const planned = expensesForMonth().reduce((sum, expense) => sum + expense.amount, 0);
+    const planned = plannedExpensesForOverview(expensesForMonth()).reduce((sum, expense) => sum + expense.amount, 0);
     const budget = Number($('budgetInput').value);
     $('budgetPlannedAmount').textContent = formatMoney(planned);
     $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney(budget - planned);
