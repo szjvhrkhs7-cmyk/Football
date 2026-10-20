@@ -63,8 +63,8 @@
 .unplanned-detail-row span{min-width:0;overflow-wrap:anywhere}
 .unplanned-detail-row small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
 .unplanned-detail-row strong{white-space:nowrap;font-size:12px}
-.unplanned-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));align-items:end;gap:3px;min-height:122px;width:100%;overflow:hidden}
-.unplanned-timeline-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;min-width:0}
+.unplanned-timeline{display:flex;align-items:flex-end;justify-content:space-between;gap:3px;min-height:122px;width:100%;overflow:hidden}
+.unplanned-timeline-col{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;min-width:0}
 .unplanned-timeline-col>small{font-size:8px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .unplanned-timeline-bar{width:min(100%,24px);border-radius:5px 5px 0 0;background:linear-gradient(180deg,#f27458,#e64f38);transition:height .24s ease}
 .unplanned-timeline-col>span{font-size:8px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:clip;max-width:100%}
