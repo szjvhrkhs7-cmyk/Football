@@ -17,7 +17,7 @@ test('validates amounts, dates and categories, including nonexistent calendar da
   assert.match(U.validate({amount:1,categoryId:'food',date:'2026-02-30'},['food']),/дату/);
 });
 test('normalization deduplicates by stable id and accepts the newest version',()=>{
- const duplicate=[...items, {...items[0],amount:900,updatedAt:'2026-10-22'},{...items[0],amount:100,updatedAt:'2026-10-20'}];
+ const duplicate=[...items.map(item => ({...item, updatedAt:item.createdAt || item.date})), {...items[0],amount:900,updatedAt:'2026-10-22'},{...items[0],amount:100,updatedAt:'2026-10-20'}];
  const cleaned=U.normalize(duplicate,categories,'2026-10-20');
  assert.equal(cleaned.length,3);
  assert.equal(cleaned.find(x=>x.id==='f').amount,900);
