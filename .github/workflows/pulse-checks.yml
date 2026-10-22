@@ -5,6 +5,10 @@ on:
     paths:
       - 'pulse/**'
       - '.github/workflows/pulse-checks.yml'
+  pull_request:
+    paths:
+      - 'pulse/**'
+      - '.github/workflows/pulse-checks.yml'
   workflow_dispatch:
 permissions:
   contents: read
