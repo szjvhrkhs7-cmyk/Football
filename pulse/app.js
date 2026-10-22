@@ -911,7 +911,8 @@ function renderUnplannedAnalytics(){
       $('expenseDate').value = toDateKey(targetDate);
       $('expensePaid').checked = false;
       const first = state.settings.categories.find(category => category.enabled !== false);
-      selectedCategoryId = first?.id || state.settings.categories[0]?.id || 'other';
+      selectedCategoryId = state.settings.categories.some(category => category.id === selectedCategoryId && category.enabled !== false)
+        ? selectedCategoryId : first?.id || state.settings.categories[0]?.id || 'other';
     }
     renderCategoryPicker();
     showSheet(dialog);
