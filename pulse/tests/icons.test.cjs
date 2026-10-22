@@ -27,7 +27,8 @@ test('header and installed icons use the approved light Impulse identity', () =>
   const icon = fs.readFileSync(path.join(root, 'icon.svg'), 'utf8');
   assert.match(logo, /fill="#ff573f"/);
   assert.match(icon, /fill="#faf8f4"/);
-  assert.ok(worker.includes("'./logo-mark.svg?v=1.7.6'"));
+  const release = require('../package.json').version;
+  assert.ok(worker.includes(`'./logo-mark.svg?v=${release}'`));
   for (const icon of manifest.icons) {
     assert.ok(fs.existsSync(path.join(root, icon.src.split('?')[0])));
     assert.ok(worker.includes(`'${icon.src}'`));
