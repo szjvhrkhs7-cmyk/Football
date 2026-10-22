@@ -353,14 +353,12 @@
     const monthlyExpenses = expensesForMonth();
     const pending = plannedExpensesForOverview(monthlyExpenses);
     const unpaidTotal = pending.reduce((sum, expense) => sum + expense.amount, 0);
-    const paid = monthlyExpenses.filter(expense => expense.status === 'paid').reduce((sum, expense) => sum + expense.amount, 0);
     const budget = budgetForMonth();
     const available = budget - unpaidTotal;
     $('availableAmount').textContent = formatMoney(available, true);
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
     $('budgetAmount').textContent = formatMoney(budget, true);
-    $('overviewPaidSummary').textContent = formatMoney(paid);
     $('overviewYear').textContent = selectedMonth.slice(0, 4);
     renderOverviewCalendar(monthlyExpenses);
     $('overviewPlansLink').textContent = `Все ${pending.length}`;
