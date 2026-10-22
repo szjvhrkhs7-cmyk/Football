@@ -27,6 +27,7 @@ function fixture() {
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
       disconnect() { currentUser = null; setSyncState(''); },
       state: () => state, status: () => cloudStatus,
+      account: activateCloudAccount, leaveAccount: deactivateCloudAccount,
       plannedExpensesForOverview,
       mutate() { state.settings.defaultBudget = 99; persistState(); }
     };
@@ -282,4 +283,22 @@ test('an offline delete and a simultaneous independent addition both survive', a
   left.api.persistState();right.api.persistState();
   await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
   assert.deepEqual(cloud.snapshot().payload.unplannedExpenses.map(x=>x.id),['new']);
+});
+
+
+test('two accounts on the same browser retain separate local budgets', () => {
+  const f=fixture();
+  f.api.account('account-a');
+  f.api.state().settings.defaultBudget=41000;
+  f.api.persistState();
+  f.api.account('account-b');
+  assert.equal(f.api.state().settings.defaultBudget,120000);
+  f.api.state().settings.defaultBudget=86000;
+  f.api.persistState();
+  f.api.account('account-a');
+  assert.equal(f.api.state().settings.defaultBudget,41000);
+  f.api.account('account-b');
+  assert.equal(f.api.state().settings.defaultBudget,86000);
+  f.api.leaveAccount();
+  assert.equal(f.api.state().settings.defaultBudget,120000);
 });
