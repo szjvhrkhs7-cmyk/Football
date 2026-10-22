@@ -176,6 +176,7 @@ test('an upload completing after sign-out cannot show an online state',async()=>
  const f=fixture();let finish;
  f.api.connect(db(async()=>({data:null}),()=>new Promise(resolve=>finish=resolve)));
  const upload=f.api.pushCloudState();
+ await new Promise(setImmediate);
  vm.runInContext('globalThis.api.disconnect()',f.context);
  finish({});await upload;assert.notEqual(f.api.status(),'online');
 });
