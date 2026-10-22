@@ -667,3 +667,49 @@ test('month controls show MM.YY and move one month across year boundaries', asyn
   const expected = `${String(current.getMonth() + 1).padStart(2, '0')}.${String(current.getFullYear()).slice(-2)}`;
   labels.forEach(id => assert.equal(a.$(id).textContent, expected));
 });
+
+test('monthly unplanned screen limits visible rows to ten and older rows open in a bottom sheet', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const items=Array.from({length:12},(_,i)=>({
+    id:'monthly-'+i,amount:100,categoryId:'food',date:month+'-'+String(i+1).padStart(2,'0'),
+    comment:'Сумма '+i,createdAt:month+'-'+String(i+1).padStart(2,'0')+'T08:00:00Z'
+  }));
+  const a=await app(t,JSON.stringify({unplannedExpenses:items}));
+  a.click('.bottom-nav [data-nav="unplanned"]');
+  assert.equal(a.$('unplannedList').querySelectorAll('[data-edit-unplanned]').length,10);
+  assert.equal(a.$('unplannedHistoryList').querySelectorAll('[data-edit-unplanned]').length,2);
+  assert.equal(a.$('unplannedTotalCount').textContent,'12 трат');
+  assert.equal(a.$('unplannedTotal').textContent,'1 200 ₽');
+  assert.equal(a.$('unplannedHistoryButton').classList.contains('hidden'),false);
+  a.$('unplannedHistoryButton').click();
+  assert.equal(a.$('unplannedHistoryDialog').open,true);
+  a.click('#unplannedHistoryList [data-edit-unplanned]');
+  assert.equal(a.$('unplannedDialog').open,true);
+  assert.equal(a.$('unplannedHistoryDialog').open,false);
+  assert.equal(a.read().unplannedExpenses.length,12);
+});
+
+test('a planned category can be created on overview and its emoji selected from presets', async t => {
+  const a=await app(t);
+  a.$('overviewCreateCategory').click();
+  assert.equal(a.$('categoryDialog').open,true);
+  a.$('categoryName').value='Путешествия';
+  a.click('[data-category-emoji="✈️"]');
+  assert.equal(a.$('categoryEmoji').value,'✈️');
+  a.submit('categoryForm');
+  const saved=a.read().settings.categories.find(x=>x.name==='Путешествия');
+  assert.ok(saved);
+  assert.equal(saved.emoji,'✈️');
+  assert.equal(saved.enabled,true);
+  a.click('[data-open-expense]');
+  assert.equal(a.$('categoryPicker').value,saved.id);
+  assert.ok([...a.$('categoryPicker').options].some(x=>x.value===saved.id));
+  a.$('plannedCreateCategory').click();
+  assert.equal(a.$('categoryDialog').open,true);
+  a.$('categoryName').value='Семья';
+  a.$('categoryEmoji').value='👨‍👩‍👧';
+  a.submit('categoryForm');
+  assert.equal(a.$('categoryPicker').value,a.read().settings.categories.at(-1).id);
+  assert.equal(a.read().settings.categories.at(-1).emoji,'👨‍👩‍👧');
+  assert.equal(a.read().expenses.length,0);
+});
