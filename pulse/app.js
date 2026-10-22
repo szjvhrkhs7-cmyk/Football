@@ -300,15 +300,15 @@
 
   function renderAll() {
     const label = monthLabel(selectedMonth);
-    $('unplannedMonthLabel').textContent = label;
+    const compactLabel = `${selectedMonth.slice(5, 7)}.${selectedMonth.slice(2, 4)}`;
+    $('unplannedMonthLabel').textContent = compactLabel;
     $('unplannedMonthLabel').setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
-    $('unplannedAnalyticsMonthLabel').textContent = label;
+    $('unplannedAnalyticsMonthLabel').textContent = compactLabel;
     ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => {
-      $(id).innerHTML = `${escapeHtml(label.split(' ')[0])}<span class="year"> ${escapeHtml(selectedMonth.slice(0, 4))}</span>`;
+      $(id).textContent = compactLabel;
       $(id).setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
     });
     $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
-    $('overviewMonthLabel').textContent = selectedMonth.slice(0, 4);
     renderOverview(); renderPlans(); renderAnalytics(); renderMandatoryPayments(); renderLoans();
     renderSettings(); renderCategoryPicker(); renderUnplanned(); renderUnplannedAnalytics(); updateCloudUi(); updateDock();
   }

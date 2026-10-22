@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.3" />
-    <link rel="icon" href="./icon.svg?v=1.7.3" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.4" />
+    <link rel="icon" href="./icon.svg?v=1.7.4" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v2.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.3" />
-    <link rel="stylesheet" href="./light.css?v=1.7.3" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.3" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.4" />
+    <link rel="stylesheet" href="./light.css?v=1.7.4" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.4" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.3"></script>
-    <script defer src="./unplanned.js?v=1.7.3"></script>
-    <script defer src="./app.js?v=1.7.3"></script>
+    <script defer src="./loans.js?v=1.7.4"></script>
+    <script defer src="./unplanned.js?v=1.7.4"></script>
+    <script defer src="./app.js?v=1.7.4"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -79,7 +79,7 @@
           </div>
           <section class="balance-composition" aria-label="План месяца">
             <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После неоплаченных трат</span></div>
-            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong></button>
+            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint">Изменить бюджет</small></button>
           </section>
           <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
           <div
@@ -528,7 +528,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.7.3</p>
+          <p class="note">Пульс · версия 1.7.4</p>
         </section>
       </main>
       <footer class="dock">

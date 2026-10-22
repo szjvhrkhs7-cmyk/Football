@@ -649,3 +649,21 @@ test('unplanned period is strictly the shared calendar month in every screen', a
   assert.match(css,/\.dock \.nav > button > \.dock-profile-label\{[\s\S]*?grid-row:2/);
   assert.match(css,/\.dock \.nav > \.addwrap\{[\s\S]*?grid-column:3/);
 });
+
+test('month controls show MM.YY and move one month across year boundaries', async t => {
+  const a = await app(t);
+  const current = new Date();
+  const shift = (2026 - current.getFullYear()) * 12 + 11 - current.getMonth();
+  for (let i = 0; i < Math.abs(shift); i++) a.$(shift < 0 ? 'overviewPrevMonth' : 'overviewNextMonth').click();
+  const labels = ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'unplannedMonthLabel'];
+  labels.forEach(id => assert.equal(a.$(id).textContent, '12.26'));
+  a.$('overviewNextMonth').click();
+  labels.forEach(id => assert.equal(a.$(id).textContent, '01.27'));
+  assert.match(a.$('overviewTitle').textContent, /январь/);
+  assert.match(a.$('overviewMonthLabel').getAttribute('aria-label'), /2027/);
+  a.$('overviewPrevMonth').click();
+  labels.forEach(id => assert.equal(a.$(id).textContent, '12.26'));
+  a.$('overviewMonthLabel').click();
+  const expected = `${String(current.getMonth() + 1).padStart(2, '0')}.${String(current.getFullYear()).slice(-2)}`;
+  labels.forEach(id => assert.equal(a.$(id).textContent, expected));
+});
