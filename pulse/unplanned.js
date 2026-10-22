@@ -53,6 +53,11 @@
       && (category === 'all' || x.categoryId === category))
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   }
+  // The data and monthly totals remain intact; only the visible list is shortened.
+  function splitRecent(items, limit = 10) {
+    const count = Number.isInteger(limit) && limit >= 0 ? limit : 10;
+    return { recent: items.slice(0, count), older: items.slice(count) };
+  }
   function summary(items, categories) {
     const sums = new Map(), total = money(items.reduce((s, x) => s + x.amount, 0));
     for (const item of items) sums.set(item.categoryId, money((sums.get(item.categoryId) || 0) + item.amount));
@@ -87,5 +92,5 @@
     if (String(input.comment || '').length > 300) return 'Комментарий не должен превышать 300 символов';
     return '';
   }
-  return Object.freeze({ normalize, periodBounds, filter, summary, timeline, validate, dateOk, money });
+  return Object.freeze({ normalize, periodBounds, filter, splitRecent, summary, timeline, validate, dateOk, money });
 });
