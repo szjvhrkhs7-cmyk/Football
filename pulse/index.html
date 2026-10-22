@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.9" />
-    <link rel="icon" href="./icon.svg?v=1.7.9" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.10" />
+    <link rel="icon" href="./icon.svg?v=1.7.10" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v3.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.9" />
-    <link rel="stylesheet" href="./light.css?v=1.7.9" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.9" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.10" />
+    <link rel="stylesheet" href="./light.css?v=1.7.10" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.10" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.9"></script>
-    <script defer src="./unplanned.js?v=1.7.9"></script>
-    <script defer src="./app.js?v=1.7.9"></script>
+    <script defer src="./loans.js?v=1.7.10"></script>
+    <script defer src="./unplanned.js?v=1.7.10"></script>
+    <script defer src="./app.js?v=1.7.10"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -37,7 +37,7 @@
           data-nav="overview"
           aria-label="Перейти в обзор"
         >
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.9" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.10" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
       </header>
       <main class="main app-main" id="appMain" tabindex="-1">
@@ -75,7 +75,7 @@
             </div>
           </div>
           <section class="balance-composition" aria-label="План месяца">
-            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток по плану</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После неоплаченных трат</span></div>
+            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток бюджета</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">С учётом трат вне плана</span></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint">Изменить бюджет</small></button>
           </section>
           <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
@@ -168,7 +168,7 @@
           <div class="list" id="plansList"></div>
           <p class="note">
             Нажмите на название для редактирования.<br />Кружок справа отмечает
-            оплату. Остаток по плану при этом не меняется: трата уже учтена.
+            оплату всего остатка. Частичную оплату можно внести кнопкой «Внести».
           </p>
           <button class="linkrow" type="button" data-nav="payments">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -691,6 +691,10 @@
             <div>
               <span>Неоплаченные траты</span>
               <strong id="budgetPlannedAmount"></strong>
+            </div>
+            <div>
+              <span>Траты вне плана</span>
+              <strong id="budgetUnplannedAmount"></strong>
             </div>
             <div>
               <span>Останется</span>

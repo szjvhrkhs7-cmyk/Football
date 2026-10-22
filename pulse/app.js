@@ -382,12 +382,16 @@
     if ($('plannedPaymentDialog').open) renderPlannedPayment();
   }
 
+  function monthlyUnplannedTotal() {
+    return unplannedEntries('overview').reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
+  }
+
   function renderOverview() {
     const monthlyExpenses = expensesForMonth();
     const pending = plannedExpensesForOverview(monthlyExpenses);
     const unpaidTotal = pending.reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = budgetForMonth();
-    const available = budget - unpaidTotal;
+    const available = (moneyCents(budget) - moneyCents(unpaidTotal) - moneyCents(monthlyUnplannedTotal())) / 100;
     $('availableAmount').textContent = formatMoney(available, true);
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
@@ -400,7 +404,7 @@
     renderExpenseList($('upcomingList'), shown, { empty: overviewDay ? 'На этот день платежей нет' : 'Пока без трат' });
     const alert = $('budgetAlert');
     alert.classList.toggle('hidden', available >= 0);
-    alert.textContent = available < 0 ? `План превышает бюджет на ${formatMoney(-available)}` : '';
+    alert.textContent = available < 0 ? `Траты превышают бюджет на ${formatMoney(-available)}` : '';
   }
 
   function renderOverviewCalendar(expenses) {
@@ -884,9 +888,12 @@ function renderUnplannedAnalytics(){
   function renderBudgetPreview() {
     const planned = plannedExpensesForOverview(expensesForMonth()).reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = Number($('budgetInput').value);
+    const unplanned = monthlyUnplannedTotal();
+    const committed = (moneyCents(planned) + moneyCents(unplanned)) / 100;
     $('budgetPlannedAmount').textContent = formatMoney(planned);
-    $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney(budget - planned);
-    $('budgetRemainingAmount').classList.toggle('negative', $('budgetInput').value !== '' && Number.isFinite(budget) && budget < planned);
+    $('budgetUnplannedAmount').textContent = formatMoney(unplanned);
+    $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney((moneyCents(budget) - moneyCents(committed)) / 100);
+    $('budgetRemainingAmount').classList.toggle('negative', $('budgetInput').value !== '' && Number.isFinite(budget) && budget < committed);
   }
 
   function renderSettings() {

@@ -517,7 +517,7 @@ test('overview removes decorative controls but retains budget, recurring payment
   assert.match(css,/\.dock \.nav button\.active::before,\.dock \.nav button\.active::after\{content:none;display:none\}/);
 });
 
-test('unplanned CRUD, history, filters and statistics never alter the planned budget or payments',async t=>{
+test('unplanned CRUD updates available budget while preserving planned expenses and regular payments',async t=>{
   const month=new Date().toISOString().slice(0,7);
   const a=await app(t,JSON.stringify({
     settings:{defaultBudget:58000},
@@ -540,7 +540,7 @@ test('unplanned CRUD, history, filters and statistics never alter the planned bu
   assert.equal(a.$('unplannedTotal').textContent.replace(/\u00a0/g,' '),'2 575,5 ₽');
   assert.equal(a.$('unplannedAnalyticsCount').textContent,'1');
   assert.equal(a.$('unplannedAnalyticsAverage').textContent.replace(/\u00a0/g,' '),'2 575,5 ₽');
-  assert.equal(a.$('availableAmount').textContent,beforeBudget);
+  assert.equal(a.$('availableAmount').textContent.replace(/\u00a0/g,' '),'49 624,5 ₽');
   assert.equal(a.$('plansTotal').textContent,beforePlans);
   assert.equal(a.$('mandatoryPaymentsTotal').textContent,beforePayments);
   assert.equal(a.read().expenses[0].status,'planned');
@@ -792,4 +792,31 @@ test('paid analytics uses the payment date, partial edits preserve payments and 
  assert.equal(a.read().expenses[0].payments[0].amount,4000);
  assert.match(a.$('budgetPlannedAmount').textContent,/6\s000/);
  a.$('plannedHistoryButton').click();assert.equal(a.$('plannedHistoryList').querySelector('img'),null);
+});
+
+test('monthly unplanned spending reduces home and budget preview regardless of list limit and category filter',async t=>{
+ const month=new Date().toISOString().slice(0,7);
+ const nextDate=new Date(`${month}-15T12:00:00`);nextDate.setMonth(nextDate.getMonth()+1);
+ const next=nextDate.toISOString().slice(0,7);
+ const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},
+  expenses:[{id:'plan',title:'План',amount:2000,date:`${month}-20`,status:'planned',payments:[{id:'part',amount:500,date:`${month}-01`}]}],
+  unplannedExpenses:[...Array.from({length:12},(_,i)=>({id:`outside-${i}`,amount:100,date:`${month}-${String(i+1).padStart(2,'0')}`,categoryId:'food'})),{id:'next',amount:2000,date:`${next}-01`,categoryId:'home'}]
+ }));
+ const value=id=>a.$(id).textContent.replace(/\u00a0/g,' ');
+ assert.equal(value('availableAmount'),'7 300 ₽');
+ assert.equal(value('budgetRemainingAmount'),'7 300 ₽');
+ assert.equal(value('budgetUnplannedAmount'),'1 200 ₽');
+ a.$('unplannedFilterCategory').value='home';a.$('unplannedFilterCategory').dispatchEvent(new a.w.Event('change'));
+ assert.equal(value('availableAmount'),'7 300 ₽');
+ a.$('overviewNextMonth').click();assert.equal(value('availableAmount'),'8 000 ₽');
+ a.$('overviewPrevMonth').click();assert.equal(value('availableAmount'),'7 300 ₽');
+ a.$('unplannedFilterCategory').value='all';a.$('unplannedFilterCategory').dispatchEvent(new a.w.Event('change'));
+ a.click('.bottom-nav [data-nav="unplanned"]');a.click('[data-edit-unplanned]');
+ a.$('unplannedAmount').value='300';a.submit('unplannedForm');assert.equal(value('availableAmount'),'7 100 ₽');
+ a.click('[data-edit-unplanned]');a.$('deleteUnplannedButton').click();assert.equal(value('availableAmount'),'7 400 ₽');
+ a.click('#toast button');assert.equal(value('availableAmount'),'7 100 ₽');
+ const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+ assert.equal(b.$('availableAmount').textContent.replace(/\u00a0/g,' '),'7 100 ₽');
+ b.$('budgetInput').value='500';b.$('budgetInput').dispatchEvent(new b.w.Event('input'));
+ assert.equal(b.$('budgetRemainingAmount').textContent.replace(/\u00a0/g,' '),'-2 400 ₽');
 });
