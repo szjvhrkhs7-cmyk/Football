@@ -31,6 +31,7 @@
   const Unplanned = window.PulseUnplanned;
   let selectedCategoryId = 'food';
   let state = loadState();
+  let activeCloudAccountId = null;
   let supabaseClient = null;
   let currentUser = null;
   let syncTimer = null;
@@ -184,12 +185,43 @@
 
   function saveLocalState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(activeCloudAccountId ? STORAGE_KEY + '-account-' + activeCloudAccountId : STORAGE_KEY, JSON.stringify(state));
+      if (activeCloudAccountId) localStorage.removeItem?.(STORAGE_KEY);
       return true;
     } catch {
       showToast('Не удалось сохранить данные на устройстве. Экспортируй резервную копию.');
       return false;
     }
+  }
+
+  function activateCloudAccount(userId) {
+    if (!userId || activeCloudAccountId === userId) return;
+    try {
+      const owner = localStorage.getItem(STORAGE_KEY + '-owner');
+      const saved = localStorage.getItem(STORAGE_KEY + '-account-' + userId);
+      // The first login adopts existing legacy local data once; other logins
+      // load only their own copy, or start with a clean cloud-bound profile.
+      const next = saved ? normalizeState(JSON.parse(saved)) : owner ? createInitialState() : state;
+      activeCloudAccountId = userId;
+      state = next;
+      localRevision += 1;
+      if (!saveLocalState()) throw new Error('Local account storage unavailable');
+      localStorage.setItem(STORAGE_KEY + '-owner', userId);
+      renderAll();
+    } catch (error) {
+      setSyncState('error', 'Не удалось открыть данные аккаунта');
+      showCloudMessage('Не удалось загрузить данные аккаунта с устройства. Освободи место и попробуй ещё раз.', true);
+      throw error;
+    }
+  }
+
+  function deactivateCloudAccount() {
+    if (!activeCloudAccountId) return;
+    activeCloudAccountId = null;
+    state = createInitialState();
+    localRevision += 1;
+    try { localStorage.removeItem?.(STORAGE_KEY); } catch {}
+    renderAll();
   }
 
   function toMonthKey(date) {
@@ -1090,7 +1122,8 @@ function renderUnplannedAnalytics(){
 
   function applyRemoteState(remote) {
     // Persist first: a full device must not replace its in-memory budget with unsaved data.
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    localStorage.setItem(activeCloudAccountId ? STORAGE_KEY + '-account-' + activeCloudAccountId : STORAGE_KEY, JSON.stringify(remote));
+    if (activeCloudAccountId) localStorage.removeItem?.(STORAGE_KEY);
     suppressCloudPush = true;
     try { state = remote; localRevision += 1; renderAll(); }
     finally { suppressCloudPush = false; }
@@ -1156,6 +1189,7 @@ function renderUnplannedAnalytics(){
     if (error) { supabaseClient = null; throw error; }
     $('retryCloudButton')?.classList.add('hidden');
     currentUser = data?.session?.user || null;
+    if (currentUser) activateCloudAccount(currentUser.id);
     updateCloudUi();
     if (currentUser) {
       subscribeRealtime();
@@ -1164,6 +1198,8 @@ function renderUnplannedAnalytics(){
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentUser = session?.user || null;
+      if (currentUser) activateCloudAccount(currentUser.id);
+      else deactivateCloudAccount();
       updateCloudUi();
       if (currentUser) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
@@ -1272,6 +1308,7 @@ function renderUnplannedAnalytics(){
       const { error } = await supabaseClient.auth.signOut();
       if (error) throw error;
       currentUser = null;
+      deactivateCloudAccount();
       clearTimeout(syncTimer);
       syncTimer = null;
       pendingPush = false;
