@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.6" />
-    <link rel="icon" href="./icon.svg?v=1.7.6" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.7" />
+    <link rel="icon" href="./icon.svg?v=1.7.7" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v3.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.6" />
-    <link rel="stylesheet" href="./light.css?v=1.7.6" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.6" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.7" />
+    <link rel="stylesheet" href="./light.css?v=1.7.7" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.7" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.6"></script>
-    <script defer src="./unplanned.js?v=1.7.6"></script>
-    <script defer src="./app.js?v=1.7.6"></script>
+    <script defer src="./loans.js?v=1.7.7"></script>
+    <script defer src="./unplanned.js?v=1.7.7"></script>
+    <script defer src="./app.js?v=1.7.7"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -37,7 +37,7 @@
           data-nav="overview"
           aria-label="Перейти в обзор"
         >
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.6" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.7" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
       </header>
       <main class="main app-main" id="appMain" tabindex="-1">
@@ -102,6 +102,7 @@
               </svg>
             </button>
           </div>
+          <button class="overview-create-category" type="button" id="overviewCreateCategory" aria-label="Создать категорию запланированных трат"><span aria-hidden="true">＋</span> Новая категория</button>
           <div class="list" id="upcomingList"></div>
           <div class="pay-summary">
             <span>Оплачено в этом месяце</span
@@ -364,6 +365,10 @@
           </div>
           <div class="sectionhead"><h2>Операции</h2><button type="button" class="unplanned-inline-link" id="openUnplannedDialog">Добавить</button></div>
           <div id="unplannedList" class="unplanned-list" aria-live="polite"></div>
+          <button class="unplanned-history-trigger hidden" type="button" id="unplannedHistoryButton" aria-haspopup="dialog" aria-controls="unplannedHistoryDialog">
+            <span><strong id="unplannedHistoryLabel">Ранее в этом месяце</strong><small id="unplannedHistoryCount"></small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
         </section>
         <section
           class="screen"
@@ -628,6 +633,7 @@
             <div class="dialog-field">
               <label for="categoryPicker">Категория</label>
               <select id="categoryPicker" aria-label="Категория"></select>
+              <button class="planned-category-link" type="button" id="plannedCreateCategory">＋ Создать категорию</button>
             </div>
             <div class="dialog-field">
               <label for="expenseDate">Дата</label>
@@ -894,17 +900,47 @@
         <input
           id="categoryEmoji"
           type="text"
-          maxlength="4"
+          maxlength="32"
           autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
           placeholder="✈️"
           required
         />
+        <div id="categoryEmojiPresets" class="category-emoji-presets" role="group" aria-label="Выберите эмодзи категории">
+          <button type="button" data-category-emoji="🛒" aria-label="Выбрать 🛒" aria-pressed="false">🛒</button>
+          <button type="button" data-category-emoji="🍽️" aria-label="Выбрать 🍽️" aria-pressed="false">🍽️</button>
+          <button type="button" data-category-emoji="🚕" aria-label="Выбрать 🚕" aria-pressed="false">🚕</button>
+          <button type="button" data-category-emoji="🎁" aria-label="Выбрать 🎁" aria-pressed="false">🎁</button>
+          <button type="button" data-category-emoji="🏠" aria-label="Выбрать 🏠" aria-pressed="false">🏠</button>
+          <button type="button" data-category-emoji="💊" aria-label="Выбрать 💊" aria-pressed="false">💊</button>
+          <button type="button" data-category-emoji="👶" aria-label="Выбрать 👶" aria-pressed="false">👶</button>
+          <button type="button" data-category-emoji="🐾" aria-label="Выбрать 🐾" aria-pressed="false">🐾</button>
+          <button type="button" data-category-emoji="✈️" aria-label="Выбрать ✈️" aria-pressed="false">✈️</button>
+          <button type="button" data-category-emoji="🎮" aria-label="Выбрать 🎮" aria-pressed="false">🎮</button>
+          <button type="button" data-category-emoji="📚" aria-label="Выбрать 📚" aria-pressed="false">📚</button>
+          <button type="button" data-category-emoji="💡" aria-label="Выбрать 💡" aria-pressed="false">💡</button>
+          <button type="button" data-category-emoji="💸" aria-label="Выбрать 💸" aria-pressed="false">💸</button>
+          <button type="button" data-category-emoji="🧾" aria-label="Выбрать 🧾" aria-pressed="false">🧾</button>
+          <button type="button" data-category-emoji="🧳" aria-label="Выбрать 🧳" aria-pressed="false">🧳</button>
+          <button type="button" data-category-emoji="🎓" aria-label="Выбрать 🎓" aria-pressed="false">🎓</button>
+        </div>
+        <p class="category-emoji-hint">Нажмите на эмодзи или введите свой в поле выше.</p>
         <button class="primary-small full" type="submit">
           Добавить категорию
         </button>
       </form>
     </dialog>
 
+    <dialog class="sheet designed-sheet unplanned-history-sheet" id="unplannedHistoryDialog" aria-labelledby="unplannedHistoryTitle">
+      <header class="sheet-head">
+        <div class="dialog-heading"><h2 id="unplannedHistoryTitle">Остальные траты</h2><p>Ранние операции за выбранный месяц</p></div>
+        <button class="sheet-close" type="button" id="closeUnplannedHistoryButton" aria-label="Закрыть историю">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
+        </button>
+      </header>
+      <div class="unplanned-history-list unplanned-list" id="unplannedHistoryList"></div>
+    </dialog>
     <dialog class="sheet designed-sheet unplanned-sheet" id="unplannedDialog" aria-labelledby="unplannedDialogTitle">
       <form id="unplannedForm" novalidate>
         <header class="sheet-head">
