@@ -31,6 +31,7 @@
   const Unplanned = window.PulseUnplanned;
   let selectedCategoryId = 'food';
   let state = loadState();
+  let activeCloudAccountId = null;
   let supabaseClient = null;
   let currentUser = null;
   let syncTimer = null;
@@ -116,6 +117,7 @@
         }))
       : fresh.settings.categories;
 
+    const fallbackRecordTime = typeof candidate.meta?.updatedAt === 'string' ? candidate.meta.updatedAt : fresh.meta.updatedAt;
     const expenses = Array.isArray(candidate.expenses)
       ? candidate.expenses
           .filter(item => item && typeof item === 'object')
@@ -127,8 +129,8 @@
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
             ...(typeof item.mandatoryPaymentId === 'string' ? { mandatoryPaymentId: item.mandatoryPaymentId } : {}),
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString()
+            createdAt: item.createdAt || fallbackRecordTime,
+            updatedAt: item.updatedAt || fallbackRecordTime
           }))
       : [];
 
@@ -140,8 +142,8 @@
             title: String(item.title || 'Платёж').slice(0, 60),
             amount: Math.max(0, Math.round((Number(item.amount) || 0) * 100) / 100),
             day: Math.min(31, Math.max(1, Math.trunc(Number(item.day) || 1))),
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString()
+            createdAt: item.createdAt || fallbackRecordTime,
+            updatedAt: item.updatedAt || fallbackRecordTime
           }))
           .filter(item => item.amount > 0)
       : [];
@@ -157,7 +159,10 @@
         categories
       },
       expenses,
-      unplannedExpenses: Unplanned.normalize(candidate.unplannedExpenses, categories, toDateKey(now)),
+      unplannedExpenses: Unplanned.normalize(Array.isArray(candidate.unplannedExpenses)
+        ? candidate.unplannedExpenses.map(item => item && typeof item === 'object'
+          ? { ...item, createdAt: item.createdAt || fallbackRecordTime, updatedAt: item.updatedAt || fallbackRecordTime }
+          : item) : [], categories, toDateKey(now)),
       mandatoryPayments,
       loans: window.PulseLoans.normalize(candidate.loans)
     };
@@ -184,12 +189,43 @@
 
   function saveLocalState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(activeCloudAccountId ? STORAGE_KEY + '-account-' + activeCloudAccountId : STORAGE_KEY, JSON.stringify(state));
+      if (activeCloudAccountId) localStorage.removeItem?.(STORAGE_KEY);
       return true;
     } catch {
       showToast('Не удалось сохранить данные на устройстве. Экспортируй резервную копию.');
       return false;
     }
+  }
+
+  function activateCloudAccount(userId) {
+    if (!userId || activeCloudAccountId === userId) return;
+    try {
+      const owner = localStorage.getItem(STORAGE_KEY + '-owner');
+      const saved = localStorage.getItem(STORAGE_KEY + '-account-' + userId);
+      // The first login adopts existing legacy local data once; other logins
+      // load only their own copy, or start with a clean cloud-bound profile.
+      const next = saved ? normalizeState(JSON.parse(saved)) : owner ? createInitialState() : state;
+      activeCloudAccountId = userId;
+      state = next;
+      localRevision += 1;
+      if (!saveLocalState()) throw new Error('Local account storage unavailable');
+      localStorage.setItem(STORAGE_KEY + '-owner', userId);
+      renderAll();
+    } catch (error) {
+      setSyncState('error', 'Не удалось открыть данные аккаунта');
+      showCloudMessage('Не удалось загрузить данные аккаунта с устройства. Освободи место и попробуй ещё раз.', true);
+      throw error;
+    }
+  }
+
+  function deactivateCloudAccount() {
+    if (!activeCloudAccountId) return;
+    activeCloudAccountId = null;
+    state = createInitialState();
+    localRevision += 1;
+    try { localStorage.removeItem?.(STORAGE_KEY); } catch {}
+    renderAll();
   }
 
   function toMonthKey(date) {
@@ -1090,7 +1126,8 @@ function renderUnplannedAnalytics(){
 
   function applyRemoteState(remote) {
     // Persist first: a full device must not replace its in-memory budget with unsaved data.
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    localStorage.setItem(activeCloudAccountId ? STORAGE_KEY + '-account-' + activeCloudAccountId : STORAGE_KEY, JSON.stringify(remote));
+    if (activeCloudAccountId) localStorage.removeItem?.(STORAGE_KEY);
     suppressCloudPush = true;
     try { state = remote; localRevision += 1; renderAll(); }
     finally { suppressCloudPush = false; }
@@ -1156,6 +1193,7 @@ function renderUnplannedAnalytics(){
     if (error) { supabaseClient = null; throw error; }
     $('retryCloudButton')?.classList.add('hidden');
     currentUser = data?.session?.user || null;
+    if (currentUser) activateCloudAccount(currentUser.id);
     updateCloudUi();
     if (currentUser) {
       subscribeRealtime();
@@ -1164,6 +1202,8 @@ function renderUnplannedAnalytics(){
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentUser = session?.user || null;
+      if (currentUser) activateCloudAccount(currentUser.id);
+      else deactivateCloudAccount();
       updateCloudUi();
       if (currentUser) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
@@ -1272,6 +1312,7 @@ function renderUnplannedAnalytics(){
       const { error } = await supabaseClient.auth.signOut();
       if (error) throw error;
       currentUser = null;
+      deactivateCloudAccount();
       clearTimeout(syncTimer);
       syncTimer = null;
       pendingPush = false;
@@ -1314,46 +1355,150 @@ function renderUnplannedAnalytics(){
     $('cloudMessage').style.color = isError ? '#c84658' : '#5f6d83';
   }
 
+
+  const CLOUD_BASE_PREFIX = 'pulse-finance-cloud-base-';
+  let cloudBaseOwner = '';
+  let cloudBaseState = null;
+
+  function cloudEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+  function comparableState(value) {
+    if (!value) return null;
+    const copy = { ...value };
+    delete copy.meta;
+    return copy;
+  }
+  function cloudStateEqual(a, b) { return cloudEqual(comparableState(a), comparableState(b)); }
+  function getCloudBase(userId) {
+    if (cloudBaseOwner !== userId) {
+      cloudBaseOwner = userId;
+      cloudBaseState = null;
+      try {
+        const saved = localStorage.getItem(CLOUD_BASE_PREFIX + userId);
+        if (saved) cloudBaseState = normalizeState(JSON.parse(saved));
+      } catch (error) { console.warn('Не удалось прочитать облачную базу', error); }
+    }
+    return cloudBaseState;
+  }
+  function rememberCloudBase(userId, snapshot) {
+    if (currentUser?.id !== userId) return;
+    const base = normalizeState(snapshot);
+    try {
+      localStorage.setItem(CLOUD_BASE_PREFIX + userId, JSON.stringify(base));
+      cloudBaseOwner = userId;
+      cloudBaseState = base;
+    } catch (error) { console.warn('Не удалось сохранить облачную базу', error); }
+  }
+  function chooseCloudItem(base, local, remote, localTime, remoteTime) {
+    if (cloudEqual(local, base)) return remote;
+    if (cloudEqual(remote, base) || cloudEqual(local, remote)) return local;
+    const localStamp = Date.parse(local?.updatedAt || localTime) || 0;
+    const remoteStamp = Date.parse(remote?.updatedAt || remoteTime) || 0;
+    return localStamp >= remoteStamp ? local : remote;
+  }
+  function mergeCloudMap(base, local, remote, localTime, remoteTime) {
+    const keys = new Set([...Object.keys(base || {}), ...Object.keys(remote || {}), ...Object.keys(local || {})]);
+    const output = {};
+    for (const key of keys) {
+      const picked = chooseCloudItem(base?.[key], local?.[key], remote?.[key], localTime, remoteTime);
+      if (picked !== undefined) output[key] = picked;
+    }
+    return output;
+  }
+  function mergeCloudList(base, local, remote, localTime, remoteTime) {
+    const asMap = list => Object.fromEntries((Array.isArray(list) ? list : [])
+      .filter(item => item && typeof item.id === 'string').map(item => [item.id, item]));
+    return Object.values(mergeCloudMap(asMap(base), asMap(local), asMap(remote), localTime, remoteTime));
+  }
+  function mergeCloudStates(base, local, remote) {
+    const previous = base || createInitialState();
+    const localTime = local.meta?.updatedAt || '';
+    const remoteTime = remote.meta?.updatedAt || '';
+    return normalizeState({
+      meta: { version: 1, updatedAt: new Date(Math.max(Date.parse(localTime) || 0, Date.parse(remoteTime) || 0, Date.now())).toISOString() },
+      settings: {
+        defaultBudget: chooseCloudItem(previous.settings?.defaultBudget, local.settings.defaultBudget, remote.settings.defaultBudget, localTime, remoteTime),
+        budgets: mergeCloudMap(previous.settings?.budgets, local.settings.budgets, remote.settings.budgets, localTime, remoteTime),
+        categories: mergeCloudList(previous.settings?.categories, local.settings.categories, remote.settings.categories, localTime, remoteTime)
+      },
+      expenses: mergeCloudList(previous.expenses, local.expenses, remote.expenses, localTime, remoteTime),
+      unplannedExpenses: mergeCloudList(previous.unplannedExpenses, local.unplannedExpenses, remote.unplannedExpenses, localTime, remoteTime),
+      mandatoryPayments: mergeCloudList(previous.mandatoryPayments, local.mandatoryPayments, remote.mandatoryPayments, localTime, remoteTime),
+      loans: mergeCloudList(previous.loans, local.loans, remote.loans, localTime, remoteTime)
+    });
+  }
+
   function scheduleCloudPush() {
     if (!currentUser || !supabaseClient) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => { syncTimer = null; pushCloudState(); }, 700);
   }
 
+  // Compare-and-swap: if another device changed the row, re-read and merge
+  // independent record changes instead of silently replacing its snapshot.
   async function syncBidirectional() {
-    if (!currentUser || !supabaseClient || syncInFlight) return;
+    if (!currentUser || !supabaseClient) return;
+    if (syncInFlight) { pendingPush = true; return; }
     syncInFlight = true;
-    const revision = localRevision;
-    let syncedRevision = revision;
     const userId = currentUser.id;
     setSyncState('syncing', 'Синхронизация...');
     try {
-      const { data, error } = await withCloudTimeout(supabaseClient
-        .from(CLOUD_TABLE)
-        .select('payload,updated_at')
-        .eq('user_id', userId)
-        .maybeSingle());
-      if (error) throw error;
-
-      if (currentUser?.id !== userId) return;
-      if (localRevision !== revision) { pendingPush = true; return; }
-      if (!data?.payload) {
-        await pushCloudState(true);
-      } else {
-        const remote = normalizeState(data.payload);
-        const remoteTime = Date.parse(data.payload.meta?.updatedAt || data.updated_at || 0) || 0;
-        const localTime = Date.parse(state.meta.updatedAt || 0) || 0;
-        if (remoteTime > localTime) {
-          applyRemoteState(remote);
-          syncedRevision = localRevision;
-        } else if (localTime > remoteTime) {
-          await pushCloudState(true);
+      let finished = false;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        if (currentUser?.id !== userId) return;
+        const revision = localRevision;
+        const localSnapshot = JSON.parse(JSON.stringify(state));
+        const { data, error } = await withCloudTimeout(supabaseClient
+          .from(CLOUD_TABLE)
+          .select('payload,updated_at')
+          .eq('user_id', userId)
+          .maybeSingle());
+        if (error) throw error;
+        if (currentUser?.id !== userId) return;
+        if (revision !== localRevision) { pendingPush = true; return; }
+        const remote = data?.payload ? normalizeState(data.payload) : null;
+        const merged = remote ? mergeCloudStates(getCloudBase(userId), localSnapshot, remote) : localSnapshot;
+        if (remote && cloudStateEqual(merged, remote)) {
+          if (!cloudStateEqual(state, remote)) applyRemoteState(remote);
+          rememberCloudBase(userId, remote);
+          finished = true;
+          break;
         }
+
+        const nextTimestamp = new Date(Math.max(Date.now(), (Date.parse(data?.updated_at || 0) || 0) + 1)).toISOString();
+        let response;
+        if (data) {
+          response = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE)
+            .update({ payload: merged, updated_at: nextTimestamp })
+            .eq('user_id', userId)
+            .eq('updated_at', data.updated_at)
+            .select('payload,updated_at')
+            .maybeSingle());
+        } else {
+          response = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE)
+            .insert({ user_id: userId, payload: merged, updated_at: nextTimestamp })
+            .select('payload,updated_at')
+            .maybeSingle());
+        }
+        if (currentUser?.id !== userId) return;
+        if (response.error?.code === '23505' || (!response.error && !response.data)) continue;
+        if (response.error) throw response.error;
+        const accepted = normalizeState(response.data.payload || merged);
+        if (localRevision !== revision) {
+          applyRemoteState(mergeCloudStates(localSnapshot, state, accepted));
+          pendingPush = true;
+        } else {
+          applyRemoteState(accepted);
+        }
+        rememberCloudBase(userId, accepted);
+        finished = true;
+        break;
       }
+      if (!finished) throw Object.assign(new Error('Concurrent cloud edits; retry'), { code: 'cloud_conflict' });
       if (currentUser?.id !== userId) return;
-      if (pendingPush || localRevision !== syncedRevision) { pendingPush = true; setSyncState('syncing', 'Сохраняем новые изменения…'); return; }
-      setSyncState('online', `Синхронизировано ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
-      showCloudMessage('');
+      if (!pendingPush) {
+        setSyncState('online', 'Синхронизировано ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+        showCloudMessage('');
+      }
     } catch (error) {
       if (currentUser?.id !== userId) return;
       console.error('Cloud sync failed', error);
@@ -1361,58 +1506,32 @@ function renderUnplannedAnalytics(){
       showCloudMessage(humanizeCloudError(error), true);
     } finally {
       syncInFlight = false;
-      if (pendingPush) { pendingPush = false; scheduleCloudPush(); }
+      if (pendingPush && currentUser?.id === userId) { pendingPush = false; scheduleCloudPush(); }
     }
   }
 
-  async function pushCloudState(force = false) {
-    if (!currentUser || !supabaseClient) return;
-    if (syncInFlight && !force) { pendingPush = true; return; }
-    const userId = currentUser.id, revision = localRevision;
-    const snapshot = JSON.parse(JSON.stringify(state));
-    if (!force) { syncInFlight = true; setSyncState('syncing', 'Сохраняем в облако…'); }
-    try {
-      const { error } = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE).upsert({
-        user_id: userId, payload: snapshot, updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' }));
-      if (currentUser?.id !== userId) return;
-      if (error) throw error;
-      if (localRevision !== revision) { pendingPush = true; setSyncState('syncing', 'Сохраняем новые изменения…'); }
-      else { setSyncState('online', `Синхронизировано ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`); showCloudMessage(''); }
-    } catch (error) {
-      if (currentUser?.id !== userId) return;
-      console.error('Cloud push failed', error);
-      setSyncState('error', 'Локально сохранено, облако недоступно');
-      showCloudMessage(humanizeCloudError(error), true);
-      if (force) throw error;
-    } finally {
-      if (!force) { syncInFlight = false; if (pendingPush) { pendingPush = false; scheduleCloudPush(); } }
-    }
-  }
+  async function pushCloudState() { return syncBidirectional(); }
 
   function subscribeRealtime() {
     if (!supabaseClient || !currentUser) return;
     unsubscribeRealtime();
     const subscribedUserId = currentUser.id;
     realtimeChannel = supabaseClient
-      .channel(`pulse-user-${currentUser.id}`)
+      .channel('pulse-user-' + currentUser.id)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: CLOUD_TABLE,
-        filter: `user_id=eq.${currentUser.id}`
+        filter: 'user_id=eq.' + currentUser.id
       }, payload => {
-        const remotePayload = payload.new?.payload;
-        if (currentUser?.id !== subscribedUserId || !remotePayload || syncInFlight || pendingPush || syncTimer) return;
-        const remote = normalizeState(remotePayload);
-        const remoteTime = Date.parse(remote.meta.updatedAt || 0) || 0;
-        const localTime = Date.parse(state.meta.updatedAt || 0) || 0;
-        if (remoteTime > localTime) {
-          try { applyRemoteState(remote); setSyncState('online', 'Данные обновлены из облака'); showToast('Данные обновлены из облака'); }
-          catch (error) { setSyncState('error', 'Не удалось сохранить облачную копию'); showCloudMessage(humanizeCloudError(error), true); }
-        }
+        if (currentUser?.id !== subscribedUserId || !payload.new?.payload) return;
+        if (syncInFlight) { pendingPush = true; return; }
+        // Reconciliation preserves unsent local edits and offline deletions.
+        syncBidirectional();
       })
       .subscribe(status => {
+        if (currentUser?.id !== subscribedUserId) return;
+        if (status === 'SUBSCRIBED') syncBidirectional();
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSyncState('error', 'Нет связи с облаком. Попробуй синхронизировать вручную.');
       });
   }

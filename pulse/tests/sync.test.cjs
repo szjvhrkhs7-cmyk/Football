@@ -27,6 +27,7 @@ function fixture() {
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
       disconnect() { currentUser = null; setSyncState(''); },
       state: () => state, status: () => cloudStatus,
+      account: activateCloudAccount, leaveAccount: deactivateCloudAccount,
       plannedExpensesForOverview,
       mutate() { state.settings.defaultBudget = 99; persistState(); }
     };
@@ -34,7 +35,19 @@ function fixture() {
   return { api: context.api, context, elements, timers };
 }
 function db(read, write) {
-  return { from() { return { select() { return this; }, eq() { return this; }, maybeSingle: read, upsert: write }; } };
+  return { from() { let operation = 'read', next;
+    return {
+      select() { return this; }, eq() { return this; },
+      update(value) { operation = 'write'; next = value; return this; },
+      insert(value) { operation = 'write'; next = value; return this; },
+      async maybeSingle() {
+        if (operation === 'read') return read();
+        const result = await write(next);
+        if (result?.error || result?.data !== undefined) return result;
+        return { data: { payload: next.payload, updated_at: next.updated_at } };
+      }
+    };
+  } };
 }
 test('a new device downloads the existing budget without uploading an empty state', async () => {
   const f = fixture(); let writes = 0;
@@ -164,6 +177,7 @@ test('an upload completing after sign-out cannot show an online state',async()=>
  const f=fixture();let finish;
  f.api.connect(db(async()=>({data:null}),()=>new Promise(resolve=>finish=resolve)));
  const upload=f.api.pushCloudState();
+ await new Promise(setImmediate);
  vm.runInContext('globalThis.api.disconnect()',f.context);
  finish({});await upload;assert.notEqual(f.api.status(),'online');
 });
@@ -218,4 +232,73 @@ test('cloud download restores unplanned records without duplicating stable ids',
  assert.equal(f.api.state().unplannedExpenses[0].amount,150);
  assert.equal(f.api.state().settings.defaultBudget,60000);
  assert.equal(f.api.state().expenses.length,0);
+});
+
+
+function sharedCloud(initial) {
+  let stored = initial ? {payload: structuredClone(initial),updated_at:'2026-10-22T08:00:00.000Z'} : null;
+  let sequence = 0;
+  return {
+    snapshot: () => structuredClone(stored),
+    client() { return {
+      from() {
+        let action = 'read', written, expected;
+        return {
+          select() { return this; },
+          eq(field, value) { if (field === 'updated_at') expected = value; return this; },
+          insert(value) { action = 'insert'; written = value; return this; },
+          update(value) { action = 'update'; written = value; return this; },
+          async maybeSingle() {
+            await new Promise(resolve => setImmediate(resolve));
+            if (action === 'read') return {data:structuredClone(stored)};
+            if (action === 'insert' && stored) return {error:{code:'23505'}};
+            if (action === 'update' && (!stored || stored.updated_at !== expected)) return {data:null};
+            stored = {payload:structuredClone(written.payload),updated_at:new Date(Date.parse(written.updated_at)+ ++sequence).toISOString()};
+            return {data:structuredClone(stored)};
+          }
+        };
+      }
+    }; }
+  };
+}
+test('simultaneous edits on two devices preserve both distinct expenses', async () => {
+  const cloud = sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},expenses:[],unplannedExpenses:[]});
+  const left=fixture(),right=fixture();
+  left.api.connect(cloud.client());right.api.connect(cloud.client());
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  left.api.state().unplannedExpenses.push({id:'u-left',amount:100,date:'2026-10-22',categoryId:'food',comment:'A'});
+  right.api.state().unplannedExpenses.push({id:'u-right',amount:200,date:'2026-10-22',categoryId:'food',comment:'B'});
+  left.api.persistState();right.api.persistState();
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  assert.deepEqual(cloud.snapshot().payload.unplannedExpenses.map(x=>x.id).sort(),['u-left','u-right']);
+});
+test('an offline delete and a simultaneous independent addition both survive', async () => {
+  const cloud=sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},unplannedExpenses:[
+    {id:'old',amount:100,date:'2026-10-20',categoryId:'food'}]});
+  const left=fixture(),right=fixture();
+  left.api.connect(cloud.client());right.api.connect(cloud.client());
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  left.api.state().unplannedExpenses.splice(0,1);
+  right.api.state().unplannedExpenses.push({id:'new',amount:50,date:'2026-10-22',categoryId:'food'});
+  left.api.persistState();right.api.persistState();
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  assert.deepEqual(cloud.snapshot().payload.unplannedExpenses.map(x=>x.id),['new']);
+});
+
+
+test('two accounts on the same browser retain separate local budgets', () => {
+  const f=fixture();
+  f.api.account('account-a');
+  f.api.state().settings.defaultBudget=41000;
+  f.api.persistState();
+  f.api.account('account-b');
+  assert.equal(f.api.state().settings.defaultBudget,120000);
+  f.api.state().settings.defaultBudget=86000;
+  f.api.persistState();
+  f.api.account('account-a');
+  assert.equal(f.api.state().settings.defaultBudget,41000);
+  f.api.account('account-b');
+  assert.equal(f.api.state().settings.defaultBudget,86000);
+  f.api.leaveAccount();
+  assert.equal(f.api.state().settings.defaultBudget,120000);
 });
