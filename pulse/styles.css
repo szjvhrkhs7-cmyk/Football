@@ -411,17 +411,6 @@ small {
 .check:not(.done) svg {
   visibility: hidden;
 }
-.pay-summary {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 3px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.pay-summary strong {
-  color: var(--green);
-  font-weight: 600;
-}
 .note {
   font-size: 12px;
   line-height: 1.6;
