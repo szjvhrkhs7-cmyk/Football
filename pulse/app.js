@@ -117,6 +117,7 @@
         }))
       : fresh.settings.categories;
 
+    const fallbackRecordTime = typeof candidate.meta?.updatedAt === 'string' ? candidate.meta.updatedAt : fresh.meta.updatedAt;
     const expenses = Array.isArray(candidate.expenses)
       ? candidate.expenses
           .filter(item => item && typeof item === 'object')
@@ -128,8 +129,8 @@
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
             ...(typeof item.mandatoryPaymentId === 'string' ? { mandatoryPaymentId: item.mandatoryPaymentId } : {}),
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString()
+            createdAt: item.createdAt || fallbackRecordTime,
+            updatedAt: item.updatedAt || fallbackRecordTime
           }))
       : [];
 
@@ -141,8 +142,8 @@
             title: String(item.title || 'Платёж').slice(0, 60),
             amount: Math.max(0, Math.round((Number(item.amount) || 0) * 100) / 100),
             day: Math.min(31, Math.max(1, Math.trunc(Number(item.day) || 1))),
-            createdAt: item.createdAt || new Date().toISOString(),
-            updatedAt: item.updatedAt || new Date().toISOString()
+            createdAt: item.createdAt || fallbackRecordTime,
+            updatedAt: item.updatedAt || fallbackRecordTime
           }))
           .filter(item => item.amount > 0)
       : [];
@@ -158,7 +159,10 @@
         categories
       },
       expenses,
-      unplannedExpenses: Unplanned.normalize(candidate.unplannedExpenses, categories, toDateKey(now)),
+      unplannedExpenses: Unplanned.normalize(Array.isArray(candidate.unplannedExpenses)
+        ? candidate.unplannedExpenses.map(item => item && typeof item === 'object'
+          ? { ...item, createdAt: item.createdAt || fallbackRecordTime, updatedAt: item.updatedAt || fallbackRecordTime }
+          : item) : [], categories, toDateKey(now)),
       mandatoryPayments,
       loans: window.PulseLoans.normalize(candidate.loans)
     };
