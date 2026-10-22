@@ -233,3 +233,33 @@ dialog.designed-sheet[open]::backdrop{animation:pulse-backdrop-enter .2s ease-ou
 .month button.month-label{min-width:58px!important;font-variant-numeric:tabular-nums;font-weight:600}
 [data-screen=overview]>.heading{flex-wrap:nowrap}
 [data-screen=overview]>.heading>h1{font-size:clamp(20px,5.6vw,25px);white-space:nowrap}
+
+/* Planned payments: retain the established palette and compact list. */
+.planned-expense{border-bottom:1px solid var(--line);padding-bottom:12px}
+.planned-expense>.expense-row{border:0;padding-bottom:4px}
+.planned-progress-row{display:flex;align-items:center;gap:12px;padding-left:54px}
+#upcomingList .planned-progress-row{padding-left:0}
+.planned-progress-copy{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.planned-progress-copy b{font-weight:550;color:var(--ink)}
+.planned-progress-copy progress{display:block;flex-basis:100%;width:100%;height:4px;border:0;border-radius:4px;overflow:hidden;background:var(--line);appearance:none;margin-top:4px}
+.planned-progress-copy progress::-webkit-progress-bar{background:var(--line)}
+.planned-progress-copy progress::-webkit-progress-value{background:var(--blue);border-radius:4px}
+.planned-progress-copy progress::-moz-progress-bar{background:var(--blue)}
+.planned-pay-button{border:1px solid var(--line);background:transparent;color:var(--blue);border-radius:12px;min-height:44px;padding:8px 14px;font-size:13px;font-weight:550;flex:none}
+.planned-pay-button:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.planned-payment-entry{display:grid;gap:12px;margin-top:20px}
+.planned-payment-entry .textbtn{justify-self:start;min-height:44px}
+.planned-payment-entry input{font-size:16px!important;width:100%;box-sizing:border-box}
+.planned-payment-history{margin-top:12px;border-top:1px solid var(--line);padding-top:16px}
+.planned-payment-history summary{min-height:44px;cursor:pointer;font-size:14px;font-weight:550}
+.planned-history-payment{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.planned-history-payment span{min-width:0}.planned-history-payment small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.planned-history-payment .textbtn,.planned-history-actions .textbtn{min-height:44px;font-size:13px;white-space:normal}
+.planned-history-item{padding:16px 0;border-bottom:1px solid var(--line)}
+.planned-history-item>div:first-child{display:flex;justify-content:space-between;gap:12px;overflow-wrap:anywhere}
+.planned-history-item>div:first-child strong{min-width:0}.planned-history-item>div:first-child .nums{flex-shrink:0}
+.planned-history-item p{font-size:12px;color:var(--muted);line-height:1.5;margin:7px 0}
+.planned-history-actions{display:flex;gap:4px 14px;flex-wrap:wrap}
+#plannedHistoryDialog{max-height:85dvh;overflow:auto}
+#plannedHistoryButton{margin-left:auto;min-height:44px}
+@media(max-width:360px){.planned-progress-row{padding-left:0}.planned-history-item>div:first-child{flex-wrap:wrap}}

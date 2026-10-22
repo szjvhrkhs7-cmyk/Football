@@ -13,20 +13,20 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.8" />
-    <link rel="icon" href="./icon.svg?v=1.7.8" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.9" />
+    <link rel="icon" href="./icon.svg?v=1.7.9" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v3.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.8" />
-    <link rel="stylesheet" href="./light.css?v=1.7.8" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.8" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.9" />
+    <link rel="stylesheet" href="./light.css?v=1.7.9" />
+    <link rel="stylesheet" href="./unplanned.css?v=1.7.9" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.8"></script>
-    <script defer src="./unplanned.js?v=1.7.8"></script>
-    <script defer src="./app.js?v=1.7.8"></script>
+    <script defer src="./loans.js?v=1.7.9"></script>
+    <script defer src="./unplanned.js?v=1.7.9"></script>
+    <script defer src="./app.js?v=1.7.9"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -37,7 +37,7 @@
           data-nav="overview"
           aria-label="Перейти в обзор"
         >
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.8" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.9" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
       </header>
       <main class="main app-main" id="appMain" tabindex="-1">
@@ -91,6 +91,7 @@
           </button>
           <div class="sectionhead">
             <h2 id="upcomingHeading">К оплате</h2>
+            <button class="textbtn" type="button" id="plannedHistoryButton">История</button>
             <button class="textbtn" type="button" data-nav="plans">
               <span id="overviewPlansLink">Все траты</span>
               <svg
@@ -650,6 +651,20 @@
           <button class="danger hidden" id="deleteExpenseButton" type="button">Удалить трату</button>
         </footer>
       </form>
+    </dialog>
+    <dialog class="sheet designed-sheet" id="plannedPaymentDialog" aria-labelledby="plannedPaymentTitle">
+      <form id="plannedPaymentForm" novalidate>
+        <header class="sheet-head"><div class="dialog-heading"><h2 id="plannedPaymentTitle" tabindex="-1">Внести оплату</h2><p id="plannedPaymentSubtitle"></p></div><button type="button" class="sheet-close" id="closePlannedPayment" aria-label="Закрыть">×</button></header>
+        <div class="dialog-body"><strong class="nums" id="plannedPaymentRemaining"></strong>
+          <div id="plannedPaymentEntry" class="planned-payment-entry"><label class="dialog-field" for="plannedPaymentAmount">Сумма, ₽<input id="plannedPaymentAmount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="plannedPaymentError plannedPaymentAfter" /></label><button type="button" class="textbtn" id="plannedPaymentAll">Весь остаток</button><label class="dialog-field" for="plannedPaymentDate">Дата оплаты<input type="date" id="plannedPaymentDate" /></label><p id="plannedPaymentAfter" aria-live="polite"></p></div>
+          <p class="form-error" id="plannedPaymentError" role="alert"></p>
+          <details class="planned-payment-history" open><summary>История оплат</summary><div id="plannedPaymentHistory"></div></details>
+        </div><footer class="dialog-footer"><button type="submit" class="primary" id="plannedPaymentSubmit">Учесть оплату</button></footer>
+      </form>
+    </dialog>
+    <dialog class="sheet designed-sheet" id="plannedHistoryDialog" aria-labelledby="plannedHistoryTitle">
+      <header class="sheet-head"><div class="dialog-heading"><h2 id="plannedHistoryTitle" tabindex="-1">История трат</h2><p id="plannedHistoryPeriod"></p></div><button type="button" class="sheet-close" id="closePlannedHistory" aria-label="Закрыть">×</button></header>
+      <div class="dialog-body" id="plannedHistoryList"></div>
     </dialog>
     <dialog class="sheet designed-sheet" id="budgetDialog" aria-labelledby="budgetDialogTitle">
       <form id="budgetForm" novalidate>

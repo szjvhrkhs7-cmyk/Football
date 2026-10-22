@@ -733,3 +733,63 @@ test('overview hides paid-month summary while keeping paid expenses and analytic
   assert.equal(a.$('analyticsCount').textContent, '1 трата');
   assert.match(a.$('analyticsPlanned').textContent, /1\s750/);
 });
+
+// Catches loss of partial amounts, duplicate submits and incorrect residual budget.
+test('partial planned payments persist after reload and reject invalid or duplicate submissions', async t => {
+  const a = await app(t);
+  a.click('[data-open-expense]'); a.$('expenseTitle').value='Аренда'; a.$('expenseAmount').value='10000'; a.submit('expenseForm');
+  assert.ok(a.w.document.querySelector('[data-pay-expense]'), 'planned row offers partial payment');
+  a.click('[data-pay-expense]'); a.$('plannedPaymentAmount').value='4000'; a.submit('plannedPaymentForm'); a.submit('plannedPaymentForm');
+  assert.equal(a.read().expenses[0].payments.filter(p=>!p.voided).length,1);
+  assert.match(a.$('upcomingList').textContent,/6\s000/);
+  assert.equal(a.read().unplannedExpenses.length,0);
+  const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+  assert.match(b.$('upcomingList').textContent,/4\s000/);
+  assert.match(b.$('availableAmount').textContent,/114\s000/);
+  b.click('[data-pay-expense]');
+  for(const amount of ['0','-1','6000.01','NaN']) { b.$('plannedPaymentAmount').value=amount; b.submit('plannedPaymentForm'); assert.equal(b.$('plannedPaymentDialog').open,true); assert.ok(b.$('plannedPaymentError').textContent); }
+  b.$('plannedPaymentAll').click(); b.submit('plannedPaymentForm');
+  assert.equal(b.read().expenses[0].status,'paid');
+  assert.equal(b.$('upcomingList').querySelector('[data-pay-expense]'),null);
+  b.click('[data-analytics-filter="paid"]');
+  assert.match(b.$('analyticsPlanned').textContent,/10\s000/);
+});
+
+// Catches losing history on cancellation or restoring payments without restoring the residual.
+test('planned history cancels and restores plans, and voids or restores individual payments',async t=>{
+  const a=await app(t);
+  a.click('[data-open-expense]');a.$('expenseTitle').value='Аренда';a.$('expenseAmount').value='10000';a.submit('expenseForm');
+  assert.ok(a.$('plannedHistoryButton'),'history is reachable from home');
+  a.click('[data-pay-expense]');a.$('plannedPaymentAmount').value='4000';a.submit('plannedPaymentForm');
+  a.$('plannedHistoryButton').click();a.click('[data-cancel-plan]');
+  assert.equal(a.read().expenses[0].cancelled,true); assert.equal(a.$('upcomingList').querySelector('[data-pay-expense]'),null);
+  a.click('[data-restore-plan]');assert.equal(a.read().expenses[0].cancelled,false);assert.match(a.$('upcomingList').textContent,/6\s000/);
+  a.click('[data-history-payments]'); a.click('[data-void-payment]');
+  assert.equal(a.read().expenses[0].payments[0].voided,true);assert.match(a.$('upcomingList').textContent,/10\s000/);
+  a.click('[data-restore-payment]'); assert.equal(a.read().expenses[0].payments[0].voided,false);assert.match(a.$('upcomingList').textContent,/6\s000/);
+});
+
+test('returning a paid plan keeps cancelled payments in history and legacy paid plans migrate once',async t=>{
+ const month=new Date().toISOString().slice(0,7);
+ const a=await app(t,JSON.stringify({expenses:[{id:'old-paid',title:'Старая оплата',amount:10000,date:`${month}-01`,status:'paid'}]}));
+ a.$('plannedHistoryButton').click();a.click('[data-return-plan]');
+ assert.equal(a.read().expenses[0].status,'planned');assert.equal(a.read().expenses[0].payments.length,1);
+ assert.equal(a.read().expenses[0].payments[0].voided,true);
+ assert.match(a.$('upcomingList').textContent,/10\s000/);
+ a.click('[data-history-payments]');a.click('[data-restore-payment]');
+ assert.equal(a.read().expenses[0].status,'paid');
+ const b=await app(t,a.w.localStorage.getItem('pulse-finance-v1'));
+ b.$('plannedHistoryButton').click();b.click('[data-history-payments]');
+ assert.equal(b.$('plannedPaymentHistory').querySelectorAll('[data-void-payment]').length,1);
+});
+
+test('paid analytics uses the payment date, partial edits preserve payments and budget preview uses the residual',async t=>{
+ const a=await app(t);
+ a.click('[data-open-expense]');a.$('expenseTitle').value='<img src=x onerror=alert(1)>';a.$('expenseAmount').value='10000';a.submit('expenseForm');
+ a.click('[data-pay-expense]');a.$('plannedPaymentAmount').value='4000';a.$('plannedPaymentDate').value='2020-01-01';a.submit('plannedPaymentForm');
+ a.click('[data-analytics-filter="paid"]'); assert.equal(a.$('analyticsPlanned').textContent,'0 ₽');
+ a.click('#upcomingList [data-expense-id]');a.$('expenseTitle').value='Новое имя';a.submit('expenseForm');
+ assert.equal(a.read().expenses[0].payments[0].amount,4000);
+ assert.match(a.$('budgetPlannedAmount').textContent,/6\s000/);
+ a.$('plannedHistoryButton').click();assert.equal(a.$('plannedHistoryList').querySelector('img'),null);
+});

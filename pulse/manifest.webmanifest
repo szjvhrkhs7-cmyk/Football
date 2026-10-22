@@ -10,7 +10,7 @@
   "theme_color": "#fafafc",
   "icons": [
     {
-      "src": "./icon.svg?v=1.7.8",
+      "src": "./icon.svg?v=1.7.9",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

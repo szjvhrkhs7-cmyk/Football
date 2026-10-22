@@ -128,11 +128,15 @@
             amount: Math.max(0, Number(item.amount) || 0),
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
+            ...(Array.isArray(item.payments) ? { payments: item.payments } : {}),
+            cancelled: item.cancelled === true,
             ...(typeof item.mandatoryPaymentId === 'string' ? { mandatoryPaymentId: item.mandatoryPaymentId } : {}),
             createdAt: item.createdAt || fallbackRecordTime,
             updatedAt: item.updatedAt || fallbackRecordTime
           }))
       : [];
+
+    expenses.forEach(expense => { expense.payments = normalizeExpensePayments(expense); refreshExpenseStatus(expense); });
 
     const mandatoryPayments = Array.isArray(candidate.mandatoryPayments)
       ? candidate.mandatoryPayments
@@ -166,6 +170,33 @@
       mandatoryPayments,
       loans: window.PulseLoans.normalize(candidate.loans)
     };
+  }
+
+  function moneyCents(value) {
+    return Number.isFinite(Number(value)) ? Math.max(0, Math.round(Number(value) * 100)) : 0;
+  }
+  function expensePayments(expense) {
+    if (Array.isArray(expense.payments)) return expense.payments;
+    return expense.status === 'paid' && moneyCents(expense.amount) > 0
+      ? [{ id: `legacy_${expense.id}`, amount: moneyCents(expense.amount) / 100, date: expense.date,
+          createdAt: expense.createdAt, updatedAt: expense.updatedAt, voided: false }] : [];
+  }
+  function paidAmount(expense) {
+    return expensePayments(expense).filter(item => !item.voided).reduce((sum, item) => sum + moneyCents(item.amount), 0) / 100;
+  }
+  function remainingAmount(expense) {
+    return Math.max(0, moneyCents(expense.amount) - moneyCents(paidAmount(expense))) / 100;
+  }
+  function refreshExpenseStatus(expense) {
+    expense.status = remainingAmount(expense) === 0 && moneyCents(expense.amount) > 0 ? 'paid' : 'planned';
+  }
+  function normalizeExpensePayments(expense) {
+    const seen = new Set();
+    return expensePayments(expense).filter(item => item && typeof item.id === 'string' && !seen.has(item.id) && seen.add(item.id)
+      && Number.isFinite(Number(item.amount)) && moneyCents(item.amount) > 0 && Number(item.amount) <= 1e12)
+      .map(item => ({ id: item.id, amount: moneyCents(item.amount) / 100,
+        date: isDateKey(item.date) ? item.date : expense.date, voided: item.voided === true,
+        createdAt: item.createdAt || expense.createdAt, updatedAt: item.updatedAt || expense.updatedAt }));
   }
 
   function loadState() {
@@ -274,12 +305,12 @@
 
   function expensesForMonth(monthKey = selectedMonth) {
     return state.expenses
-      .filter(expense => expense.date.startsWith(monthKey))
+      .filter(expense => !expense.cancelled && expense.date.startsWith(monthKey))
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
   }
 
   function plannedExpensesForOverview(expenses) {
-    return expenses.filter(expense => expense.status !== 'paid');
+    return expenses.filter(expense => !expense.cancelled && expense.status !== 'paid');
   }
 
   function paymentWord(count) {
@@ -347,12 +378,14 @@
     $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
     renderOverview(); renderPlans(); renderAnalytics(); renderMandatoryPayments(); renderLoans();
     renderSettings(); renderCategoryPicker(); renderUnplanned(); renderUnplannedAnalytics(); updateCloudUi(); updateDock();
+    renderPlannedHistory();
+    if ($('plannedPaymentDialog').open) renderPlannedPayment();
   }
 
   function renderOverview() {
     const monthlyExpenses = expensesForMonth();
     const pending = plannedExpensesForOverview(monthlyExpenses);
-    const unpaidTotal = pending.reduce((sum, expense) => sum + expense.amount, 0);
+    const unpaidTotal = pending.reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = budgetForMonth();
     const available = budget - unpaidTotal;
     $('availableAmount').textContent = formatMoney(available, true);
@@ -647,8 +680,8 @@
       button.setAttribute('aria-pressed', String(active));
     });
     const monthlyExpenses = expensesForMonth();
-    const filtered = activeFilter === 'all' ? monthlyExpenses : monthlyExpenses.filter(expense => expense.status === activeFilter);
-    $('plansTotal').textContent = formatMoney(filtered.reduce((sum, expense) => sum + expense.amount, 0));
+    const filtered = activeFilter === 'all' ? monthlyExpenses : monthlyExpenses.filter(expense => activeFilter === 'paid' ? paidAmount(expense) > 0 : expense.status !== 'paid');
+    $('plansTotal').textContent = formatMoney(filtered.reduce((sum, expense) => sum + (activeFilter === 'paid' ? paidAmount(expense) : activeFilter === 'planned' ? remainingAmount(expense) : expense.amount), 0));
     $('plansCount').textContent = `${filtered.length} ${expenseWord(filtered.length)}`;
     $('plansTotalLabel').textContent = { planned: 'Предстоит оплатить', paid: 'Уже оплачено', all: 'Все траты в плане' }[activeFilter];
     $('plansPeriod').textContent = monthLabel(selectedMonth);
@@ -664,20 +697,28 @@
     }
     container.innerHTML = list.map(expense => {
       const category = categoryById(expense.categoryId), visual = categoryVisual(category), paid = expense.status === 'paid';
-      return `<div class="expense expense-row">
+      return `<div class="planned-expense"><div class="expense expense-row">
         ${container.id === 'upcomingList' ? `<span class="expense-date" aria-hidden="true"><strong>${Number(expense.date.slice(8))}</strong><small>${MONTHS[Number(expense.date.slice(5,7)) - 1].slice(0,3)}</small></span>` : ''}
         <span class="categoryicon category-icon" style="background:${escapeAttr(visual.soft)};color:${escapeAttr(visual.color)}">${visual.markup}</span>
         <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small>${escapeHtml(category.name)} · ${escapeHtml(formatDate(expense.date))}</small></button>
         <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
-        <button class="check ${paid ? 'done' : ''}" type="button" data-complete-expense="${escapeAttr(expense.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Вернуть в план: ' : 'Отметить оплату: '}${escapeAttr(expense.title)}">${icon('check')}</button>
-      </div>`;
+        <button class="check ${paid ? 'done' : ''}" type="button" data-complete-expense="${escapeAttr(expense.id)}" aria-pressed="${paid}" aria-label="${paid ? 'Вернуть в план: ' : 'Оплатить весь остаток: '}${escapeAttr(expense.title)}">${icon('check')}</button>
+      </div><div class="planned-progress-row">
+        <div class="planned-progress-copy"><span>${paid ? 'Оплачено' : paidAmount(expense) > 0 ? 'Частично оплачено' : 'Осталось'} <b class="nums">${escapeHtml(formatMoney(paidAmount(expense) > 0 ? paidAmount(expense) : remainingAmount(expense)))}</b></span>
+        ${paidAmount(expense) > 0 && !paid ? `<span>Осталось <b class="nums">${escapeHtml(formatMoney(remainingAmount(expense)))}</b></span>` : ''}
+        <progress max="${Math.max(1, moneyCents(expense.amount))}" value="${Math.min(moneyCents(expense.amount), moneyCents(paidAmount(expense)))}" aria-label="Оплачено: ${escapeAttr(formatMoney(paidAmount(expense)))} из ${escapeAttr(formatMoney(expense.amount))}"></progress></div>
+        <button type="button" class="planned-pay-button" data-pay-expense="${escapeAttr(expense.id)}">${paid ? 'Оплаты' : 'Внести'}</button>
+      </div></div>`;
     }).join('');
+    container.querySelectorAll('[data-pay-expense]').forEach(button => button.addEventListener('click', () => openPlannedPayment(button.dataset.payExpense)));
     container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));
     container.querySelectorAll('[data-complete-expense]').forEach(button => button.addEventListener('click', () => completeExpense(button.dataset.completeExpense)));
   }
 
   function renderAnalytics() {
-    const items = expensesForMonth().filter(expense => analyticsFilter === 'all' || expense.status === 'paid');
+    const items = analyticsFilter === 'all' ? expensesForMonth() : state.expenses.flatMap(expense =>
+      expensePayments(expense).filter(payment => !payment.voided && payment.date.startsWith(selectedMonth))
+        .map(payment => ({ ...expense, amount: payment.amount, date: payment.date })));
     const total = items.reduce((sum, expense) => sum + expense.amount, 0), budget = budgetForMonth();
     $('analyticsTotalLabel').textContent = analyticsFilter === 'paid' ? 'Оплачено' : 'Все траты';
     $('analyticsPlanned').textContent = formatMoney(total);
@@ -841,7 +882,7 @@ function renderUnplannedAnalytics(){
 }
 
   function renderBudgetPreview() {
-    const planned = plannedExpensesForOverview(expensesForMonth()).reduce((sum, expense) => sum + expense.amount, 0);
+    const planned = plannedExpensesForOverview(expensesForMonth()).reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = Number($('budgetInput').value);
     $('budgetPlannedAmount').textContent = formatMoney(planned);
     $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney(budget - planned);
@@ -941,8 +982,14 @@ function renderUnplannedAnalytics(){
       $('expenseError').textContent = 'Этот регулярный платеж уже есть в выбранном месяце.';
       return;
     }
+    if (existing && moneyCents(amount) < moneyCents(paidAmount(existing))) {
+      $('expenseError').textContent = 'Сумма плана меньше уже внесённой. Сначала отмени нужные оплаты в истории.';
+      return;
+    }
     const timestamp = new Date().toISOString();
     if (existing) {
+      const wasPaid = existing.status === 'paid';
+      existing.payments = expensePayments(existing).map(item => ({ ...item }));
       Object.assign(existing, {
         title,
         amount,
@@ -951,6 +998,11 @@ function renderUnplannedAnalytics(){
         status: $('expensePaid').checked ? 'paid' : 'planned',
         updatedAt: timestamp
       });
+      if ($('expensePaid').checked) {
+        const remainder = remainingAmount(existing);
+        if (remainder > 0) existing.payments.push(newPlannedPayment(remainder, date));
+      } else if (wasPaid) existing.payments = existing.payments.map(item => ({ ...item, voided: true, updatedAt: timestamp }));
+      refreshExpenseStatus(existing);
     } else {
       state.expenses.push({
         id: makeId('expense'),
@@ -976,20 +1028,122 @@ function renderUnplannedAnalytics(){
     showToast(existing ? 'Трата обновлена' : 'Трата добавлена');
   }
 
+  function newPlannedPayment(amount, date) {
+    const timestamp = new Date().toISOString();
+    return { id: makeId('plannedpay'), amount: moneyCents(amount) / 100, date, createdAt: timestamp, updatedAt: timestamp, voided: false };
+  }
   function completeExpense(id) {
+    const expense = state.expenses.find(item => item.id === id && !item.cancelled);
+    if (!expense) return;
+    const previous = { ...expense, payments: expensePayments(expense).map(item => ({ ...item })) };
+    const wasPaid = remainingAmount(expense) === 0;
+    expense.payments = expensePayments(expense).map(item => ({ ...item }));
+    const timestamp = new Date().toISOString();
+    let added;
+    if (wasPaid) expense.payments.forEach(item => { if (!item.voided) { item.voided = true; item.updatedAt = timestamp; } });
+    else { added = newPlannedPayment(remainingAmount(expense), toDateKey(new Date())); expense.payments.push(added); }
+    expense.updatedAt = timestamp;
+    refreshExpenseStatus(expense);
+    if (!persistState()) { Object.assign(expense, previous); return; }
+    showToast(wasPaid ? 'Трата возвращена в план' : 'Отмечено как оплаченное', () => {
+      const current = state.expenses.find(item => item.id === id);
+      if (!current) return;
+      const undoBefore = { ...current };
+      const changedIds = wasPaid ? previous.payments.filter(item => !item.voided).map(item => item.id) : [added.id];
+      current.payments = expensePayments(current).map(item => changedIds.includes(item.id)
+        ? { ...item, voided: !wasPaid, updatedAt: new Date().toISOString() } : item);
+      current.updatedAt = new Date().toISOString(); refreshExpenseStatus(current);
+      if (!persistState()) Object.assign(current, undoBefore);
+    });
+  }
+
+  let plannedPaymentExpenseId = '', plannedPaymentSubmitted = false;
+  function openPlannedPayment(id) {
+    const expense = state.expenses.find(item => item.id === id);
+    if (!expense) return showToast('Трата удалена');
+    plannedPaymentExpenseId = id; plannedPaymentSubmitted = false;
+    $('plannedPaymentAmount').value = '';
+    $('plannedPaymentDate').value = toDateKey(new Date());
+    $('plannedPaymentError').textContent = '';
+    renderPlannedPayment(); showSheet($('plannedPaymentDialog'));
+    $('plannedPaymentTitle').focus({ preventScroll: true });
+  }
+  function renderPlannedPayment() {
+    const expense = state.expenses.find(item => item.id === plannedPaymentExpenseId);
+    if (!expense) return;
+    const remaining = expense.cancelled ? 0 : remainingAmount(expense);
+    $('plannedPaymentSubtitle').textContent = `${expense.title} · ${monthLabel(expense.date.slice(0, 7))}`;
+    $('plannedPaymentRemaining').textContent = expense.cancelled ? 'Трата отменена' : paidAmount(expense) > expense.amount ? `Внесено сверх плана ${formatMoney(paidAmount(expense) - expense.amount)}. Проверь историю оплат.` : `Осталось ${formatMoney(remaining)}`;
+    $('plannedPaymentAmount').max = String(remaining);
+    $('plannedPaymentEntry').classList.toggle('hidden', remaining === 0);
+    $('plannedPaymentSubmit').classList.toggle('hidden', remaining === 0);
+    $('plannedPaymentSubmit').disabled = plannedPaymentSubmitted;
+    const entered = Number($('plannedPaymentAmount').value.replace(',', '.'));
+    $('plannedPaymentAfter').textContent = entered > 0 && entered <= remaining ? `После внесения останется ${formatMoney(Math.max(0, moneyCents(remaining) - moneyCents(entered)) / 100)}` : '';
+    $('plannedPaymentHistory').innerHTML = expensePayments(expense).slice().sort((a,b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).map(payment =>
+      `<div class="planned-history-payment"><span><strong class="nums">${escapeHtml(formatMoney(payment.amount))}</strong><small>${escapeHtml(formatDate(payment.date))} · ${payment.voided ? 'Отменена' : 'Учтена'}</small></span><button type="button" class="textbtn" data-${payment.voided ? 'restore' : 'void'}-payment="${escapeAttr(payment.id)}">${payment.voided ? 'Восстановить' : 'Отменить'}</button></div>`
+    ).join('') || '<p class="note">Внесений пока нет.</p>';
+  }
+  function savePlannedPayment(event) {
+    event.preventDefault();
+    if (plannedPaymentSubmitted || !$('plannedPaymentDialog').open) return;
+    const expense = state.expenses.find(item => item.id === plannedPaymentExpenseId && !item.cancelled);
+    const raw = $('plannedPaymentAmount').value.trim().replace(',', '.');
+    const amount = Number(raw), date = $('plannedPaymentDate').value;
+    if (!expense || !Number.isFinite(amount) || amount <= 0 || !/^\d+(?:\.\d{1,2})?$/.test(raw)
+      || moneyCents(amount) > moneyCents(remainingAmount(expense)) || !isDateKey(date)) {
+      $('plannedPaymentError').textContent = 'Укажи сумму больше нуля, не выше остатка, и корректную дату.';
+      return;
+    }
+    const before = { ...expense };
+    const payment = newPlannedPayment(amount, date);
+    expense.payments = [...expensePayments(expense), payment]; expense.updatedAt = payment.updatedAt; refreshExpenseStatus(expense);
+    plannedPaymentSubmitted = true;
+    if (!persistState()) { Object.assign(expense, before); plannedPaymentSubmitted = false; $('plannedPaymentError').textContent = 'Не удалось сохранить оплату. Попробуй ещё раз.'; return; }
+    closeSheet($('plannedPaymentDialog'));
+    showToast(`Учтено ${formatMoney(amount)}`);
+  }
+  function changePlannedPayment(id, restore) {
+    const expense = state.expenses.find(item => item.id === plannedPaymentExpenseId);
+    const payment = expense && expensePayments(expense).find(item => item.id === id);
+    if (!payment || payment.voided === !restore) return;
+    if (restore && (expense.cancelled || moneyCents(payment.amount) > moneyCents(remainingAmount(expense)))) {
+      $('plannedPaymentError').textContent = 'Сначала восстанови трату или освободи остаток: эта оплата превышает остаток плана.'; return;
+    }
+    const before = { ...expense }, timestamp = new Date().toISOString();
+    expense.payments = expensePayments(expense).map(item => item.id === id ? { ...item, voided: !restore, updatedAt: timestamp } : item);
+    expense.updatedAt = timestamp; refreshExpenseStatus(expense);
+    if (!persistState()) { Object.assign(expense, before); return; }
+    $('plannedPaymentError').textContent = ''; showToast(restore ? 'Оплата восстановлена' : 'Оплата отменена');
+  }
+  function renderPlannedHistory() {
+    $('plannedHistoryPeriod').textContent = monthLabel(selectedMonth);
+    const expenses = state.expenses.filter(item => item.date.startsWith(selectedMonth)).slice().sort((a,b) => b.date.localeCompare(a.date));
+    $('plannedHistoryList').innerHTML = expenses.map(expense => {
+      const paid = paidAmount(expense), remaining = remainingAmount(expense);
+      return `<article class="planned-history-item"><div><strong>${escapeHtml(expense.title)}</strong><strong class="nums">${escapeHtml(formatMoney(expense.amount))}</strong></div><p>${escapeHtml(formatDate(expense.date))} · ${expense.cancelled ? 'Отменена' : remaining === 0 ? 'Оплачена' : paid > 0 ? 'Частично оплачена' : 'В плане'}</p><p>Внесено ${escapeHtml(formatMoney(paid))} · Осталось ${escapeHtml(formatMoney(remaining))}</p><div class="planned-history-actions">
+      ${expense.cancelled ? `<button type="button" class="textbtn" data-history-payments="${escapeAttr(expense.id)}">Оплаты</button><button type="button" class="textbtn" data-restore-plan="${escapeAttr(expense.id)}">Восстановить</button>` : `<button type="button" class="textbtn" data-history-payments="${escapeAttr(expense.id)}">Оплаты</button>${paid > 0 ? `<button type="button" class="textbtn" data-return-plan="${escapeAttr(expense.id)}">Вернуть в план</button>` : ''}<button type="button" class="textbtn" data-cancel-plan="${escapeAttr(expense.id)}">Отменить трату</button>`}
+      </div></article>`;
+    }).join('') || '<p class="note">За этот месяц запланированных трат пока нет.</p>';
+  }
+  function changePlannedExpense(id, action) {
     const expense = state.expenses.find(item => item.id === id);
     if (!expense) return;
-    const previousStatus = expense.status, previousUpdatedAt = expense.updatedAt;
-    expense.status = expense.status === 'paid' ? 'planned' : 'paid';
-    const expectedUpdatedAt = expense.updatedAt = new Date().toISOString(), expectedStatus = expense.status;
-    if (!persistState()) { expense.status = previousStatus; expense.updatedAt = previousUpdatedAt; return; }
-    showToast(expense.status === 'paid' ? 'Отмечено как оплаченное' : 'Трата возвращена в план', () => {
-      const current = state.expenses.find(item => item.id === id);
-      if (!current || current.updatedAt !== expectedUpdatedAt || current.status !== expectedStatus) return showToast('Трата уже изменена');
-      current.status = previousStatus;
-      current.updatedAt = new Date().toISOString();
-      if (!persistState()) { current.status = expectedStatus; current.updatedAt = expectedUpdatedAt; }
-    });
+    if (action === 'payments') return openPlannedPayment(id);
+    if (action === 'return') {
+      if (!window.confirm('Отменить все внесения и вернуть полную сумму в план? История оплат сохранится.')) return;
+      const before = { ...expense }, timestamp = new Date().toISOString();
+      expense.payments = expensePayments(expense).map(item => ({ ...item, voided: true, updatedAt: item.voided ? item.updatedAt : timestamp }));
+      expense.updatedAt = timestamp; refreshExpenseStatus(expense);
+      if (!persistState()) Object.assign(expense, before);
+      else showToast('Трата возвращена в план');
+      return;
+    }
+    if (action === 'cancel' && !window.confirm('Отменить оставшуюся часть плана? Уже внесённые оплаты сохранятся в истории и аналитике.')) return;
+    const before = { ...expense };
+    expense.cancelled = action === 'cancel'; expense.updatedAt = new Date().toISOString();
+    if (!persistState()) Object.assign(expense, before);
+    else showToast(expense.cancelled ? 'Трата отменена' : 'Трата восстановлена');
   }
 
   function deleteExpense() {
@@ -1446,7 +1600,14 @@ function renderUnplannedAnalytics(){
         budgets: mergeCloudMap(previous.settings?.budgets, local.settings.budgets, remote.settings.budgets, localTime, remoteTime),
         categories: mergeCloudList(previous.settings?.categories, local.settings.categories, remote.settings.categories, localTime, remoteTime)
       },
-      expenses: mergeCloudList(previous.expenses, local.expenses, remote.expenses, localTime, remoteTime),
+      expenses: mergeCloudList(previous.expenses, local.expenses, remote.expenses, localTime, remoteTime).map(expense => {
+        const baseExpense = previous.expenses.find(item => item.id === expense.id);
+        const localExpense = local.expenses.find(item => item.id === expense.id);
+        const remoteExpense = remote.expenses.find(item => item.id === expense.id);
+        if (!localExpense || !remoteExpense) return expense;
+        const payments = mergeCloudList(baseExpense ? expensePayments(baseExpense) : [], expensePayments(localExpense), expensePayments(remoteExpense), localTime, remoteTime);
+        return { ...expense, payments, cancelled: chooseCloudItem(baseExpense?.cancelled, localExpense.cancelled, remoteExpense.cancelled, localExpense.updatedAt || localTime, remoteExpense.updatedAt || remoteTime) };
+      }),
       unplannedExpenses: mergeCloudList(previous.unplannedExpenses, local.unplannedExpenses, remote.unplannedExpenses, localTime, remoteTime),
       mandatoryPayments: mergeCloudList(previous.mandatoryPayments, local.mandatoryPayments, remote.mandatoryPayments, localTime, remoteTime),
       loans: mergeCloudList(previous.loans, local.loans, remote.loans, localTime, remoteTime)
@@ -1610,6 +1771,27 @@ function renderUnplannedAnalytics(){
 
   function bindEvents() {
     bindVisualViewport();
+    $('plannedHistoryButton').addEventListener('click', () => { renderPlannedHistory(); showSheet($('plannedHistoryDialog')); });
+    $('closePlannedHistory').addEventListener('click', () => closeSheet($('plannedHistoryDialog')));
+    $('closePlannedPayment').addEventListener('click', () => closeSheet($('plannedPaymentDialog')));
+    $('plannedPaymentForm').addEventListener('submit', savePlannedPayment);
+    $('plannedPaymentAmount').addEventListener('input', renderPlannedPayment);
+    $('plannedPaymentAll').addEventListener('click', () => {
+      const expense = state.expenses.find(item => item.id === plannedPaymentExpenseId && !item.cancelled);
+      if (expense) { $('plannedPaymentAmount').value = remainingAmount(expense); renderPlannedPayment(); }
+    });
+    $('plannedPaymentHistory').addEventListener('click', event => {
+      const button = event.target.closest('[data-void-payment], [data-restore-payment]');
+      if (button) changePlannedPayment(button.dataset.voidPayment || button.dataset.restorePayment, button.hasAttribute('data-restore-payment'));
+    });
+    $('plannedHistoryList').addEventListener('click', event => {
+      const button = event.target.closest('[data-history-payments], [data-cancel-plan], [data-restore-plan], [data-return-plan]');
+      if (!button) return;
+      if (button.hasAttribute('data-history-payments')) changePlannedExpense(button.dataset.historyPayments, 'payments');
+      else if (button.hasAttribute('data-cancel-plan')) changePlannedExpense(button.dataset.cancelPlan, 'cancel');
+      else if (button.hasAttribute('data-restore-plan')) changePlannedExpense(button.dataset.restorePlan, 'restore');
+      else changePlannedExpense(button.dataset.returnPlan, 'return');
+    });
     qsa('dialog').forEach(dialog => {
       dialog.addEventListener('cancel', event => { event.preventDefault(); closeSheet(dialog); });
       dialog.addEventListener('submit', event => {

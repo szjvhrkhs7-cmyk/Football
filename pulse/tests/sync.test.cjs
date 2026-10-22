@@ -302,3 +302,32 @@ test('two accounts on the same browser retain separate local budgets', () => {
   f.api.leaveAccount();
   assert.equal(f.api.state().settings.defaultBudget,120000);
 });
+
+test('simultaneous partial payments on the same plan survive retries and repeated sync', async()=>{
+ const cloud=sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},expenses:[{id:'rent',title:'Rent',amount:10000,date:'2026-10-22',status:'planned'}]});
+ const left=fixture(),right=fixture();left.api.connect(cloud.client());right.api.connect(cloud.client());
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ const timestamp='2026-10-22T10:00:00Z';
+ left.api.state().expenses[0].payments.push({id:'a',amount:4000,date:'2026-10-22',updatedAt:timestamp,createdAt:timestamp,voided:false});
+ right.api.state().expenses[0].payments.push({id:'b',amount:3000,date:'2026-10-22',updatedAt:timestamp,createdAt:timestamp,voided:false});
+ left.api.persistState();right.api.persistState();
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ const expense=cloud.snapshot().payload.expenses[0];
+ assert.deepEqual(expense.payments.map(p=>p.id).sort(),['a','b']);
+ assert.equal(expense.payments.reduce((sum,p)=>sum+p.amount,0),7000);
+ assert.equal(expense.status,'planned');
+});
+
+test('plan cancellation survives a later independent payment on the other device',async()=>{
+ const cloud=sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},expenses:[{id:'rent',title:'Rent',amount:10000,date:'2026-10-22',status:'planned'}]});
+ const left=fixture(),right=fixture();left.api.connect(cloud.client());right.api.connect(cloud.client());
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ left.api.state().expenses[0].cancelled=true;left.api.state().expenses[0].updatedAt='2026-10-22T10:00:00Z';
+ right.api.state().expenses[0].payments.push({id:'b',amount:3000,date:'2026-10-22',updatedAt:'2026-10-22T11:00:00Z',createdAt:'2026-10-22T11:00:00Z',voided:false});
+ right.api.state().expenses[0].updatedAt='2026-10-22T11:00:00Z';
+ left.api.persistState();right.api.persistState();
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ const expense=cloud.snapshot().payload.expenses[0];
+ assert.equal(expense.cancelled,true);assert.equal(expense.payments.length,1);assert.equal(expense.payments[0].amount,3000);
+});

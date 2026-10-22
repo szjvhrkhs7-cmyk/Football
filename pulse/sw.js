@@ -1,5 +1,5 @@
-const CACHE = 'pulse-v1.7.8';
-const APP_SHELL = ['./', './index.html', './styles.css?v=1.7.8', './light.css?v=1.7.8', './unplanned.css?v=1.7.8', './unplanned.js?v=1.7.8', './app.js?v=1.7.8', './loans.js?v=1.7.8', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.7.8', './icon.svg?v=1.7.8', './logo-mark.svg?v=1.7.8', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
+const CACHE = 'pulse-v1.7.9';
+const APP_SHELL = ['./', './index.html', './styles.css?v=1.7.9', './light.css?v=1.7.9', './unplanned.css?v=1.7.9', './unplanned.js?v=1.7.9', './app.js?v=1.7.9', './loans.js?v=1.7.9', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.7.9', './icon.svg?v=1.7.9', './logo-mark.svg?v=1.7.9', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
