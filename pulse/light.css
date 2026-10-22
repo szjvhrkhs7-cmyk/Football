@@ -11,8 +11,8 @@ svg{width:20px;height:20px;stroke-width:1.7}
 .app.app-shell{max-width:460px;background:var(--bg);min-height:100dvh;box-shadow:none;overflow:clip}
 .topbar{padding: max(20px,env(safe-area-inset-top)) 20px 12px;align-items:center}
 .brand{gap:8px;font-size:19px;font-weight:700;letter-spacing:-.5px;min-height:44px}
-.brandmark{width:30px;height:30px;border-radius:50%;background:#f05036;color:white;box-shadow:inset 0 0 0 7px #f05036}
-.brandmark svg{width:19px;height:19px}
+.brandmark{width:38px;height:38px;border-radius:12px;background:#faf8f4;color:#ff573f;border:1px solid #eeebe5;box-shadow:none;flex:none}
+.brandmark img{display:block;width:29px;height:auto}
 .avatar{width:44px;height:44px;background:#ececf1;font-size:15px}
 .main.app-main{padding:8px 20px calc(112px + env(safe-area-inset-bottom));outline:none}
 .heading{min-height:48px;gap:8px;margin:0 0 12px}

@@ -8,8 +8,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifes
 const worker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
 test('iPhone and PWA icons are opaque PNGs at their declared sizes', () => {
-  assert.match(html, /rel="apple-touch-icon"\s+sizes="180x180"\s+href="\.\/apple-touch-icon-v2\.png"/);
-  const icons = [{ src: './apple-touch-icon-v2.png', sizes: '180x180' }, ...manifest.icons.filter(icon => icon.type === 'image/png')];
+  assert.match(html, /rel="apple-touch-icon"\s+sizes="180x180"\s+href="\.\/apple-touch-icon-v3\.png"/);
+  const icons = [{ src: './apple-touch-icon-v3.png', sizes: '180x180' }, ...manifest.icons.filter(icon => icon.type === 'image/png')];
   assert.equal(icons.length, 3);
   for (const icon of icons) {
     const png = fs.readFileSync(path.join(root, icon.src));
@@ -20,9 +20,14 @@ test('iPhone and PWA icons are opaque PNGs at their declared sizes', () => {
   }
 });
 
-test('header uses the prototype waveform while installed app icons stay cached', () => {
+test('header and installed icons use the approved light Impulse identity', () => {
   assert.match(html, /class="brandmark"/);
-  assert.match(html, /M2 12h5l3-7 4 14 3-7h5/);
+  assert.match(html, /src="\.\/logo-mark\.svg\?v=[0-9.]+"/);
+  const logo = fs.readFileSync(path.join(root, 'logo-mark.svg'), 'utf8');
+  const icon = fs.readFileSync(path.join(root, 'icon.svg'), 'utf8');
+  assert.match(logo, /fill="#ff573f"/);
+  assert.match(icon, /fill="#faf8f4"/);
+  assert.ok(worker.includes("'./logo-mark.svg?v=1.7.5'"));
   for (const icon of manifest.icons) {
     assert.ok(fs.existsSync(path.join(root, icon.src.split('?')[0])));
     assert.ok(worker.includes(`'${icon.src}'`));
