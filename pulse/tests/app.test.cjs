@@ -713,3 +713,23 @@ test('a planned category can be created on overview and its emoji selected from 
   assert.equal(a.read().settings.categories.at(-1).emoji,'👨‍👩‍👧');
   assert.equal(a.read().expenses.length,0);
 });
+
+
+test('overview hides paid-month summary while keeping paid expenses and analytics', async t => {
+  const a = await app(t);
+  assert.equal(a.$('overviewPaidSummary'), null);
+  assert.equal(a.w.document.querySelector('[data-screen="overview"]').textContent.includes('Оплачено в этом месяце'), false);
+
+  a.click('[data-open-expense]');
+  a.$('expenseTitle').value = 'Оплаченный расход';
+  a.$('expenseAmount').value = '1750';
+  a.$('expensePaid').checked = true;
+  a.submit('expenseForm');
+  assert.equal(a.read().expenses.length, 1);
+  assert.equal(a.read().expenses[0].status, 'paid');
+  assert.equal(a.$('overviewPaidSummary'), null);
+  assert.equal(a.w.document.querySelector('[data-screen="overview"]').textContent.includes('Оплачено в этом месяце'), false);
+  a.click('[data-analytics-filter="paid"]');
+  assert.equal(a.$('analyticsCount').textContent, '1 трата');
+  assert.match(a.$('analyticsPlanned').textContent, /1\s750/);
+});
