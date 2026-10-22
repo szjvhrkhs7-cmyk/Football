@@ -44,3 +44,24 @@ test('summary and chart periods calculate totals independently and without dupli
  assert.equal(U.timeline(chosen,'month')[0].amount,500);
  assert.equal(U.summary([],categories).average,0);
 });
+
+
+test('shows only the 10 newest monthly operations and preserves older operations and full totals',()=>{
+  const operations=Array.from({length:14},(_,i)=>({
+    id:'expense-'+i,amount:100+i,categoryId:'food',
+    date:'2026-10-'+String(i+1).padStart(2,'0'),
+    createdAt:'2026-10-'+String(i+1).padStart(2,'0')+'T12:00:00Z'
+  }));
+  operations.push({id:'other-month',amount:999,categoryId:'food',date:'2026-11-01',createdAt:'2026-11-01T12:00:00Z'});
+  const filtered=U.filter(operations,U.periodBounds('month','2026-10'));
+  const {recent,older}=U.splitRecent(filtered);
+  assert.equal(recent.length,10);
+  assert.equal(older.length,4);
+  assert.equal(recent[0].id,'expense-13');
+  assert.equal(recent[9].id,'expense-4');
+  assert.equal(older[0].id,'expense-3');
+  assert.deepEqual([...recent,...older],filtered);
+  assert.equal(U.summary(filtered,categories).count,14);
+  assert.equal(U.splitRecent(filtered.slice(0,7)).older.length,0);
+  assert.equal(U.splitRecent(filtered,0).recent.length,0);
+});
