@@ -110,7 +110,7 @@
       ? settings.categories.map((item, index) => ({
           id: String(item.id || makeId('cat')),
           name: String(item.name || `Категория ${index + 1}`).slice(0, 28),
-          emoji: String(item.emoji || '•').slice(0, 4),
+          emoji: String(item.emoji || '•').slice(0, 32),
           color: item.color || PALETTE[index % PALETTE.length],
           soft: item.soft || SOFT_PALETTE[index % SOFT_PALETTE.length],
           enabled: item.enabled !== false
@@ -719,6 +719,15 @@ function unplannedEntries(which,category='all'){
   return Unplanned.filter(state.unplannedExpenses,unplannedScope(which),category);
 }
 
+function unplannedRowMarkup(item){
+  const category=categoryById(item.categoryId);
+  return `<button type="button" class="unplanned-operation" data-edit-unplanned="${escapeAttr(item.id)}" aria-label="Изменить незапланированную трату: ${escapeAttr(category.name)}, ${escapeAttr(formatMoney(item.amount))}">
+      <span class="unplanned-operation-date">${escapeHtml(formatDate(item.date))}<small>${escapeHtml(item.date.slice(0,4))}</small></span>
+      <span class="unplanned-operation-info"><strong>${escapeHtml(category.name)}</strong>${item.comment?`<small>${escapeHtml(item.comment)}</small>`:''}</span>
+      <strong class="unplanned-operation-amount nums">${escapeHtml(formatMoney(item.amount))}</strong>
+    </button>`;
+}
+
 function renderUnplanned(){
   const categoryInput=$('unplannedFilterCategory');
   const categories=state.settings.categories;
@@ -727,16 +736,15 @@ function renderUnplanned(){
   categoryInput.value=unplannedCategoryFilter;
   const items=unplannedEntries('list',unplannedCategoryFilter);
   const stats=Unplanned.summary(items,categories);
+  const {recent,older}=Unplanned.splitRecent(items,10);
   $('unplannedTotal').textContent=formatMoney(stats.total);
   $('unplannedTotalCount').textContent=`${stats.count} ${expenseWord(stats.count)}`;
-  $('unplannedList').innerHTML=items.length?items.map(item=>{
-    const category=categoryById(item.categoryId);
-    return `<button type="button" class="unplanned-operation" data-edit-unplanned="${escapeAttr(item.id)}" aria-label="Изменить незапланированную трату: ${escapeAttr(category.name)}, ${escapeAttr(formatMoney(item.amount))}">
-      <span class="unplanned-operation-date">${escapeHtml(formatDate(item.date))}<small>${escapeHtml(item.date.slice(0,4))}</small></span>
-      <span class="unplanned-operation-info"><strong>${escapeHtml(category.name)}</strong>${item.comment?`<small>${escapeHtml(item.comment)}</small>`:''}</span>
-      <strong class="unplanned-operation-amount nums">${escapeHtml(formatMoney(item.amount))}</strong>
-    </button>`;
-  }).join(''):'<div class="unplanned-empty"><strong>Пока без незапланированных трат</strong></div>';
+  $('unplannedList').innerHTML=recent.length?recent.map(unplannedRowMarkup).join(''):'<div class="unplanned-empty"><strong>Пока без незапланированных трат</strong></div>';
+  $('unplannedHistoryButton').classList.toggle('hidden',older.length===0);
+  $('unplannedHistoryCount').textContent=`Ещё ${older.length} ${expenseWord(older.length)}`;
+  $('unplannedHistoryLabel').textContent=unplannedCategoryFilter==='all'?'Ранее в этом месяце':'Ранее в выбранной категории';
+  $('unplannedHistoryList').innerHTML=older.map(unplannedRowMarkup).join('');
+  if(older.length===0&&$('unplannedHistoryDialog').open)closeSheet($('unplannedHistoryDialog'));
 }
 
 function openUnplannedDialog(id=''){
@@ -1013,8 +1021,17 @@ function renderUnplannedAnalytics(){
     showToast('Планируемый бюджет сохранен');
   }
 
+  function updateCategoryEmojiChoices() {
+    const current=$('categoryEmoji').value.trim();
+    qsa('[data-category-emoji]').forEach(button=>{
+      button.setAttribute('aria-pressed',String(button.dataset.categoryEmoji===current));
+    });
+  }
+
   function openCategoryDialog() {
     $('categoryForm').reset();
+    $('categoryEmoji').value='✨';
+    updateCategoryEmojiChoices();
     showSheet($('categoryDialog'));
     setTimeout(() => $('categoryName').focus(), 80);
   }
@@ -1022,21 +1039,31 @@ function renderUnplannedAnalytics(){
   function saveCategory(event) {
     event.preventDefault();
     const name = $('categoryName').value.trim();
-    const emoji = $('categoryEmoji').value.trim();
+    const rawEmoji = $('categoryEmoji').value.trim();
     if (!name) return showToast('Укажи название категории');
-    if (!emoji) return showToast('Добавь короткий значок или эмодзи');
+    if (!rawEmoji) return showToast('Выбери эмодзи');
+    if (state.settings.categories.some(item=>item.name.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru'))) return showToast('Такая категория уже существует');
+    // Store one full grapheme cluster: emojis containing modifiers and ZWJ must not be cut.
+    const emoji = typeof Intl.Segmenter==='function'
+      ? new Intl.Segmenter('ru',{granularity:'grapheme'}).segment(rawEmoji)[Symbol.iterator]().next().value.segment
+      : rawEmoji;
     const index = state.settings.categories.length;
     const category = {
       id: makeId('cat'),
       name: name.slice(0, 28),
-      emoji: emoji.slice(0, 4),
+      emoji: emoji.slice(0, 32),
       color: PALETTE[index % PALETTE.length],
       soft: SOFT_PALETTE[index % SOFT_PALETTE.length],
       enabled: true
     };
+    const previousCategoryId=selectedCategoryId;
     state.settings.categories.push(category);
     selectedCategoryId = category.id;
-    persistState();
+    if(!persistState()){
+      state.settings.categories=state.settings.categories.filter(item=>item.id!==category.id);
+      selectedCategoryId=previousCategoryId;
+      return;
+    }
     closeSheet($('categoryDialog'));
     if ($('unplannedDialog').open) {
       populateUnplannedCategoryOptions();
@@ -1646,6 +1673,15 @@ function renderUnplannedAnalytics(){
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet($('categoriesDialog'));
     });
     $('addCategoryButton').addEventListener('click', openCategoryDialog);
+    $('overviewCreateCategory').addEventListener('click', openCategoryDialog);
+    $('plannedCreateCategory').addEventListener('click', openCategoryDialog);
+    $('categoryEmoji').addEventListener('input',updateCategoryEmojiChoices);
+    $('categoryEmojiPresets').addEventListener('click',event=>{
+      const button=event.target.closest('[data-category-emoji]');
+      if(!button)return;
+      $('categoryEmoji').value=button.dataset.categoryEmoji;
+      updateCategoryEmojiChoices();
+    });
     $('categoryForm').addEventListener('submit', saveCategory);
 
     $('signedOutCloud').addEventListener('submit', event => { event.preventDefault(); signIn(); });
@@ -1696,6 +1732,19 @@ function renderUnplannedAnalytics(){
     $('unplannedList').addEventListener('click', event => {
       const row=event.target.closest('[data-edit-unplanned]');
       if(row)openUnplannedDialog(row.dataset.editUnplanned);
+    });
+    $('unplannedHistoryButton').addEventListener('click',()=>showSheet($('unplannedHistoryDialog')));
+    $('closeUnplannedHistoryButton').addEventListener('click',()=>closeSheet($('unplannedHistoryDialog')));
+    $('unplannedHistoryList').addEventListener('click',event=>{
+      const row=event.target.closest('[data-edit-unplanned]');
+      if(!row)return;
+      closeSheet($('unplannedHistoryDialog'));
+      openUnplannedDialog(row.dataset.editUnplanned);
+    });
+    $('unplannedHistoryDialog').addEventListener('click',event=>{
+      if(event.target!==$('unplannedHistoryDialog'))return;
+      const r=$('unplannedHistoryDialog').getBoundingClientRect();
+      if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeSheet($('unplannedHistoryDialog'));
     });
     $('unplannedFilterCategory').addEventListener('change', event => { unplannedCategoryFilter=event.target.value;renderUnplanned(); });
     $('unplannedAnalyticsGranularity').addEventListener('change', event => { unplannedGranularity=event.target.value;renderUnplannedAnalytics(); });
