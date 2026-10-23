@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#fafafc" />
     <meta name="color-scheme" content="light" />
@@ -13,20 +13,19 @@
     <meta name="apple-mobile-web-app-title" content="Пульс" />
     <meta name="format-detection" content="telephone=no" />
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.7.10" />
-    <link rel="icon" href="./icon.svg?v=1.7.10" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1.7.11" />
+    <link rel="icon" href="./icon.svg?v=1.7.11" type="image/svg+xml" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
       href="./apple-touch-icon-v3.png"
     />
-    <link rel="stylesheet" href="./styles.css?v=1.7.10" />
-    <link rel="stylesheet" href="./light.css?v=1.7.10" />
-    <link rel="stylesheet" href="./unplanned.css?v=1.7.10" />
+    <link rel="stylesheet" href="./styles.css?v=1.7.11" />
+    <link rel="stylesheet" href="./light.css?v=1.7.11" />
     <script defer src="./vendor/supabase-2.45.4.js"></script>
-    <script defer src="./loans.js?v=1.7.10"></script>
-    <script defer src="./unplanned.js?v=1.7.10"></script>
-    <script defer src="./app.js?v=1.7.10"></script>
+    <script defer src="./loans.js?v=1.7.11"></script>
+    <script defer src="./legacy-data.js?v=1.7.11"></script>
+    <script defer src="./app.js?v=1.7.11"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -37,7 +36,11 @@
           data-nav="overview"
           aria-label="Перейти в обзор"
         >
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.10" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.7.11" width="32" height="24" alt="" /></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+        </button>
+        <button type="button" class="avatar" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
+          <span id="profileInitial">В</span>
+          <i class="sync-dot" id="syncDot" aria-hidden="true"></i>
         </button>
       </header>
       <main class="main app-main" id="appMain" tabindex="-1">
@@ -75,7 +78,7 @@
             </div>
           </div>
           <section class="balance-composition" aria-label="План месяца">
-            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток бюджета</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">С учётом трат вне плана</span></div>
+            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток бюджета</span><strong class="balance-value nums" id="availableAmount">0 ₽</strong><span class="helper">После неоплаченных трат</span></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint">Изменить бюджет</small></button>
           </section>
           <div class="calendar-strip" id="overviewCalendar" role="group" aria-label="Платежи на этой неделе"></div>
@@ -316,56 +319,6 @@
             ></div>
             <p class="weeklylabels">Суммы в рублях · по дате траты</p>
           </section>
-                  <section class="box unplanned-analytics">
-            <div class="unplanned-analytics-heading">
-              <div><h3>Незапланированные траты</h3><small>Отдельно от основного бюджета</small></div>
-              <button class="unplanned-inline-link" type="button" data-nav="unplanned">Все операции →</button>
-            </div>
-            <div class="unplanned-analytics-controls">
-              <span id="unplannedAnalyticsMonthLabel" class="unplanned-analytics-month">Октябрь 2026</span>
-              <label>Динамика
-                <select id="unplannedAnalyticsGranularity" aria-label="Группировка незапланированных трат">
-                  <option value="day">По дням</option><option value="week" selected>По неделям</option>
-                </select>
-              </label>
-            </div>
-            <div class="unplanned-metrics">
-              <div><small>Всего</small><strong class="nums" id="unplannedAnalyticsTotal">0 ₽</strong></div>
-              <div><small>Операций</small><strong class="nums" id="unplannedAnalyticsCount">0</strong></div>
-              <div><small>Средний чек</small><strong class="nums" id="unplannedAnalyticsAverage">0 ₽</strong></div>
-              <div><small>Лидер</small><strong id="unplannedAnalyticsTop">—</strong></div>
-            </div>
-            <h4>По категориям</h4>
-            <div class="unplanned-chart-row">
-              <div class="unplanned-donut" id="unplannedDonut" role="img" aria-label="Распределение незапланированных трат"><span></span></div>
-              <div id="unplannedCategoryChart" class="unplanned-chart-categories"></div>
-            </div>
-            <div id="unplannedDrilldown" class="unplanned-drilldown hidden" aria-live="polite"></div>
-            <h4>Динамика расходов</h4>
-            <div id="unplannedTimeline" class="unplanned-timeline" role="img" aria-label="Изменение незапланированных расходов"></div>
-            <p id="unplannedTimelineHint" class="unplanned-timeline-hint"></p>
-          </section>
-        </section>
-        <section class="screen unplanned-screen" data-screen="unplanned" aria-labelledby="unplannedTitle">
-          <div class="heading"><h1 id="unplannedTitle">Незапланированные траты</h1></div>
-          <div class="unplanned-month-nav" aria-label="Календарный месяц незапланированных трат">
-            <button type="button" id="unplannedPrevMonth" aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
-            <button type="button" id="unplannedMonthLabel" aria-label="Перейти к текущему месяцу">Октябрь 2026</button>
-            <button type="button" id="unplannedNextMonth" aria-label="Следующий месяц"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
-          </div>
-          <section class="unplanned-total" aria-label="Всего незапланированных расходов за календарный месяц">
-            <span>Всего потрачено</span><strong id="unplannedTotal" class="nums">0 ₽</strong>
-            <small id="unplannedTotalCount">0 операций</small>
-          </section>
-          <div class="unplanned-filters unplanned-category-filter">
-            <label>Категория<select id="unplannedFilterCategory" aria-label="Фильтр по категории"></select></label>
-          </div>
-          <div class="sectionhead"><h2>Операции</h2><button type="button" class="unplanned-inline-link" id="openUnplannedDialog">Добавить</button></div>
-          <div id="unplannedList" class="unplanned-list" aria-live="polite"></div>
-          <button class="unplanned-history-trigger hidden" type="button" id="unplannedHistoryButton" aria-haspopup="dialog" aria-controls="unplannedHistoryDialog">
-            <span><strong id="unplannedHistoryLabel">Ранее в этом месяце</strong><small id="unplannedHistoryCount"></small></span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-          </button>
         </section>
         <section
           class="screen"
@@ -527,7 +480,7 @@
               />
             </div>
           </article>
-          <p class="note">Пульс · версия 1.7.6</p>
+          <p class="note">Пульс · версия 1.7.11</p>
         </section>
       </main>
       <footer class="dock">
@@ -541,10 +494,6 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m3 10 9-7 9 7v10H15v-6H9v6H3Z" /></svg
             ><span>Обзор</span>
-          </button>
-          <button type="button" data-nav="unplanned" aria-label="Незапланированные траты">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3zM7 10h10M7 14h6"/></svg>
-            <span>Вне плана</span>
           </button>
         <div class="addwrap">
           <button
@@ -560,9 +509,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg
             ><span class="sr">Добавить кредит</span></button
-          ><button class="primary hidden" id="addUnplannedButton" type="button" aria-label="Добавить незапланированную трату">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
+          >
           <button
             class="primary hidden"
             id="addMandatoryPaymentButton"
@@ -578,13 +525,7 @@
               <path d="M4 20V10M12 20V4M20 20v-6" /></svg
             ><span>Анализ</span>
           </button>
-          <button type="button" class="dock-profile" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
-            <span class="dock-profile-avatar">
-              <span id="profileInitial">В</span>
-              <i class="sync-dot" id="syncDot" aria-hidden="true"></i>
-            </span>
-            <span class="dock-profile-label">Профиль</span>
-          </button>
+
         </nav>
       </footer>
     </div>
@@ -691,10 +632,6 @@
             <div>
               <span>Неоплаченные траты</span>
               <strong id="budgetPlannedAmount"></strong>
-            </div>
-            <div>
-              <span>Траты вне плана</span>
-              <strong id="budgetUnplannedAmount"></strong>
             </div>
             <div>
               <span>Останется</span>
@@ -944,45 +881,6 @@
         <button class="primary-small full" type="submit">
           Добавить категорию
         </button>
-      </form>
-    </dialog>
-
-    <dialog class="sheet designed-sheet unplanned-history-sheet" id="unplannedHistoryDialog" aria-labelledby="unplannedHistoryTitle">
-      <header class="sheet-head">
-        <div class="dialog-heading"><h2 id="unplannedHistoryTitle">Остальные траты</h2><p>Ранние операции за выбранный месяц</p></div>
-        <button class="sheet-close" type="button" id="closeUnplannedHistoryButton" aria-label="Закрыть историю">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
-        </button>
-      </header>
-      <div class="unplanned-history-list unplanned-list" id="unplannedHistoryList"></div>
-    </dialog>
-    <dialog class="sheet designed-sheet unplanned-sheet" id="unplannedDialog" aria-labelledby="unplannedDialogTitle">
-      <form id="unplannedForm" novalidate>
-        <header class="sheet-head">
-          <div class="dialog-heading"><h2 id="unplannedDialogTitle">Незапланированная трата</h2><p>Отдельная история фактических расходов</p></div>
-          <button class="sheet-close" id="closeUnplannedButton" type="button" aria-label="Закрыть">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>
-          </button>
-        </header>
-        <div class="dialog-body">
-          <input type="hidden" id="unplannedId"/>
-          <div class="money-field"><label for="unplannedAmount">Сумма</label>
-            <div class="money-input"><input id="unplannedAmount" type="number" min="0.01" max="1000000000000000" step="0.01" inputmode="decimal" required placeholder="0"/><span>₽</span></div>
-          </div>
-          <div class="dialog-field"><label for="unplannedCategory">Категория</label>
-            <select id="unplannedCategory" required></select>
-          </div>
-          <button class="unplanned-inline-link" type="button" id="unplannedCreateCategory">+ Новая категория</button>
-          <div class="dialog-field"><label for="unplannedDate">Дата</label><input id="unplannedDate" type="date" required/></div>
-          <div class="dialog-field"><label for="unplannedComment">Комментарий <small>необязательно</small></label>
-            <textarea id="unplannedComment" maxlength="300" rows="3" placeholder="На что потратили?"></textarea>
-          </div>
-          <p id="unplannedError" class="inline-message form-error" role="alert"></p>
-        </div>
-        <footer class="dialog-footer">
-          <button class="primary" id="saveUnplannedButton" type="submit">Сохранить</button>
-          <button class="danger hidden" id="deleteUnplannedButton" type="button">Удалить трату</button>
-        </footer>
       </form>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

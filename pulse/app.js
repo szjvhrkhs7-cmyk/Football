@@ -26,9 +26,6 @@
   let overviewDay = null;
   let activeFilter = 'planned';
   let analyticsFilter = 'all';
-  let unplannedCategoryFilter = 'all';
-  let unplannedGranularity = 'week', unplannedDetailCategory = '';
-  const Unplanned = window.PulseUnplanned;
   let selectedCategoryId = 'food';
   let state = loadState();
   let activeCloudAccountId = null;
@@ -68,8 +65,7 @@
       : { markup: escapeHtml(category.emoji), soft: category.soft, color: category.color };
   }
   function updateDock() {
-    $('addExpenseButton').classList.toggle('hidden', activeScreen === 'loans' || activeScreen === 'payments' || activeScreen === 'unplanned');
-    $('addUnplannedButton').classList.toggle('hidden', activeScreen !== 'unplanned');
+    $('addExpenseButton').classList.toggle('hidden', activeScreen === 'loans' || activeScreen === 'payments');
     $('addLoanButton').classList.toggle('hidden', activeScreen !== 'loans');
     $('addMandatoryPaymentButton').classList.toggle('hidden', activeScreen !== 'payments');
   }
@@ -163,7 +159,7 @@
         categories
       },
       expenses,
-      unplannedExpenses: Unplanned.normalize(Array.isArray(candidate.unplannedExpenses)
+      unplannedExpenses: window.PulseLegacyData.normalize(Array.isArray(candidate.unplannedExpenses)
         ? candidate.unplannedExpenses.map(item => item && typeof item === 'object'
           ? { ...item, createdAt: item.createdAt || fallbackRecordTime, updatedAt: item.updatedAt || fallbackRecordTime }
           : item) : [], categories, toDateKey(now)),
@@ -353,7 +349,7 @@
     screenScroll.set(activeScreen, window.scrollY);
     activeScreen = screenName;
     qsa('.screen').forEach(screen => screen.classList.toggle('active', screen.dataset.screen === screenName));
-    qsa('.bottom-nav [data-nav]').forEach(button => {
+    qsa('.bottom-nav [data-nav], #profileButton').forEach(button => {
       const active = button.dataset.nav === (['payments', 'plans', 'loans'].includes(screenName) ? 'overview' : screenName);
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
@@ -368,22 +364,15 @@
   function renderAll() {
     const label = monthLabel(selectedMonth);
     const compactLabel = `${selectedMonth.slice(5, 7)}.${selectedMonth.slice(2, 4)}`;
-    $('unplannedMonthLabel').textContent = compactLabel;
-    $('unplannedMonthLabel').setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
-    $('unplannedAnalyticsMonthLabel').textContent = compactLabel;
     ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => {
       $(id).textContent = compactLabel;
       $(id).setAttribute('aria-label', `${label}. Перейти к текущему месяцу`);
     });
     $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
     renderOverview(); renderPlans(); renderAnalytics(); renderMandatoryPayments(); renderLoans();
-    renderSettings(); renderCategoryPicker(); renderUnplanned(); renderUnplannedAnalytics(); updateCloudUi(); updateDock();
+    renderSettings(); renderCategoryPicker(); updateCloudUi(); updateDock();
     renderPlannedHistory();
     if ($('plannedPaymentDialog').open) renderPlannedPayment();
-  }
-
-  function monthlyUnplannedTotal() {
-    return unplannedEntries('overview').reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
   }
 
   function renderOverview() {
@@ -391,7 +380,7 @@
     const pending = plannedExpensesForOverview(monthlyExpenses);
     const unpaidTotal = pending.reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = budgetForMonth();
-    const available = (moneyCents(budget) - moneyCents(unpaidTotal) - moneyCents(monthlyUnplannedTotal())) / 100;
+    const available = (moneyCents(budget) - moneyCents(unpaidTotal)) / 100;
     $('availableAmount').textContent = formatMoney(available, true);
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
@@ -746,152 +735,11 @@
     $('weekChart').setAttribute('aria-label', `Суммы по семидневным периодам: ${weekly.map(amount => formatMoney(amount)).join(', ')}`);
   }
 
-function populateUnplannedCategoryOptions(){
-  const categoryInput=$('unplannedCategory');
-  if(!categoryInput)return;
-  const current=categoryInput.value;
-  categoryInput.innerHTML=state.settings.categories.map(cat=>`<option value="${escapeAttr(cat.id)}">${escapeHtml(cat.name)}</option>`).join('');
-  if(state.settings.categories.some(cat=>cat.id===current))categoryInput.value=current;
-}
-
-function unplannedScope(){
-  return Unplanned.periodBounds('month',selectedMonth);
-}
-
-function unplannedEntries(which,category='all'){
-  return Unplanned.filter(state.unplannedExpenses,unplannedScope(which),category);
-}
-
-function unplannedRowMarkup(item){
-  const category=categoryById(item.categoryId);
-  return `<button type="button" class="unplanned-operation" data-edit-unplanned="${escapeAttr(item.id)}" aria-label="Изменить незапланированную трату: ${escapeAttr(category.name)}, ${escapeAttr(formatMoney(item.amount))}">
-      <span class="unplanned-operation-date">${escapeHtml(formatDate(item.date))}<small>${escapeHtml(item.date.slice(0,4))}</small></span>
-      <span class="unplanned-operation-info"><strong>${escapeHtml(category.name)}</strong>${item.comment?`<small>${escapeHtml(item.comment)}</small>`:''}</span>
-      <strong class="unplanned-operation-amount nums">${escapeHtml(formatMoney(item.amount))}</strong>
-    </button>`;
-}
-
-function renderUnplanned(){
-  const categoryInput=$('unplannedFilterCategory');
-  const categories=state.settings.categories;
-  if(unplannedCategoryFilter!=='all'&&!categories.some(cat=>cat.id===unplannedCategoryFilter))unplannedCategoryFilter='all';
-  categoryInput.innerHTML='<option value="all">Все категории</option>'+categories.map(cat=>`<option value="${escapeAttr(cat.id)}">${escapeHtml(cat.name)}</option>`).join('');
-  categoryInput.value=unplannedCategoryFilter;
-  const items=unplannedEntries('list',unplannedCategoryFilter);
-  const stats=Unplanned.summary(items,categories);
-  const {recent,older}=Unplanned.splitRecent(items,10);
-  $('unplannedTotal').textContent=formatMoney(stats.total);
-  $('unplannedTotalCount').textContent=`${stats.count} ${expenseWord(stats.count)}`;
-  $('unplannedList').innerHTML=recent.length?recent.map(unplannedRowMarkup).join(''):'<div class="unplanned-empty"><strong>Пока без незапланированных трат</strong></div>';
-  $('unplannedHistoryButton').classList.toggle('hidden',older.length===0);
-  $('unplannedHistoryCount').textContent=`Ещё ${older.length} ${expenseWord(older.length)}`;
-  $('unplannedHistoryLabel').textContent=unplannedCategoryFilter==='all'?'Ранее в этом месяце':'Ранее в выбранной категории';
-  $('unplannedHistoryList').innerHTML=older.map(unplannedRowMarkup).join('');
-  if(older.length===0&&$('unplannedHistoryDialog').open)closeSheet($('unplannedHistoryDialog'));
-}
-
-function openUnplannedDialog(id=''){
-  const record=id?state.unplannedExpenses.find(item=>item.id===id):null;
-  if(id&&!record)return;
-  $('unplannedForm').reset();
-  $('unplannedId').value=record?.id||'';
-  $('unplannedAmount').value=record?.amount??'';
-  $('unplannedDate').value=record?.date||(selectedMonth===toMonthKey(new Date())?toDateKey(new Date()):selectedMonth+'-01');
-  $('unplannedComment').value=record?.comment||'';
-  $('unplannedError').textContent='';
-  $('unplannedDialogTitle').textContent=record?'Изменить трату':'Незапланированная трата';
-  $('saveUnplannedButton').textContent=record?'Сохранить изменения':'Добавить трату';
-  $('deleteUnplannedButton').classList.toggle('hidden',!record);
-  populateUnplannedCategoryOptions();
-  $('unplannedCategory').value=record?.categoryId||state.settings.categories.find(x=>x.enabled!==false)?.id||state.settings.categories[0]?.id||'';
-  showSheet($('unplannedDialog'));
-}
-
-function saveUnplanned(event){
-  event.preventDefault();
-  const form=$('unplannedForm');
-  if(form.closest('dialog')?.inert)return;
-  const id=$('unplannedId').value;
-  const fields={
-    amount:$('unplannedAmount').value,categoryId:$('unplannedCategory').value,
-    date:$('unplannedDate').value,comment:$('unplannedComment').value.trim()
-  };
-  const error=Unplanned.validate(fields,state.settings.categories.map(x=>x.id));
-  if(error){$('unplannedError').textContent=error;return;}
-  if(id&&!state.unplannedExpenses.some(item=>item.id===id)){showToast('Запись больше не существует');return;}
-  const before=state.unplannedExpenses.map(x=>({...x}));
-  const timestamp=new Date().toISOString();
-  const existing=state.unplannedExpenses.find(x=>x.id===id);
-  const record={id:existing?.id||makeId('unplanned'),amount:Unplanned.money(fields.amount),
-    categoryId:fields.categoryId,date:fields.date,comment:fields.comment,
-    createdAt:existing?.createdAt||timestamp,updatedAt:timestamp};
-  if(existing)Object.assign(existing,record);
-  else state.unplannedExpenses.push(record);
-  if(!persistState()){state.unplannedExpenses=before;renderAll();return;}
-  closeSheet($('unplannedDialog'));
-  showToast(existing?'Трата изменена':'Незапланированная трата добавлена');
-}
-
-function deleteUnplanned(){
-  const id=$('unplannedId').value;
-  const previous=state.unplannedExpenses.find(item=>item.id===id);
-  if(!previous||!window.confirm('Удалить незапланированную трату?'))return;
-  const before=state.unplannedExpenses.map(item=>({...item}));
-  state.unplannedExpenses=state.unplannedExpenses.filter(item=>item.id!==id);
-  if(!persistState()){state.unplannedExpenses=before;renderAll();return;}
-  closeSheet($('unplannedDialog'));
-  showToast('Трата удалена',()=>{
-    if(state.unplannedExpenses.some(item=>item.id===previous.id))return;
-    state.unplannedExpenses.push(previous);
-    persistState();
-  });
-}
-
-function renderUnplannedAnalytics(){
-  $('unplannedAnalyticsGranularity').value=unplannedGranularity;
-  const items=unplannedEntries('analytics'),summary=Unplanned.summary(items,state.settings.categories);
-  $('unplannedAnalyticsTotal').textContent=formatMoney(summary.total);
-  $('unplannedAnalyticsCount').textContent=String(summary.count);
-  $('unplannedAnalyticsAverage').textContent=formatMoney(summary.average);
-  $('unplannedAnalyticsTop').textContent=summary.topCategory;
-  const colors=summary.categories.map((_,i)=>PALETTE[i%PALETTE.length]);
-  let position=0;
-  const segments=summary.categories.map((row,i)=>{
-    const beginning=position;
-    position+=row.amount/summary.total*100;
-    return `${colors[i]} ${beginning.toFixed(3)}% ${position.toFixed(3)}%`;
-  });
-  $('unplannedDonut').style.background=segments.length?`conic-gradient(${segments.join(',')})`:'#e9e7ee';
-  $('unplannedDonut').setAttribute('aria-label',segments.length?`Расходы по категориям: ${summary.categories.map(row=>`${row.name} ${row.percent}%`).join(', ')}`:'Нет незапланированных трат');
-  $('unplannedCategoryChart').innerHTML=summary.categories.length?summary.categories.map((row,i)=>`<button type="button" class="unplanned-category-row ${unplannedDetailCategory===row.id?'selected':''}" data-unplanned-detail="${escapeAttr(row.id)}" aria-expanded="${unplannedDetailCategory===row.id}">
-    <span class="unplanned-category-label"><i style="background:${colors[i]}"></i>${escapeHtml(row.name)}</span>
-    <span class="nums">${escapeHtml(formatMoney(row.amount))}<small>${row.percent}%</small></span>
-  </button>`).join(''):'<p class="note">Нет расходов за выбранный период.</p>';
-  const selected=summary.categories.find(row=>row.id===unplannedDetailCategory);
-  const details=$('unplannedDrilldown');
-  details.classList.toggle('hidden',!selected);
-  if(selected){
-    const rows=Unplanned.filter(items,{start:'',end:''},selected.id);
-    details.innerHTML=`<div class="unplanned-detail-title"><strong>${escapeHtml(selected.name)}</strong><button type="button" data-unplanned-detail-close aria-label="Свернуть">×</button></div>`+
-      rows.map(row=>`<div class="unplanned-detail-row"><span>${escapeHtml(formatDate(row.date))}${row.comment?`<small>${escapeHtml(row.comment)}</small>`:''}</span><strong class="nums">${escapeHtml(formatMoney(row.amount))}</strong></div>`).join('');
-  }else details.innerHTML='';
-  const buckets=Unplanned.timeline(items,unplannedGranularity);
-  const display=buckets.slice(-12),max=Math.max(1,...display.map(row=>row.amount));
-  $('unplannedTimeline').innerHTML=display.length?display.map(row=>`<div class="unplanned-timeline-col">
-    <small class="nums">${escapeHtml(new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(row.amount))}</small>
-    <div class="unplanned-timeline-bar" style="height:${Math.max(4,Math.round(row.amount/max*84))}px"></div>
-    <span>${escapeHtml(unplannedGranularity==='month'?row.date.slice(5):row.date.slice(5))}</span></div>`).join(''):'<p class="note">Данных пока нет.</p>';
-  $('unplannedTimeline').setAttribute('aria-label',display.map(row=>`${row.date}: ${formatMoney(row.amount)}`).join(', ')||'Данных пока нет');
-  $('unplannedTimelineHint').textContent=buckets.length>12?'Показаны последние 12 периодов. Суммы в рублях.':'Суммы в рублях за выбранный период.';
-}
-
   function renderBudgetPreview() {
     const planned = plannedExpensesForOverview(expensesForMonth()).reduce((sum, expense) => sum + remainingAmount(expense), 0);
     const budget = Number($('budgetInput').value);
-    const unplanned = monthlyUnplannedTotal();
-    const committed = (moneyCents(planned) + moneyCents(unplanned)) / 100;
+    const committed = planned;
     $('budgetPlannedAmount').textContent = formatMoney(planned);
-    $('budgetUnplannedAmount').textContent = formatMoney(unplanned);
     $('budgetRemainingAmount').textContent = $('budgetInput').value === '' || !Number.isFinite(budget) ? '—' : formatMoney((moneyCents(budget) - moneyCents(committed)) / 100);
     $('budgetRemainingAmount').classList.toggle('negative', $('budgetInput').value !== '' && Number.isFinite(budget) && budget < committed);
   }
@@ -1225,10 +1073,6 @@ function renderUnplannedAnalytics(){
       return;
     }
     closeSheet($('categoryDialog'));
-    if ($('unplannedDialog').open) {
-      populateUnplannedCategoryOptions();
-      $('unplannedCategory').value = category.id;
-    }
     showToast('Категория добавлена');
   }
 
@@ -1829,11 +1673,10 @@ function renderUnplannedAnalytics(){
     const monthControls = [
       ['overviewPrevMonth', -1], ['overviewNextMonth', 1],
       ['plansPrevMonth', -1], ['plansNextMonth', 1],
-      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1],
-      ['unplannedPrevMonth', -1], ['unplannedNextMonth', 1]
+      ['analyticsPrevMonth', -1], ['analyticsNextMonth', 1]
     ];
     monthControls.forEach(([id, delta]) => $(id).addEventListener('click', () => setSelectedMonth(addMonths(selectedMonth, delta))));
-    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel', 'unplannedMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
+    ['overviewMonthLabel', 'plansMonthLabel', 'analyticsMonthLabel'].forEach(id => $(id).addEventListener('click', goCurrentMonth));
 
     qsa('[data-filter]').forEach(button => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
@@ -1911,43 +1754,6 @@ function renderUnplannedAnalytics(){
     $('importButton').addEventListener('click', () => $('importFile').click());
     $('importFile').addEventListener('change', event => importData(event.target.files?.[0]));
 
-    $('openUnplannedDialog').addEventListener('click', () => openUnplannedDialog());
-    $('addUnplannedButton').addEventListener('click', () => openUnplannedDialog());
-    $('closeUnplannedButton').addEventListener('click', () => closeSheet($('unplannedDialog')));
-    $('unplannedForm').addEventListener('submit', saveUnplanned);
-    $('deleteUnplannedButton').addEventListener('click', deleteUnplanned);
-    $('unplannedCreateCategory').addEventListener('click', () => openCategoryDialog());
-    $('unplannedList').addEventListener('click', event => {
-      const row=event.target.closest('[data-edit-unplanned]');
-      if(row)openUnplannedDialog(row.dataset.editUnplanned);
-    });
-    $('unplannedHistoryButton').addEventListener('click',()=>showSheet($('unplannedHistoryDialog')));
-    $('closeUnplannedHistoryButton').addEventListener('click',()=>closeSheet($('unplannedHistoryDialog')));
-    $('unplannedHistoryList').addEventListener('click',event=>{
-      const row=event.target.closest('[data-edit-unplanned]');
-      if(!row)return;
-      closeSheet($('unplannedHistoryDialog'));
-      openUnplannedDialog(row.dataset.editUnplanned);
-    });
-    $('unplannedHistoryDialog').addEventListener('click',event=>{
-      if(event.target!==$('unplannedHistoryDialog'))return;
-      const r=$('unplannedHistoryDialog').getBoundingClientRect();
-      if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeSheet($('unplannedHistoryDialog'));
-    });
-    $('unplannedFilterCategory').addEventListener('change', event => { unplannedCategoryFilter=event.target.value;renderUnplanned(); });
-    $('unplannedAnalyticsGranularity').addEventListener('change', event => { unplannedGranularity=event.target.value;renderUnplannedAnalytics(); });
-    $('unplannedCategoryChart').addEventListener('click', event => {
-      const row=event.target.closest('[data-unplanned-detail]');
-      if(!row)return;
-      unplannedDetailCategory=unplannedDetailCategory===row.dataset.unplannedDetail?'':row.dataset.unplannedDetail;
-      renderUnplannedAnalytics();
-    });
-    $('unplannedDrilldown').addEventListener('click', event => { if(event.target.closest('[data-unplanned-detail-close]')){unplannedDetailCategory='';renderUnplannedAnalytics();} });
-    $('unplannedDialog').addEventListener('click', event => {
-      if(event.target!==$('unplannedDialog'))return;
-      const r=$('unplannedDialog').getBoundingClientRect();
-      if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeSheet($('unplannedDialog'));
-    });
     $('budgetDialog').addEventListener('click', event => {
       if (event.target !== $('budgetDialog')) return;
       const rect = $('budgetDialog').getBoundingClientRect();
