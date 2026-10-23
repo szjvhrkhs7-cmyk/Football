@@ -28,7 +28,7 @@ function fixture() {
       disconnect() { currentUser = null; setSyncState(''); },
       state: () => state, status: () => cloudStatus,
       account: activateCloudAccount, leaveAccount: deactivateCloudAccount,
-      plannedExpensesForOverview,
+      expensesForMonth,
       mutate() { state.settings.defaultBudget = 99; persistState(); }
     };
   })();`, context);
@@ -95,21 +95,6 @@ test('resending uses the signup flow and preserves the application redirect', as
   assert.match(f.api.humanizeAuthError('Email address not authorized'), /почтовый сервис/);
 });
 
-test('overview keeps every planned expense for the selected month, including overdue ones', () => {
-  const f = fixture();
-  const expenses = [
-    { id: 'past', date: '2026-09-18', status: 'planned' },
-    { id: 'today', date: '2026-09-20', status: 'planned' },
-    { id: 'future', date: '2026-09-30', status: 'planned' },
-    { id: 'paid', date: '2026-09-19', status: 'paid' }
-  ];
-
-  assert.deepEqual(
-    Array.from(f.api.plannedExpensesForOverview(expenses), expense => expense.id),
-    ['past', 'today', 'future']
-  );
-});
-
 test('versioned app assets match the service worker cache', () => {
   const version = indexSource.match(/app\.js\?v=([^"']+)/)?.[1];
   assert.ok(version);
@@ -167,7 +152,7 @@ test('a failed local download keeps the old state and does not disable later upl
   const original=f.context.localStorage.setItem;
   f.context.localStorage.setItem=()=>{throw new Error('QuotaExceededError');};
   await f.api.syncBidirectional();
-  assert.equal(f.api.state().settings.defaultBudget,120000);
+  assert.equal(f.api.state().settings.defaultBudget,0);
   assert.equal(f.api.status(),'error');
   f.context.localStorage.setItem=original;f.api.mutate();
   assert.equal(f.timers.size,1);
@@ -292,7 +277,7 @@ test('two accounts on the same browser retain separate local budgets', () => {
   f.api.state().settings.defaultBudget=41000;
   f.api.persistState();
   f.api.account('account-b');
-  assert.equal(f.api.state().settings.defaultBudget,120000);
+  assert.equal(f.api.state().settings.defaultBudget,0);
   f.api.state().settings.defaultBudget=86000;
   f.api.persistState();
   f.api.account('account-a');
@@ -300,7 +285,7 @@ test('two accounts on the same browser retain separate local budgets', () => {
   f.api.account('account-b');
   assert.equal(f.api.state().settings.defaultBudget,86000);
   f.api.leaveAccount();
-  assert.equal(f.api.state().settings.defaultBudget,120000);
+  assert.equal(f.api.state().settings.defaultBudget,0);
 });
 
 test('simultaneous partial payments on the same plan survive retries and repeated sync', async()=>{
