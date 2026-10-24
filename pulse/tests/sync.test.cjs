@@ -25,7 +25,8 @@ function fixture() {
     subscribeRealtime = () => {};
     globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, signUp, resendConfirmation, humanizeAuthError, normalizeState,
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
-      disconnect() { currentUser = null; setSyncState(''); },
+      disconnect() { currentUser = null; cloudOwnerId = null; setSyncState(''); },
+      shareWith(ownerId) { cloudOwnerId = ownerId; },
       state: () => state, status: () => cloudStatus,
       account: activateCloudAccount, leaveAccount: deactivateCloudAccount,
       expensesForMonth,
@@ -77,7 +78,7 @@ test('Auth event returns immediately and defers database calls beyond the Auth l
   await f.api.initCloud();
   assert.equal(callback('SIGNED_IN', { user: { id: 'test-user', email: 'test@example.com' } }), undefined);
   assert.equal(reads, 0); assert.equal(f.timers.size, 1);
-  await [...f.timers.values()][0](); await new Promise(setImmediate); assert.equal(reads, 1);
+  await [...f.timers.values()][0](); await new Promise(setImmediate); assert.equal(reads, 2);
 });
 test('network failure during sign-in releases all auth buttons', async () => {
   const f = fixture(); f.api.connect({ auth: { signInWithPassword: async () => { throw new Error('network'); } } });
@@ -315,4 +316,27 @@ test('plan cancellation survives a later independent payment on the other device
  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
  const expense=cloud.snapshot().payload.expenses[0];
  assert.equal(expense.cancelled,true);assert.equal(expense.payments.length,1);assert.equal(expense.payments[0].amount,3000);
+});
+
+test('shared household member fetches the owner cloud row, never their own', async () => {
+  const f=fixture(); let requestedOwner='';
+  const remote={meta:{updatedAt:'2026-10-24T12:00:00Z'},settings:{defaultBudget:9500},expenses:[]};
+  f.api.connect({from(table) {
+    assert.equal(table,'pulse_finance_state');
+    return {
+      select(){return this;},
+      eq(key,value){if(key==='user_id')requestedOwner=value;return this;},
+      async maybeSingle(){return {data:{payload:remote,updated_at:'2026-10-24T12:00:00Z'}};}
+    };
+  }});
+  f.api.shareWith('owner-account');
+  await f.api.syncBidirectional();
+  assert.equal(requestedOwner,'owner-account');
+  assert.equal(f.api.state().settings.defaultBudget,9500);
+  assert.equal(f.api.status(),'online');
+});
+test('two-user sharing controls are present and separated from financial actions', () => {
+  for(const id of ['sharedBudget','createSharedCodeButton','joinSharedButton','sharedJoinCode','leaveSharedButton']) {
+    assert.match(indexSource,new RegExp('id="'+id+'"'));
+  }
 });
