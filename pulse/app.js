@@ -1125,10 +1125,17 @@
     if (currentUser?.id !== accountId) return;
     const next = data?.owner_id || accountId;
     if (cloudOwnerId !== next) {
+      // Preserve the three-way merge baseline across reloads. Invalidate it
+      // only when the user actually switches to another shared workspace.
+      const ownerKey = 'pulse-cloud-owner-' + accountId;
+      try {
+        const savedOwner = localStorage.getItem(ownerKey);
+        if (savedOwner && savedOwner !== next) localStorage.removeItem(CLOUD_BASE_PREFIX + accountId);
+        localStorage.setItem(ownerKey, next);
+      } catch (error) { console.warn('Cloud owner marker could not be stored', error); }
       cloudOwnerId = next;
       cloudBaseOwner = '';
       cloudBaseState = null;
-      try { localStorage.removeItem(CLOUD_BASE_PREFIX + accountId); } catch {}
       unsubscribeRealtime();
     }
     updateShareUi();
