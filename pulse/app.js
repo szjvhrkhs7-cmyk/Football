@@ -27,8 +27,6 @@
   let selectedCategoryId = 'food';
   let state = loadState();
   let activeCloudAccountId = null;
-  let cloudOwnerId = null;
-  let cloudRetryTimer = null;
   let supabaseClient = null;
   let currentUser = null;
   let syncTimer = null;
@@ -208,7 +206,7 @@
     state.meta.updatedAt = new Date().toISOString();
     if (!saveLocalState()) return false;
     renderAll();
-    if (push && !suppressCloudPush) { if (currentUser) setSyncState('syncing', 'Изменения ожидают отправки…'); scheduleCloudPush(); }
+    if (push && !suppressCloudPush) scheduleCloudPush();
     return true;
   }
 
@@ -738,7 +736,6 @@
     if (currentUser) activateCloudAccount(currentUser.id);
     updateCloudUi();
     if (currentUser) {
-      await resolveCloudOwner(currentUser.id);
       subscribeRealtime();
       await syncBidirectional();
     }
@@ -750,28 +747,11 @@
       updateCloudUi();
       if (currentUser) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-          const accountId = currentUser.id;
-          // Supabase Auth callbacks must not call the API synchronously.
-          setTimeout(async () => {
-            try {
-              if (currentUser?.id !== accountId) return;
-              await resolveCloudOwner(accountId);
-              if (currentUser?.id !== accountId) return;
-              subscribeRealtime();
-              await syncBidirectional();
-            } catch (error) {
-              if (currentUser?.id === accountId) {
-                setSyncState('error', 'Нет связи с общим бюджетом');
-                showCloudMessage(humanizeCloudError(error), true);
-              }
-            }
-          }, 0);
+          // Run outside the Auth callback lock.
+          setTimeout(() => { subscribeRealtime(); syncBidirectional(); }, 0);
         }
       } else {
-        cloudOwnerId = null;
-        clearTimeout(cloudRetryTimer);
         unsubscribeRealtime();
-        updateShareUi();
         setSyncState('');
       }
     });
@@ -789,12 +769,10 @@
       $('profileInitial').textContent = initial;
       $('cloudSubtitle').textContent = 'Синхронизация между устройствами включена';
       setSyncState(syncInFlight ? 'syncing' : cloudStatus);
-      updateShareUi();
     } else {
       $('profileInitial').textContent = 'В';
       $('cloudSubtitle').textContent = cloudAvailable() ? 'Войди, чтобы синхронизировать устройства' : 'Облако пока не настроено';
       if (!syncInFlight) setSyncState(cloudAvailable() ? '' : 'error');
-      updateShareUi();
     }
   }
 
@@ -878,8 +856,6 @@
       clearTimeout(syncTimer);
       syncTimer = null;
       pendingPush = false;
-      cloudOwnerId = null;
-      clearTimeout(cloudRetryTimer);
       unsubscribeRealtime();
       updateCloudUi();
       showToast('Вы вышли из облачного аккаунта');
@@ -1011,22 +987,20 @@
     if (syncInFlight) { pendingPush = true; return; }
     syncInFlight = true;
     const userId = currentUser.id;
-    const targetId = cloudOwnerId || userId;
-    clearTimeout(cloudRetryTimer);
     setSyncState('syncing', 'Синхронизация...');
     try {
       let finished = false;
       for (let attempt = 0; attempt < 6; attempt++) {
-        if (currentUser?.id !== userId || (cloudOwnerId && cloudOwnerId !== targetId)) return;
+        if (currentUser?.id !== userId) return;
         const revision = localRevision;
         const localSnapshot = JSON.parse(JSON.stringify(state));
         const { data, error } = await withCloudTimeout(supabaseClient
           .from(CLOUD_TABLE)
           .select('payload,updated_at')
-          .eq('user_id', targetId)
+          .eq('user_id', userId)
           .maybeSingle());
         if (error) throw error;
-        if (currentUser?.id !== userId || (cloudOwnerId && cloudOwnerId !== targetId)) return;
+        if (currentUser?.id !== userId) return;
         if (revision !== localRevision) { pendingPush = true; return; }
         const remote = data?.payload ? normalizeState(data.payload) : null;
         const merged = remote ? mergeCloudStates(getCloudBase(userId), localSnapshot, remote) : localSnapshot;
@@ -1042,17 +1016,17 @@
         if (data) {
           response = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE)
             .update({ payload: merged, updated_at: nextTimestamp })
-            .eq('user_id', targetId)
+            .eq('user_id', userId)
             .eq('updated_at', data.updated_at)
             .select('payload,updated_at')
             .maybeSingle());
         } else {
           response = await withCloudTimeout(supabaseClient.from(CLOUD_TABLE)
-            .insert({ user_id: targetId, payload: merged, updated_at: nextTimestamp })
+            .insert({ user_id: userId, payload: merged, updated_at: nextTimestamp })
             .select('payload,updated_at')
             .maybeSingle());
         }
-        if (currentUser?.id !== userId || (cloudOwnerId && cloudOwnerId !== targetId)) return;
+        if (currentUser?.id !== userId) return;
         if (response.error?.code === '23505' || (!response.error && !response.data)) continue;
         if (response.error) throw response.error;
         const accepted = normalizeState(response.data.payload || merged);
@@ -1067,17 +1041,16 @@
         break;
       }
       if (!finished) throw Object.assign(new Error('Concurrent cloud edits; retry'), { code: 'cloud_conflict' });
-      if (currentUser?.id !== userId || (cloudOwnerId && cloudOwnerId !== targetId)) return;
+      if (currentUser?.id !== userId) return;
       if (!pendingPush) {
         setSyncState('online', 'Синхронизировано ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
         showCloudMessage('');
       }
     } catch (error) {
-      if (currentUser?.id !== userId || (cloudOwnerId && cloudOwnerId !== targetId)) return;
+      if (currentUser?.id !== userId) return;
       console.error('Cloud sync failed', error);
       setSyncState('error', 'Не удалось синхронизировать');
       showCloudMessage(humanizeCloudError(error), true);
-      if (typeof navigator !== 'undefined' && navigator.onLine && !document.hidden && currentUser?.id === userId) cloudRetryTimer = setTimeout(() => { cloudRetryTimer = null; syncBidirectional(); }, 20000);
     } finally {
       syncInFlight = false;
       if (pendingPush && currentUser?.id === userId) { pendingPush = false; scheduleCloudPush(); }
@@ -1090,14 +1063,13 @@
     if (!supabaseClient || !currentUser) return;
     unsubscribeRealtime();
     const subscribedUserId = currentUser.id;
-    const targetId = cloudOwnerId || subscribedUserId;
     realtimeChannel = supabaseClient
-      .channel('pulse-user-' + targetId)
+      .channel('pulse-user-' + currentUser.id)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: CLOUD_TABLE,
-        filter: 'user_id=eq.' + targetId
+        filter: 'user_id=eq.' + currentUser.id
       }, payload => {
         if (currentUser?.id !== subscribedUserId || !payload.new?.payload) return;
         if (syncInFlight) { pendingPush = true; return; }
@@ -1114,112 +1086,6 @@
   function unsubscribeRealtime() {
     if (supabaseClient && realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
     realtimeChannel = null;
-  }
-
-
-  async function resolveCloudOwner(accountId = currentUser?.id) {
-    if (!accountId || !supabaseClient) return;
-    const { data, error } = await withCloudTimeout(supabaseClient
-      .from('pulse_shared_members').select('owner_id').eq('member_id', accountId).maybeSingle());
-    if (error) throw error;
-    if (currentUser?.id !== accountId) return;
-    const next = data?.owner_id || accountId;
-    if (cloudOwnerId !== next) {
-      // Preserve the three-way merge baseline across reloads. Invalidate it
-      // only when the user actually switches to another shared workspace.
-      const ownerKey = 'pulse-cloud-owner-' + accountId;
-      try {
-        const savedOwner = localStorage.getItem(ownerKey);
-        if (savedOwner && savedOwner !== next) localStorage.removeItem(CLOUD_BASE_PREFIX + accountId);
-        localStorage.setItem(ownerKey, next);
-      } catch (error) { console.warn('Cloud owner marker could not be stored', error); }
-      cloudOwnerId = next;
-      cloudBaseOwner = '';
-      cloudBaseState = null;
-      unsubscribeRealtime();
-    }
-    updateShareUi();
-  }
-
-  function updateShareUi() {
-    const signed = Boolean(currentUser);
-    const joined = Boolean(signed && cloudOwnerId && cloudOwnerId !== currentUser.id);
-    $('sharedBudget')?.classList.toggle('hidden', !signed);
-    $('sharedOwnerControls')?.classList.toggle('hidden', joined);
-    $('sharedMemberControls')?.classList.toggle('hidden', !joined);
-    if ($('sharedBudgetDescription')) $('sharedBudgetDescription').textContent = joined
-      ? 'Вы подключены к общему бюджету. Изменения доступны обоим участникам.'
-      : 'Для разных аккаунтов нужен общий бюджет. Создайте код и передайте его второму участнику.';
-  }
-
-  function shareMessage(value, error = false) {
-    const el = $('sharedBudgetMessage');
-    if (!el) return;
-    el.textContent = value;
-    el.classList.toggle('is-error', error);
-  }
-
-  async function createSharedInvite() {
-    if (!currentUser || !supabaseClient || cloudOwnerId !== currentUser.id) return;
-    const button = $('createSharedCodeButton');
-    button.disabled = true;
-    shareMessage('Создаём приглашение…');
-    try {
-      await syncBidirectional();
-      if (cloudStatus !== 'online') throw new Error('Сначала синхронизируйте свой бюджет.');
-      const { data, error } = await withCloudTimeout(supabaseClient.rpc('pulse_create_share_code'));
-      if (error) throw error;
-      $('sharedInviteCode').textContent = data;
-      $('sharedInviteOutput').hidden = false;
-      shareMessage('Код действует 7 дней. Передайте его второму участнику лично.');
-    } catch (error) { shareMessage(error.message || 'Не удалось создать код', true); }
-    finally { button.disabled = false; }
-  }
-
-  async function joinSharedBudget() {
-    if (!currentUser || !supabaseClient) return;
-    const code = $('sharedJoinCode').value.trim().toLowerCase().replace(/\s+/g, '');
-    if (!/^[a-f0-9]{32}$/.test(code)) return shareMessage('Введите код из 32 символов.', true);
-    const button = $('joinSharedButton'); button.disabled = true;
-    shareMessage('Подключаем общий бюджет…');
-    try {
-      await syncBidirectional();
-      if (cloudStatus !== 'online') throw new Error('Сначала синхронизируйте ваш бюджет.');
-      const backupKey = 'pulse-personal-before-share-' + currentUser.id;
-      if (!localStorage.getItem(backupKey)) localStorage.setItem(backupKey, JSON.stringify(state));
-      const { error } = await withCloudTimeout(supabaseClient.rpc('pulse_join_share_code', { code }));
-      if (error) throw error;
-      await resolveCloudOwner(currentUser.id);
-      subscribeRealtime();
-      await syncBidirectional();
-      $('sharedJoinCode').value = '';
-      shareMessage('Общий бюджет подключён. Ваши траты объединены.');
-    } catch (error) { shareMessage(error.message || 'Не удалось подключиться', true); }
-    finally { button.disabled = false; }
-  }
-
-  async function leaveSharedBudget() {
-    if (!currentUser || !supabaseClient || !cloudOwnerId || cloudOwnerId === currentUser.id) return;
-    const button = $('leaveSharedButton'); button.disabled = true;
-    shareMessage('Отключаем общий бюджет…');
-    try {
-      await syncBidirectional();
-      if (cloudStatus !== 'online') throw new Error('Сначала синхронизируйте последние изменения.');
-      const { error } = await withCloudTimeout(supabaseClient.rpc('pulse_leave_shared_budget'));
-      if (error) throw error;
-      const saved = localStorage.getItem('pulse-personal-before-share-' + currentUser.id);
-      await resolveCloudOwner(currentUser.id);
-      if (saved) {
-        const personal = normalizeState(JSON.parse(saved));
-        // Keep the current state intact unless the original personal copy fits.
-        localStorage.setItem(STORAGE_KEY + '-account-' + currentUser.id, JSON.stringify(personal));
-        state = personal; localRevision += 1; renderAll();
-      }
-      subscribeRealtime();
-      await syncBidirectional();
-      shareMessage('Вы вернулись к личному бюджету.');
-    } catch (error) { shareMessage(error.message || 'Не удалось отключиться', true); }
-    finally { button.disabled = false; }
   }
 
   function showToast(message, undo = null) {
@@ -1313,13 +1179,6 @@
     $('resendEmailButton').addEventListener('click', resendConfirmation);
     $('signOutButton').addEventListener('click', signOut);
     $('syncNowButton').addEventListener('click', syncBidirectional);
-    $('createSharedCodeButton').addEventListener('click', createSharedInvite);
-    $('copySharedCodeButton').addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText($('sharedInviteCode').textContent); shareMessage('Код скопирован'); }
-      catch { shareMessage('Скопируйте код вручную', true); }
-    });
-    $('joinSharedButton').addEventListener('click', joinSharedBudget);
-    $('leaveSharedButton').addEventListener('click', leaveSharedBudget);
 
     $('exportButton').addEventListener('click', exportData);
     $('importButton').addEventListener('click', () => $('importFile').click());
@@ -1351,9 +1210,6 @@
       if (currentUser) syncBidirectional();
       else initCloud();
     });
-    if (typeof window.setInterval === 'function') window.setInterval(() => {
-      if (currentUser && navigator.onLine && !document.hidden && !syncInFlight) syncBidirectional();
-    }, 60000);
     window.addEventListener('offline', () => {
       if (currentUser) setSyncState('error', 'Офлайн. Изменения сохраняются локально');
     });

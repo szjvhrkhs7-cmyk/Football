@@ -8,21 +8,21 @@
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.8.1">
-    <link rel="icon" href="./icon.svg?v=1.8.1" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.8.0">
+    <link rel="icon" href="./icon.svg?v=1.8.0" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.8.1">
-    <link rel="stylesheet" href="./light.css?v=1.8.1">
+    <link rel="stylesheet" href="./styles.css?v=1.8.0">
+    <link rel="stylesheet" href="./light.css?v=1.8.0">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.8.1"></script>
-    <script defer="" src="./legacy-data.js?v=1.8.1"></script>
-    <script defer="" src="./app.js?v=1.8.1"></script>
+    <script defer="" src="./loans.js?v=1.8.0"></script>
+    <script defer="" src="./legacy-data.js?v=1.8.0"></script>
+    <script defer="" src="./app.js?v=1.8.0"></script>
   </head>
   <body>
     <div class="app app-shell">
       <header class="topbar">
         <button class="brand" type="button" data-nav="overview" aria-label="Перейти в обзор">
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.1" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.0" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
         <button type="button" class="avatar" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
           <span id="profileInitial">В</span>
@@ -121,29 +121,6 @@
                 </button>
               </div>
             </div>
-            <section id="sharedBudget" class="shared-budget hidden" aria-label="Общий бюджет">
-              <div class="shared-budget-head">
-                <h3>Общий бюджет</h3>
-                <p id="sharedBudgetDescription"></p>
-              </div>
-              <div id="sharedOwnerControls">
-                <button class="secondary-button" id="createSharedCodeButton" type="button">Создать код приглашения</button>
-                <div id="sharedInviteOutput" class="shared-invite-output" hidden>
-                  <output id="sharedInviteCode" aria-label="Код приглашения"></output>
-                  <button class="secondary-button" id="copySharedCodeButton" type="button">Копировать</button>
-                </div>
-                <label class="field-label" for="sharedJoinCode">Код от другого участника</label>
-                <div class="shared-join-row">
-                  <input id="sharedJoinCode" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" placeholder="Код из 32 символов">
-                  <button class="primary-small" id="joinSharedButton" type="button">Подключиться</button>
-                </div>
-                <small class="shared-hint">Ваши существующие траты объединятся с общим бюджетом. Код действителен 7 дней.</small>
-              </div>
-              <div id="sharedMemberControls" class="hidden">
-                <button class="secondary-button" id="leaveSharedButton" type="button">Отключиться от общего бюджета</button>
-              </div>
-              <p id="sharedBudgetMessage" class="shared-feedback" role="status" aria-live="polite"></p>
-            </section>
             <button class="text-button hidden" id="retryCloudButton" type="button">
               Повторить подключение
             </button>
@@ -189,7 +166,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.8.1</p>
+          <p class="note">Пульс · версия 1.8.0</p>
         </section>
       </main>
       <footer class="dock">
