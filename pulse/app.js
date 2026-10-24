@@ -1077,7 +1077,7 @@
       console.error('Cloud sync failed', error);
       setSyncState('error', 'Не удалось синхронизировать');
       showCloudMessage(humanizeCloudError(error), true);
-      if (navigator.onLine && !document.hidden && currentUser?.id === userId) cloudRetryTimer = setTimeout(() => { cloudRetryTimer = null; syncBidirectional(); }, 20000);
+      if (typeof navigator !== 'undefined' && navigator.onLine && !document.hidden && currentUser?.id === userId) cloudRetryTimer = setTimeout(() => { cloudRetryTimer = null; syncBidirectional(); }, 20000);
     } finally {
       syncInFlight = false;
       if (pendingPush && currentUser?.id === userId) { pendingPush = false; scheduleCloudPush(); }
