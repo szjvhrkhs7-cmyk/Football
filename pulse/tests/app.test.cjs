@@ -48,8 +48,8 @@ test('budget subtracts every plan including legacy paid and partially paid items
  {id:'c',title:'Частичная',amount:2000,date:month+'-09',payments:[{id:'p',amount:500,date:month+'-09'}]},
  {id:'d',title:'Отменённая',amount:1000,date:month+'-10',cancelled:true},
  {id:'e',title:'Другой месяц',amount:1000,date:'2020-01-01'}]}));
- assert.equal(money(a,'availableAmount'),'10 000 ₽');
  a.click('[data-period="early"]');
+ assert.equal(money(a,'availableAmount'),'10 000 ₽');
  assert.equal(a.$('upcomingList').querySelectorAll('[data-expense-id]').length,3);
  a.$('openBudgetButton').click();assert.equal(money(a,'budgetPlannedAmount'),'10 000 ₽');assert.equal(money(a,'budgetRemainingAmount'),'10 000 ₽');
 });
@@ -122,7 +122,7 @@ test('all plans remain editable in the single list with long names and no paymen
 const section = (a, id) => a.w.document.querySelector(`[data-expense-section="${id}"]`);
 test('three open sections migrate legacy categories and total only active plans in the selected month', async t => {
  const month=new Date().toISOString().slice(0,7);
- const a=await app(t,JSON.stringify({settings:{defaultBudget:10000,categories:[
+ const a=await app(t,JSON.stringify({settings:{defaultBudget:10000,periodBudgets:{[month+'-07']:10000},categories:[
   {id:'home',name:'Квартира'},{id:'custom-loan',name:'Кредиты'},{id:'food',name:'Продукты'}]},expenses:[
   {id:'rent',title:'Аренда',categoryId:'home',amount:1000.25,date:month+'-07'},
   {id:'loan',title:'Платёж',categoryId:'custom-loan',amount:2000.50,date:month+'-08'},
@@ -146,7 +146,7 @@ test('three open sections migrate legacy categories and total only active plans 
 });
 test('each section adds independently, and moving an expense preserves category, payments and budget after reload', async t => {
  const month=new Date().toISOString().slice(0,7);
- const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
+ const a=await app(t,JSON.stringify({settings:{defaultBudget:10000,periodBudgets:{[month+'-07']:10000}},expenses:[
   {id:'legacy',title:'Старый план',categoryId:'food',amount:100,date:month+'-07',payments:[{id:'p',amount:20,date:month+'-07'}]}]}));
  a.click('[data-period="early"]');
  for(const id of ['home','credit','other']) {
