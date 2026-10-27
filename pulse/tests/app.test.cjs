@@ -281,3 +281,65 @@ test('legacy paid items are shown as completed without mutating their payment hi
   assert.equal(a.read().expenses[0].completed,false);
   assert.equal(a.read().expenses[0].payments[0].amount,1000);
 });
+
+
+test('salary period runs 22 October through 6 November, not the calendar month', async t => {
+  const a=await app(t,JSON.stringify({settings:{periodBudgets:{'2026-10-07':5000,'2026-10-22':9000}},expenses:[
+    {id:'early',title:'Ранний',amount:1000,date:'2026-10-07'},
+    {id:'boundary21',title:'Двадцать первое',amount:200,date:'2026-10-21'},
+    {id:'late',title:'Поздний',amount:300,date:'2026-10-22'},
+    {id:'next6',title:'Шестое ноября',amount:400,date:'2026-11-06'},
+    {id:'next7',title:'Седьмое ноября',amount:500,date:'2026-11-07'}]}));
+  if(!a.$('overviewMonthLabel').textContent.includes('10.26')) {
+    // Go to October when tests execute in a different month.
+    const current=a.$('overviewMonthLabel').textContent;
+    let guard=0;
+    while(a.$('overviewMonthLabel').textContent!=='10.26'&&guard++<36) {
+      a.$(current>'10.26'?'overviewPrevMonth':'overviewNextMonth').click();
+    }
+  }
+  a.click('[data-period="early"]');
+  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['early','boundary21']);
+  assert.equal(money(a,'availableAmount'),'3 800 ₽');
+  assert.equal(money(a,'budgetAmount'),'5 000 ₽');
+  a.click('[data-period="late"]');
+  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['late','next6']);
+  assert.equal(money(a,'availableAmount'),'8 300 ₽');
+  assert.equal(money(a,'budgetAmount'),'9 000 ₽');
+  a.$('overviewNextMonth').click();
+  a.click('[data-period="early"]');
+  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['next7']);
+});
+
+test('saving budgets for 7th and 22nd periods is independent and leaves legacy monthly budgets intact', async t=>{
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{budgets:{[month]:45000},defaultBudget:45000}}));
+  a.click('[data-period="early"]'); assert.equal(money(a,'budgetAmount'),'0 ₽');
+  budget(a,'8000');assert.equal(money(a,'budgetAmount'),'8 000 ₽');
+  a.click('[data-period="late"]'); assert.equal(money(a,'budgetAmount'),'0 ₽');
+  budget(a,'12000'); assert.equal(money(a,'budgetAmount'),'12 000 ₽');
+  a.click('[data-period="early"]'); assert.equal(money(a,'budgetAmount'),'8 000 ₽');
+  const saved=a.read();
+  assert.equal(saved.settings.periodBudgets[month+'-07'],8000);
+  assert.equal(saved.settings.periodBudgets[month+'-22'],12000);
+  assert.equal(saved.settings.budgets[month],45000,'original budget is still in backup');
+  const b=await app(t,JSON.stringify(saved));
+  b.click('[data-period="early"]');assert.equal(money(b,'budgetAmount'),'8 000 ₽');
+  b.click('[data-period="late"]');assert.equal(money(b,'budgetAmount'),'12 000 ₽');
+});
+
+test('an expense dated on the 6th appears under the previous 22nd, even after editing', async t=>{
+  const a=await app(t);
+  if(a.$('overviewMonthLabel').textContent!=='10.26') {
+    let guard=0;while(a.$('overviewMonthLabel').textContent!=='10.26' && guard++<36) a.$('overviewPrevMonth').click();
+  }
+  a.click('[data-period="late"]');
+  a.click('[data-open-expense]');a.$('expenseTitle').value='Перенос';a.$('expenseAmount').value='300';
+  a.$('expenseDate').value='2026-11-06';a.submit('expenseForm');
+  assert.equal(a.$('overviewMonthLabel').textContent,'10.26');
+  assert.match(a.$('upcomingList').textContent,/Перенос/);
+  a.click('[data-expense-id]');a.$('expenseDate').value='2026-11-07';a.submit('expenseForm');
+  assert.equal(a.$('overviewMonthLabel').textContent,'11.26');
+  assert.equal(a.w.document.querySelector('[data-period="early"]').getAttribute('aria-selected'),'true');
+  assert.match(a.$('upcomingList').textContent,/Перенос/);
+});
