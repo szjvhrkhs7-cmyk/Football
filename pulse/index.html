@@ -69,7 +69,15 @@
 
           </div>
 
-          <div class="list" id="upcomingList"></div>
+          <div class="expense-period-tabs" id="expensePeriodTabs" role="tablist" aria-label="Половина месяца">
+            <button class="period-tab" type="button" id="expensePeriodEarly" data-period="early" role="tab" aria-selected="false" aria-controls="upcomingList" tabindex="-1">
+              <span class="period-date">7 октября</span><small class="period-total">0 ₽</small>
+            </button>
+            <button class="period-tab" type="button" id="expensePeriodLate" data-period="late" role="tab" aria-selected="true" aria-controls="upcomingList" tabindex="0">
+              <span class="period-date">22 октября</span><small class="period-total">0 ₽</small>
+            </button>
+          </div>
+          <div class="list" id="upcomingList" role="tabpanel" aria-labelledby="expensePeriodLate"></div>
           </div>
 
         </section>
