@@ -37,7 +37,8 @@
   }
 
   const now = new Date();
-  let selectedMonth = toMonthKey(now);
+  let selectedMonth = now.getDate() <= 6 ? toMonthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1)) : toMonthKey(now);
+  let selectedPeriod = now.getDate() >= 7 && now.getDate() <= 21 ? 'early' : 'late';
   let overviewDay = null;
   let selectedCategoryId = 'food';
   let state = loadState();
@@ -100,6 +101,8 @@
       settings: {
         defaultBudget: 0,
         budgets: {},
+        periodBudgets: {},
+        defaultPeriodBudgets: { early: 0, late: 0 },
         categories: defaultCategories.map(item => ({ ...item }))
       },
       mandatoryPayments: [],
@@ -136,6 +139,7 @@
             amount: Math.max(0, Number(item.amount) || 0),
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
+            completed: item.completed === true || (item.completed == null && item.status === 'paid'),
             ...(Array.isArray(item.payments) ? { payments: item.payments } : {}),
             cancelled: item.cancelled === true,
             ...(typeof item.mandatoryPaymentId === 'string' ? { mandatoryPaymentId: item.mandatoryPaymentId } : {}),
@@ -168,6 +172,15 @@
       settings: {
         defaultBudget: Math.max(0, Number(settings.defaultBudget ?? fresh.settings.defaultBudget) || 0),
         budgets: settings.budgets && typeof settings.budgets === 'object' ? { ...settings.budgets } : {},
+        periodBudgets: Object.fromEntries(Object.entries(settings.periodBudgets || {})
+          .filter(([key, value]) => /^\d{4}-\d{2}-(07|22)$/.test(key) && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1e15)
+          .map(([key, value]) => [key, Number(value)])),
+        defaultPeriodBudgets: {
+          early: Number.isFinite(Number(settings.defaultPeriodBudgets?.early)) && Number(settings.defaultPeriodBudgets.early) >= 0
+            ? Math.min(1e15, Number(settings.defaultPeriodBudgets.early)) : 0,
+          late: Number.isFinite(Number(settings.defaultPeriodBudgets?.late)) && Number(settings.defaultPeriodBudgets.late) >= 0
+            ? Math.min(1e15, Number(settings.defaultPeriodBudgets.late)) : 0
+        },
         categories
       },
       expenses,
@@ -311,10 +324,36 @@
     return Number.isFinite(direct) && direct >= 0 ? direct : Number(state.settings.defaultBudget) || 0;
   }
 
+  function payPeriodKey(monthKey = selectedMonth, period = selectedPeriod) {
+    return monthKey + (period === 'early' ? '-07' : '-22');
+  }
+  function budgetForPeriod(monthKey = selectedMonth, period = selectedPeriod) {
+    const direct = state.settings.periodBudgets?.[payPeriodKey(monthKey, period)];
+    return direct !== undefined ? direct : Number(state.settings.defaultPeriodBudgets?.[period]) || 0;
+  }
+  function periodForDate(dateKey) {
+    const day = Number(dateKey.slice(8, 10));
+    const monthKey = dateKey.slice(0, 7);
+    return day <= 6
+      ? { month: addMonths(monthKey, -1), period: 'late' }
+      : { month: monthKey, period: day <= 21 ? 'early' : 'late' };
+  }
+  function expensesForPeriod(monthKey = selectedMonth, period = selectedPeriod) {
+    const start = payPeriodKey(monthKey, period);
+    const end = period === 'early' ? monthKey + '-22' : addMonths(monthKey, 1) + '-07';
+    return state.expenses.filter(expense => !expense.cancelled && expense.date >= start && expense.date < end)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+  }
   function expensesForMonth(monthKey = selectedMonth) {
     return state.expenses
       .filter(expense => !expense.cancelled && expense.date.startsWith(monthKey))
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+  }
+
+  function setExpensePeriod(period) {
+    if (period !== 'early' && period !== 'late') return;
+    selectedPeriod = period;
+    renderOverview();
   }
 
   function categoryById(id) {
@@ -333,7 +372,10 @@
   }
 
   function goCurrentMonth() {
-    setSelectedMonth(toMonthKey(new Date()));
+    const today = new Date();
+    selectedPeriod = today.getDate() >= 7 && today.getDate() <= 21 ? 'early' : 'late';
+    setSelectedMonth(today.getDate() <= 6
+      ? addMonths(toMonthKey(today), -1) : toMonthKey(today));
   }
 
   function navigate(screenName) {
@@ -367,9 +409,9 @@
   }
 
   function renderOverview() {
-    const monthlyExpenses = expensesForMonth();
-    const plannedTotal = monthlyExpenses.reduce((sum, expense) => sum + moneyCents(expense.amount), 0);
-    const budget = budgetForMonth();
+    const periodExpenses = expensesForPeriod();
+    const plannedTotal = periodExpenses.reduce((sum, expense) => sum + moneyCents(expense.amount), 0);
+    const budget = budgetForPeriod();
     const available = (moneyCents(budget) - plannedTotal) / 100;
     $('availableAmount').textContent = formatMoney(available, true);
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
@@ -378,7 +420,20 @@
     $('plannedTotalValue').textContent = formatMoney(plannedTotal / 100);
     $('budgetActionLabel').textContent = budget === 0 ? 'Задать бюджет' : '';
     $('upcomingHeading').textContent = 'Планируемые траты';
-    renderExpenseList($('upcomingList'), monthlyExpenses);
+    const monthName = MONTHS_GENITIVE[Number(selectedMonth.slice(5, 7)) - 1];
+    $('expensePeriodTabs').querySelectorAll('[data-period]').forEach(tab => {
+      const period = tab.dataset.period;
+      const active = period === selectedPeriod;
+      tab.querySelector('.period-date').textContent = (period === 'early' ? 7 : 22) + ' ' + monthName;
+      const periodPlanned = expensesForPeriod(selectedMonth, period)
+        .reduce((sum, expense) => sum + moneyCents(expense.amount), 0);
+      tab.querySelector('.period-total').textContent = formatMoney(
+        (moneyCents(budgetForPeriod(selectedMonth, period)) - periodPlanned) / 100);
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    $('upcomingList').setAttribute('aria-labelledby', selectedPeriod === 'early' ? 'expensePeriodEarly' : 'expensePeriodLate');
+    renderExpenseList($('upcomingList'), periodExpenses);
     const alert = $('budgetAlert');
     alert.classList.toggle('hidden', available >= 0);
     alert.textContent = available < 0 ? `Траты превышают бюджет на ${formatMoney(-available)}` : '';
@@ -390,7 +445,9 @@
       const total = entries.reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
       const rows = entries.map(expense => {
       const category = categoryById(expense.categoryId);
-      return `<div class="expense expense-row simple-expense">
+      const done = expense.completed === true;
+      return `<div class="expense expense-row simple-expense${done ? ' is-completed' : ''}">
+        <button class="completion-toggle" type="button" data-toggle-completed="${escapeAttr(expense.id)}" aria-pressed="${done}" aria-label="${done ? 'Вернуть в план' : 'Отметить выполненной'}: ${escapeAttr(expense.title)}"><span class="completion-mark">${icon('check')}</span></button>
         <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small><span class="expense-category">${escapeHtml(category.name)} · </span>${escapeHtml(formatDate(expense.date))}</small></button>
         <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
       </div>`;
@@ -400,15 +457,33 @@
           <strong class="section-total nums" data-section-total>${escapeHtml(formatMoney(total))}</strong>
           <button class="section-add" type="button" data-add-section="${section.id}" aria-label="Добавить трату в раздел ${section.name}">${icon('plus')}</button>
         </header>
-        <div class="section-expenses">${rows || '<p class="section-empty">Нет трат в этом месяце</p>'}</div>
+        <div class="section-expenses">${rows || '<p class="section-empty">Нет трат в этой половине месяца</p>'}</div>
       </section>`;
     }).join('');
+    container.querySelectorAll('[data-toggle-completed]').forEach(button =>
+      button.addEventListener('click', () => toggleExpenseCompletion(button.dataset.toggleCompleted)));
     container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));
     container.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openExpenseDialog(null, button.dataset.addSection)));
   }
 
+  function toggleExpenseCompletion(id) {
+    const expense = state.expenses.find(item => item.id === id && !item.cancelled);
+    if (!expense) return;
+    const previousCompleted = expense.completed;
+    const previousUpdatedAt = expense.updatedAt;
+    const previousMetaTime = state.meta.updatedAt;
+    expense.completed = !expense.completed;
+    expense.updatedAt = new Date().toISOString();
+    if (!persistState()) {
+      expense.completed = previousCompleted;
+      expense.updatedAt = previousUpdatedAt;
+      state.meta.updatedAt = previousMetaTime;
+      renderOverview();
+    }
+  }
+
   function renderBudgetPreview() {
-    const planned = expensesForMonth().reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
+    const planned = expensesForPeriod().reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
     const budget = Number($('budgetInput').value);
     const committed = planned;
     $('budgetPlannedAmount').textContent = formatMoney(planned);
@@ -417,9 +492,11 @@
   }
 
   function renderSettings() {
-    if (!$('budgetDialog').open) $('budgetInput').value = budgetForMonth();
-    $('settingsBudgetLabel').textContent = `${monthLabel(selectedMonth)} · ${formatMoney(budgetForMonth())}`;
-    $('budgetDialogPeriod').textContent = monthLabel(selectedMonth);
+    if (!$('budgetDialog').open) $('budgetInput').value = budgetForPeriod();
+    const currentPeriodDate = payPeriodKey();
+    $('settingsBudgetLabel').textContent = `${formatDate(currentPeriodDate)} · ${formatMoney(budgetForPeriod())}`;
+    $('budgetDialogPeriod').textContent = `${formatDate(currentPeriodDate)} – ${formatDate(
+      selectedPeriod === 'early' ? selectedMonth + '-21' : addMonths(selectedMonth, 1) + '-06')}`;
     renderBudgetPreview();
     renderCategoryManagement();
   }
@@ -473,9 +550,7 @@
       $('expenseDate').value = expense.date;
       selectedCategoryId = expense.categoryId;
     } else {
-      const today = new Date();
-      const targetDate = selectedMonth === toMonthKey(today) ? today : new Date(`${selectedMonth}-01T12:00:00`);
-      $('expenseDate').value = toDateKey(targetDate);
+      $('expenseDate').value = `${selectedMonth}-${selectedPeriod === 'early' ? '07' : '22'}`;
       const first = state.settings.categories.find(category => category.enabled !== false);
       selectedCategoryId = state.settings.categories.some(category => category.id === selectedCategoryId && category.enabled !== false)
         ? selectedCategoryId : first?.id || state.settings.categories[0]?.id || 'other';
@@ -503,6 +578,7 @@
 
     const previousExpenses = state.expenses.map(expense => ({ ...expense }));
     const previousMonth = selectedMonth;
+    const previousPeriod = selectedPeriod;
     const previousDay = overviewDay;
     const previousUpdatedAt = state.meta.updatedAt;
     const id = $('expenseId').value;
@@ -527,12 +603,15 @@
         updatedAt: timestamp
       });
     }
-    selectedMonth = date.slice(0, 7);
+    const targetPeriod = periodForDate(date);
+    selectedMonth = targetPeriod.month;
+    selectedPeriod = targetPeriod.period;
     if (overviewDay && overviewDay !== date) overviewDay = null;
     if (!persistState()) {
       state.expenses = previousExpenses;
       state.meta.updatedAt = previousUpdatedAt;
       selectedMonth = previousMonth;
+      selectedPeriod = previousPeriod;
       overviewDay = previousDay;
       return;
     }
@@ -559,9 +638,10 @@
     event?.preventDefault();
     const amount = Number($('budgetInput').value);
     if (!Number.isFinite(amount) || amount < 0 || amount > 1e15) return showToast('Укажите корректный планируемый бюджет');
-    const previous = { ...state.settings, budgets: { ...state.settings.budgets } };
-    state.settings.budgets[selectedMonth] = amount;
-    if ($('defaultBudgetToggle').checked) state.settings.defaultBudget = amount;
+    const previous = { ...state.settings, periodBudgets: { ...state.settings.periodBudgets },
+      defaultPeriodBudgets: { ...state.settings.defaultPeriodBudgets } };
+    state.settings.periodBudgets[payPeriodKey()] = amount;
+    if ($('defaultBudgetToggle').checked) state.settings.defaultPeriodBudgets[selectedPeriod] = amount;
     if (!persistState()) { state.settings = previous; return; }
     $('defaultBudgetToggle').checked = false;
     closeSheet($('budgetDialog'));
@@ -988,6 +1068,8 @@
       settings: {
         defaultBudget: chooseCloudItem(previous.settings?.defaultBudget, local.settings.defaultBudget, remote.settings.defaultBudget, localTime, remoteTime),
         budgets: mergeCloudMap(previous.settings?.budgets, local.settings.budgets, remote.settings.budgets, localTime, remoteTime),
+        periodBudgets: mergeCloudMap(previous.settings?.periodBudgets, local.settings.periodBudgets, remote.settings.periodBudgets, localTime, remoteTime),
+        defaultPeriodBudgets: mergeCloudMap(previous.settings?.defaultPeriodBudgets, local.settings.defaultPeriodBudgets, remote.settings.defaultPeriodBudgets, localTime, remoteTime),
         categories: mergeCloudList(previous.settings?.categories, local.settings.categories, remote.settings.categories, localTime, remoteTime)
       },
       expenses: mergeCloudList(previous.expenses, local.expenses, remote.expenses, localTime, remoteTime).map(expense => {
@@ -1176,6 +1258,17 @@
 
     [['overviewPrevMonth', -1], ['overviewNextMonth', 1]].forEach(([id, delta]) => $(id).addEventListener('click', () => setSelectedMonth(addMonths(selectedMonth, delta))));
     $('overviewMonthLabel').addEventListener('click', goCurrentMonth);
+    $('expensePeriodTabs').querySelectorAll('[data-period]').forEach(tab => {
+      tab.addEventListener('click', () => setExpensePeriod(tab.dataset.period));
+      tab.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 'early' : event.key === 'End' ? 'late'
+          : event.key === 'ArrowRight' ? 'late' : 'early';
+        setExpensePeriod(next);
+        $('expensePeriodTabs').querySelector('[data-period="' + next + '"]').focus();
+      });
+    });
 
     $('expenseForm').addEventListener('submit', saveExpense);
     $('deleteExpenseButton').addEventListener('click', deleteExpense);
