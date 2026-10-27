@@ -5,7 +5,7 @@ body{background:#efefec}
 .topbar{padding: max(20px,env(safe-area-inset-top)) 16px 4px}
 .brand{font-size:27px;letter-spacing:-.8px;gap:9px;line-height:1.15}
 .brandmark{display:grid;place-items:center;width:37px;height:37px;border:0;border-radius:0;background:none;flex:none}
-.brandmark img{width:37px;height:33px;object-fit:contain}
+.brandmark > svg{display:block;width:37px;height:33px;stroke:none;fill:#eba47f}
 .brand-name small{font-size:11px;letter-spacing:0;font-weight:400;line-height:1.6;color:var(--muted)}
 .avatar{background:#ededeb;border:0!important;border-radius:50%;width:42px;height:42px}
 .main.app-main{padding:4px 14px calc(100px + env(safe-area-inset-bottom));overflow:visible}
