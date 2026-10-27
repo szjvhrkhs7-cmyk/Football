@@ -4,18 +4,23 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const code = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
-function worker({ offline = false } = {}) {
+function worker({ offline = false, rootUnavailable = false } = {}) {
   const events = {}; const writes = []; const requests = [];
   const index = new Response('<html>offline shell</html>');
   const context = {
     URL, Response, location: { origin: 'https://example.com' },
     self: { location: 'https://example.com/pulse/sw.js', addEventListener: (name, cb) => events[name] = cb, clients: { claim: async () => {} } },
-    caches: { match: async key => key === './index.html' ? index : undefined, open: async () => ({ put: async (...args) => writes.push(args) }) },
+    caches: { match: async key => key === './index.html' ? index : undefined, open: async () => ({ put: async (...args) => writes.push(args), addAll: async urls => { if (rootUnavailable && urls.includes('./')) throw new Error('root returned 503'); assert.ok(urls.includes('./index.html')); } }) },
     fetch: async request => { requests.push(request); if (offline) throw new Error('offline'); return new Response('script'); }
   };
   vm.runInNewContext(code, context);
   return { events, writes, requests };
 }
+test('update installs when the directory route fails but the canonical shell is available', async () => {
+  const w=worker({rootUnavailable:true});let installing;
+  w.events.install({waitUntil:p=>{installing=p;}});
+  await assert.doesNotReject(installing);
+});
 test('offline startup with a build query resolves the canonical app shell', async () => {
   const w = worker({ offline: true }); let response;
   w.events.fetch({ request: { url: 'https://example.com/pulse/?build=new', method: 'GET', mode: 'navigate' }, respondWith: value => response = value });
