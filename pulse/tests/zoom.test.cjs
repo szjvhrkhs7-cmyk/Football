@@ -55,5 +55,6 @@ test('all editable fields have an unconditional Safari-safe text size in install
 
 test('sheet opening does not leave a CSS transform on a dialog containing focused text', () => {
   const animations = read('light.css');
+  assert.match(animations, /@keyframes sheet-in\s*\{\s*from\s*\{\s*opacity:\s*0\.6\s*\}\s*to\s*\{\s*opacity:\s*1\s*\}\s*\}/);
   assert.match(animations, /@keyframes pulse-sheet-enter\s*\{\s*from\s*\{\s*opacity:\s*0\s*\}\s*to\s*\{\s*opacity:\s*1\s*\}\s*\}/);
 });
