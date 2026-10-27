@@ -356,3 +356,17 @@ test('completion flags persist through cloud round trips and independent edits t
   assert.equal(left.api.state().expenses.find(e=>e.id==='second').completed,true);
   assert.equal(right.api.state().expenses.find(e=>e.id==='first').completed,true);
 });
+
+test('two devices editing separate salary-period budgets merge their keys without duplicating monthly budget',async()=>{
+  const cloud=sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},settings:{budgets:{'2026-10':40000},periodBudgets:{},defaultPeriodBudgets:{early:0,late:0}},expenses:[]});
+  const left=fixture(),right=fixture();left.api.connect(cloud.client());right.api.connect(cloud.client());
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  left.api.state().settings.periodBudgets['2026-10-07']=12000;left.api.persistState();
+  right.api.state().settings.periodBudgets['2026-10-22']=15000;right.api.persistState();
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+  const budgets=cloud.snapshot().payload.settings.periodBudgets;
+  assert.equal(budgets['2026-10-07'],12000);
+  assert.equal(budgets['2026-10-22'],15000);
+  assert.equal(cloud.snapshot().payload.settings.budgets['2026-10'],40000);
+});
