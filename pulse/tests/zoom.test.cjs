@@ -58,3 +58,26 @@ test('sheet opening does not leave a CSS transform on a dialog containing focuse
   assert.match(animations, /@keyframes sheet-in\s*\{\s*from\s*\{\s*opacity:\s*0\.6\s*\}\s*to\s*\{\s*opacity:\s*1\s*\}\s*\}/);
   assert.match(animations, /@keyframes pulse-sheet-enter\s*\{\s*from\s*\{\s*opacity:\s*0\s*\}\s*to\s*\{\s*opacity:\s*1\s*\}\s*\}/);
 });
+
+test('iOS WebKit prevents input autofocus scaling at the viewport, other devices retain unrestricted zoom', () => {
+  const viewportFor = userAgent => {
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/pulse/',
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        Object.defineProperty(window.navigator, 'userAgent', { configurable: true, value: userAgent });
+      }
+    });
+    const viewport = dom.window.document.querySelector('meta[name="viewport"]').content;
+    dom.window.close();
+    return viewport;
+  };
+  const iphone = viewportFor('Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1');
+  const ipad = viewportFor('Mozilla/5.0 (iPad; CPU OS 27_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148');
+  const android = viewportFor('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36');
+  assert.match(iphone, /maximum-scale=1(?:,|$)/);
+  assert.match(ipad, /maximum-scale=1(?:,|$)/);
+  assert.doesNotMatch(iphone, /user-scalable=no/);
+  assert.doesNotMatch(android, /maximum-scale=1|user-scalable=no/);
+  assert.match(android, /initial-scale=1/);
+});
