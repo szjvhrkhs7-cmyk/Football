@@ -6,6 +6,7 @@
       // On iOS Safari, maximum-scale=1 blocks automatic focus zoom while
       // intentional pinch zoom remains supported by the browser.
       if (/\b(iPhone|iPad|iPod)\b/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('ios-webkit');
         const viewport = document.querySelector('meta[name="viewport"]');
         viewport.setAttribute('content', viewport.content + ', maximum-scale=1');
       }
