@@ -1,28 +1,29 @@
 <!DOCTYPE html><html lang="ru"><head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#fafafc">
+    <meta name="theme-color" content="#f7f6f2">
     <meta name="color-scheme" content="light">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.8.0">
-    <link rel="icon" href="./icon.svg?v=1.8.0" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.8.1">
+    <link rel="icon" href="./icon.svg?v=1.8.1" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.8.0">
-    <link rel="stylesheet" href="./light.css?v=1.8.0">
+    <link rel="stylesheet" href="./styles.css?v=1.8.1">
+    <link rel="stylesheet" href="./light.css?v=1.8.1">
+    <link rel="stylesheet" href="./sections.css?v=1.8.1">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.8.0"></script>
-    <script defer="" src="./legacy-data.js?v=1.8.0"></script>
-    <script defer="" src="./app.js?v=1.8.0"></script>
+    <script defer="" src="./loans.js?v=1.8.1"></script>
+    <script defer="" src="./legacy-data.js?v=1.8.1"></script>
+    <script defer="" src="./app.js?v=1.8.1"></script>
   </head>
   <body>
     <div class="app app-shell">
       <header class="topbar">
         <button class="brand" type="button" data-nav="overview" aria-label="Перейти в обзор">
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.0" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.1" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
         <button type="button" class="avatar" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
           <span id="profileInitial">В</span>
@@ -45,9 +46,10 @@
             </div>
           </div>
           <section class="balance-composition" aria-label="План месяца">
-            <div class="balance-main"><span class="label"><i aria-hidden="true"></i>Остаток бюджета</span><strong class="balance-value nums" id="availableAmount" aria-live="polite">0 ₽</strong><span class="helper">Бюджет минус все траты в плане</span></div>
+            <div class="balance-main"><span class="label">Остаток</span><strong class="balance-value nums" id="availableAmount" aria-live="polite">0 ₽</strong></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint">Изменить бюджет</small></button>
           </section>
+          <p class="planned-total" id="plannedTotalAmount">Запланировано 0 ₽</p>
 
           <div class="balance-alert hidden" id="budgetAlert" role="status"></div>
 
@@ -166,7 +168,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.8.0</p>
+          <p class="note">Пульс · версия 1.8.1</p>
         </section>
       </main>
       <footer class="dock">
@@ -189,16 +191,22 @@
         </header>
         <div class="dialog-body">
           <input id="expenseId" type="hidden">
+          <fieldset class="expense-section-picker">
+            <legend class="visually-hidden">Раздел</legend>
+            <label><input type="radio" name="expenseSection" value="home"><span>Квартира</span></label>
+            <label><input type="radio" name="expenseSection" value="credit"><span>Кредит</span></label>
+            <label><input type="radio" name="expenseSection" value="other" checked><span>Остальное</span></label>
+          </fieldset>
+          <div class="dialog-field">
+            <label for="expenseTitle">Название</label>
+            <input id="expenseTitle" type="text" maxlength="60" autocomplete="off" placeholder="Например, продукты" required="">
+          </div>
           <div class="money-field">
             <label for="expenseAmount">Сумма траты</label>
             <div class="money-input">
               <input id="expenseAmount" aria-label="Сумма траты в рублях" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0" required="">
               <span aria-hidden="true">₽</span>
             </div>
-          </div>
-          <div class="dialog-field">
-            <label for="expenseTitle">Название</label>
-            <input id="expenseTitle" type="text" maxlength="60" autocomplete="off" placeholder="Например, продукты" required="">
           </div>
           <div class="twocol dialog-fields">
             <div class="dialog-field">

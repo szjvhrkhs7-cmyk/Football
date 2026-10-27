@@ -21,6 +21,21 @@
     { id: 'other', name: 'Другое', emoji: '•', color: PALETTE[7], soft: SOFT_PALETTE[7], enabled: true }
   ];
 
+  const EXPENSE_SECTIONS = [
+    { id: 'home', name: 'Квартира' },
+    { id: 'credit', name: 'Кредит' },
+    { id: 'other', name: 'Остальное' }
+  ];
+
+  function expenseSectionId(expense, categories = state.settings.categories) {
+    if (EXPENSE_SECTIONS.some(section => section.id === expense.sectionId)) return expense.sectionId;
+    const category = categories.find(item => item.id === expense.categoryId);
+    const name = String(category?.name || '').trim().toLocaleLowerCase('ru-RU');
+    if (expense.categoryId === 'home' || ['квартира', 'жильё', 'жилье'].includes(name)) return 'home';
+    if (expense.categoryId === 'credit' || ['кредит', 'кредиты'].includes(name)) return 'credit';
+    return 'other';
+  }
+
   const now = new Date();
   let selectedMonth = toMonthKey(now);
   let overviewDay = null;
@@ -117,6 +132,7 @@
             id: String(item.id || makeId('expense')),
             title: String(item.title || 'Трата').slice(0, 60),
             categoryId: categories.some(category => category.id === item.categoryId) ? item.categoryId : categories[0].id,
+            sectionId: expenseSectionId(item, categories),
             amount: Math.max(0, Number(item.amount) || 0),
             date: isDateKey(item.date) ? item.date : toDateKey(now),
             status: item.status === 'paid' ? 'paid' : 'planned',
@@ -359,6 +375,7 @@
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
     $('budgetAmount').textContent = formatMoney(budget, true);
+    $('plannedTotalAmount').textContent = `Запланировано ${formatMoney(plannedTotal / 100)}`;
     $('upcomingHeading').textContent = 'Планируемые траты';
     renderExpenseList($('upcomingList'), monthlyExpenses);
     const alert = $('budgetAlert');
@@ -367,19 +384,26 @@
   }
 
   function renderExpenseList(container, expenses) {
-    if (!expenses.length) {
-      container.innerHTML = '<div class="empty-state"><strong>Пока без трат</strong><small>Добавьте трату для выбранного месяца.</small></div>';
-      return;
-    }
-    container.innerHTML = expenses.map(expense => {
-      const category = categoryById(expense.categoryId), visual = categoryVisual(category);
+    container.innerHTML = EXPENSE_SECTIONS.map(section => {
+      const entries = expenses.filter(expense => expenseSectionId(expense) === section.id);
+      const total = entries.reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
+      const rows = entries.map(expense => {
+      const category = categoryById(expense.categoryId);
       return `<div class="expense expense-row simple-expense">
-        <span class="categoryicon category-icon" style="background:${escapeAttr(visual.soft)};color:${escapeAttr(visual.color)}">${visual.markup}</span>
         <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small>${escapeHtml(category.name)} · ${escapeHtml(formatDate(expense.date))}</small></button>
         <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
       </div>`;
+      }).join('');
+      return `<section class="expense-section" data-expense-section="${section.id}" aria-labelledby="section-title-${section.id}">
+        <header class="expense-section-head"><h3 id="section-title-${section.id}">${section.name}</h3>
+          <strong class="section-total nums" data-section-total>${escapeHtml(formatMoney(total))}</strong>
+          <button class="section-add" type="button" data-add-section="${section.id}" aria-label="Добавить трату в раздел ${section.name}">${icon('plus')}</button>
+        </header>
+        <div class="section-expenses">${rows || '<p class="section-empty">Пока нет трат</p>'}</div>
+      </section>`;
     }).join('');
     container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));
+    container.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openExpenseDialog(null, button.dataset.addSection)));
   }
 
   function renderBudgetPreview() {
@@ -430,7 +454,7 @@
     $('categoryPicker').innerHTML = available.map(category => `<option value="${escapeAttr(category.id)}" ${category.id === selectedCategoryId ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('');
   }
 
-  function openExpenseDialog(expenseId = null) {
+  function openExpenseDialog(expenseId = null, sectionId = 'other') {
     const dialog = $('expenseDialog');
     const expense = expenseId ? state.expenses.find(item => item.id === expenseId) : null;
     $('expenseForm').reset();
@@ -439,6 +463,8 @@
     $('expenseDialogTitle').textContent = expense ? 'Редактировать трату' : 'Новая трата';
     $('saveExpenseButton').textContent = expense ? 'Сохранить изменения' : 'Добавить в план';
     $('deleteExpenseButton').classList.toggle('hidden', !expense);
+    const targetSection = expense ? expenseSectionId(expense) : sectionId;
+    qsa('input[name="expenseSection"]').forEach(input => { input.checked = input.value === targetSection; });
 
     if (expense) {
       $('expenseTitle').value = expense.title;
@@ -467,9 +493,11 @@
     const title = $('expenseTitle').value.trim();
     const amount = moneyCents(Number($('expenseAmount').value)) / 100;
     const date = $('expenseDate').value;
+    const sectionId = document.querySelector('input[name="expenseSection"]:checked')?.value;
     if (!title) { $('expenseError').textContent = 'Укажите название траты'; return; }
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) { $('expenseError').textContent = 'Укажите сумму больше нуля'; return; }
     if (!isDateKey(date)) { $('expenseError').textContent = 'Выберите дату'; return; }
+    if (!EXPENSE_SECTIONS.some(section => section.id === sectionId)) { $('expenseError').textContent = 'Выберите раздел'; return; }
     if (!state.settings.categories.some(category => category.id === selectedCategoryId)) return showToast('Выбери категорию');
 
     const previousExpenses = state.expenses.map(expense => ({ ...expense }));
@@ -484,7 +512,7 @@
     }
     const timestamp = new Date().toISOString();
     if (existing) {
-      Object.assign(existing, { title, amount, date, categoryId: selectedCategoryId, updatedAt: timestamp });
+      Object.assign(existing, { title, amount, date, sectionId, categoryId: selectedCategoryId, updatedAt: timestamp });
     } else {
       state.expenses.push({
         id: makeId('expense'),
@@ -492,6 +520,7 @@
         amount,
         date,
         categoryId: selectedCategoryId,
+        sectionId,
         status: 'planned',
         createdAt: timestamp,
         updatedAt: timestamp
@@ -1111,16 +1140,24 @@
   function bindVisualViewport() {
     const viewport = window.visualViewport;
     if (!viewport) return;
+    let previousScale = viewport.scale || 1;
     const update = () => {
-      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      document.documentElement.style.setProperty('--visible-height', `${viewport.height}px`);
+      // Normalize pinch zoom before measuring the space removed by the keyboard.
+      // offsetTop is also changed by panning, so it is not a keyboard measurement.
+      const visibleHeight = viewport.height * (viewport.scale || 1);
+      const inset = Math.max(0, window.innerHeight - visibleHeight);
+      document.documentElement.style.setProperty('--visible-height', `${visibleHeight}px`);
       document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
       document.documentElement.classList.toggle('keyboard-open', inset > 100);
+      return inset;
     };
     viewport.addEventListener('resize', () => {
-      update();
+      const scale = viewport.scale || 1;
+      const zooming = Math.abs(scale - previousScale) > 0.01;
+      previousScale = scale;
+      const inset = update();
       const field = document.activeElement;
-      if (field?.matches('dialog input, dialog select')) {
+      if (!zooming && inset > 100 && field?.matches('dialog input, dialog select')) {
         requestAnimationFrame(() => field.scrollIntoView({ block: 'nearest' }));
       }
     });

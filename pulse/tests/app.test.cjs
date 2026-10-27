@@ -116,3 +116,73 @@ test('all plans remain editable in the single list with long names and no paymen
  assert.equal(a.$('upcomingList').querySelector('[data-pay-expense],[data-complete-expense]'),null);
  assert.equal(money(a,'availableAmount'),'8 800 ₽');
 });
+
+const section = (a, id) => a.w.document.querySelector(`[data-expense-section="${id}"]`);
+test('three open sections migrate legacy categories and total only active plans in the selected month', async t => {
+ const month=new Date().toISOString().slice(0,7);
+ const a=await app(t,JSON.stringify({settings:{defaultBudget:10000,categories:[
+  {id:'home',name:'Квартира'},{id:'custom-loan',name:'Кредиты'},{id:'food',name:'Продукты'}]},expenses:[
+  {id:'rent',title:'Аренда',categoryId:'home',amount:1000.25,date:month+'-01'},
+  {id:'loan',title:'Платёж',categoryId:'custom-loan',amount:2000.50,date:month+'-02'},
+  {id:'food',title:'Еда',categoryId:'food',amount:300,date:month+'-03'},
+  {id:'explicit',title:'Переопределение',categoryId:'home',sectionId:'other',amount:400,date:month+'-04'},
+  {id:'invalid',title:'Неизвестный раздел',categoryId:'food',sectionId:'<script>',amount:50,date:month+'-05'},
+  {id:'cancelled',title:'Отменено',categoryId:'home',cancelled:true,amount:9000,date:month+'-01'},
+  {id:'old',title:'Прошлый месяц',categoryId:'home',amount:9000,date:'2020-01-01'}]}));
+ assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-section]')].map(e=>e.dataset.expenseSection),['home','credit','other']);
+ assert.equal(section(a,'home').querySelectorAll('[data-expense-id]').length,1);
+ assert.equal(section(a,'credit').querySelectorAll('[data-expense-id]').length,1);
+ assert.equal(section(a,'other').querySelectorAll('[data-expense-id]').length,3);
+ assert.equal(section(a,'home').querySelector('[data-section-total]').textContent.replace(/\u00a0/g,' '),'1 000,25 ₽');
+ assert.equal(section(a,'credit').querySelector('[data-section-total]').textContent.replace(/\u00a0/g,' '),'2 000,5 ₽');
+ assert.equal(money(a,'availableAmount'),'6 249,25 ₽');
+ a.$('overviewNextMonth').click();
+ assert.equal(a.w.document.querySelectorAll('[data-expense-section]').length,3);
+ assert.equal(a.w.document.querySelectorAll('[data-add-section]').length,3);
+ assert.equal(a.w.document.querySelectorAll('[data-expense-id]').length,0);
+});
+test('each section adds independently, and moving an expense preserves category, payments and budget after reload', async t => {
+ const month=new Date().toISOString().slice(0,7);
+ const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
+  {id:'legacy',title:'Старый план',categoryId:'food',amount:100,date:month+'-01',payments:[{id:'p',amount:20,date:month+'-01'}]}]}));
+ for(const id of ['home','credit','other']) {
+  a.click(`[data-add-section="${id}"]`);
+  assert.equal(a.w.document.querySelector('input[name="expenseSection"]:checked').value,id);
+  a.$('expenseTitle').value='Новая '+id;a.$('expenseAmount').value='250.25';
+  a.$('categoryPicker').value='food';a.$('categoryPicker').dispatchEvent(new a.w.Event('change'));
+  a.submit('expenseForm');assert.match(section(a,id).textContent,new RegExp('Новая '+id));
+ }
+ a.click('[data-expense-id="legacy"]');a.click('input[name="expenseSection"][value="home"]');a.submit('expenseForm');
+ assert.match(section(a,'home').textContent,/Старый план/);
+ const migrated=a.read().expenses.find(e=>e.id==='legacy');
+ assert.equal(migrated.sectionId,'home');assert.equal(migrated.categoryId,'food');assert.equal(migrated.payments[0].amount,20);
+ const b=await app(t,JSON.stringify(a.read()));
+ assert.equal(b.w.document.querySelectorAll('[data-expense-id]').length,4);
+ assert.equal(section(b,'home').querySelectorAll('[data-expense-id]').length,2);
+ assert.equal(money(b,'availableAmount'),'9 149,25 ₽');
+ b.click('[data-expense-id="legacy"]');b.$('deleteExpenseButton').click();b.click('#toast button');
+ assert.match(section(b,'home').textContent,/Старый план/);
+});
+test('pinch zoom does not trigger keyboard layout, while keyboard resizing still does', async t => {
+ const a=await app(t,null,true);
+ a.w.visualViewport.scale=2;a.w.visualViewport.height=a.w.innerHeight/2;
+ a.w.visualViewport.dispatchEvent(new a.w.Event('resize'));
+ assert.equal(a.w.document.documentElement.classList.contains('keyboard-open'),false);
+ a.w.visualViewport.scale=1;a.w.visualViewport.dispatchEvent(new a.w.Event('resize'));
+ assert.equal(a.w.document.documentElement.classList.contains('keyboard-open'),true);
+});
+test('keyboard layout clears after zooming and dismissal, and still handles opening while zoomed', async t => {
+ const a=await app(t,null,true), viewport=a.w.visualViewport, root=a.w.document.documentElement;
+ viewport.scale=1;viewport.height=450;viewport.dispatchEvent(new a.w.Event('resize'));
+ assert.equal(root.classList.contains('keyboard-open'),true);
+ viewport.scale=2;viewport.height=225;viewport.dispatchEvent(new a.w.Event('resize'));
+ viewport.height=a.w.innerHeight/2;viewport.offsetTop=120;viewport.dispatchEvent(new a.w.Event('resize'));
+ assert.equal(root.classList.contains('keyboard-open'),false);
+ assert.equal(root.style.getPropertyValue('--keyboard-inset'),'0px');
+ a.click('[data-open-expense]');a.$('expenseTitle').focus();
+ let scrolled=0;a.w.requestAnimationFrame=fn=>fn();a.$('expenseTitle').scrollIntoView=()=>{scrolled++;};
+ viewport.height=225;viewport.dispatchEvent(new a.w.Event('resize'));
+ assert.equal(root.classList.contains('keyboard-open'),true);
+ assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-450}px`);
+ assert.equal(scrolled,1);
+});

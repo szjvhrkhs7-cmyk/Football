@@ -271,6 +271,25 @@ test('an offline delete and a simultaneous independent addition both survive', a
 });
 
 
+test('section assignments survive cloud round trips and independent device edits', async () => {
+ const cloud=sharedCloud({meta:{updatedAt:'2026-10-22T08:00:00Z'},expenses:[
+  {id:'home-plan',title:'Квартира',categoryId:'food',sectionId:'home',amount:100,date:'2026-10-22'},
+  {id:'credit-plan',title:'Кредит',categoryId:'home',sectionId:'credit',amount:200,date:'2026-10-22'}]});
+ const left=fixture(),right=fixture();left.api.connect(cloud.client());right.api.connect(cloud.client());
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ assert.equal(left.api.state().expenses.find(e=>e.id==='home-plan').sectionId,'home');
+ left.api.state().expenses.find(e=>e.id==='home-plan').sectionId='other';
+ left.api.state().expenses.find(e=>e.id==='home-plan').updatedAt=new Date().toISOString();left.api.persistState();
+ right.api.state().expenses.find(e=>e.id==='credit-plan').title='Новый заголовок';
+ right.api.state().expenses.find(e=>e.id==='credit-plan').updatedAt=new Date().toISOString();right.api.persistState();
+ await Promise.all([left.api.syncBidirectional(),right.api.syncBidirectional()]);
+ const saved=cloud.snapshot().payload.expenses;
+ assert.equal(saved.find(e=>e.id==='home-plan').sectionId,'other');
+ assert.equal(saved.find(e=>e.id==='credit-plan').sectionId,'credit');
+ assert.equal(saved.find(e=>e.id==='credit-plan').title,'Новый заголовок');
+ await left.api.syncBidirectional();assert.equal(left.api.state().expenses.find(e=>e.id==='credit-plan').sectionId,'credit');
+});
+
 test('two accounts on the same browser retain separate local budgets', () => {
   const f=fixture();
   f.api.account('account-a');
