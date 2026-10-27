@@ -186,3 +186,92 @@ test('keyboard layout clears after zooming and dismissal, and still handles open
  assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-450}px`);
  assert.equal(scrolled,0);
 });
+
+
+test('two month periods show expenses separately while the monthly budget stays unchanged', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
+    {id:'early',title:'Первая половина',amount:2000,date:month+'-07',sectionId:'home'},
+    {id:'late',title:'Вторая половина',amount:3500,date:month+'-22',sectionId:'credit'}]}));
+  const tabs=a.$('expensePeriodTabs');
+  assert.equal(tabs.getAttribute('role'),'tablist');
+  assert.equal(tabs.querySelectorAll('[role="tab"]').length,2);
+  assert.match(tabs.textContent,/7 /); assert.match(tabs.textContent,/22 /);
+  assert.equal(money(a,'availableAmount'),'4 500 ₽');
+  a.click('[data-period="early"]');
+  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['early']);
+  assert.equal(a.w.document.querySelector('[data-period="early"]').getAttribute('aria-selected'),'true');
+  a.click('[data-period="late"]');
+  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['late']);
+  assert.equal(money(a,'availableAmount'),'4 500 ₽');
+  a.$('overviewNextMonth').click();
+  assert.match(tabs.textContent,/7 /); assert.match(tabs.textContent,/22 /);
+  assert.equal(a.w.document.querySelectorAll('[data-expense-id]').length,0);
+});
+
+test('completion checkmark dims just its own expense, can be undone, and survives reload', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
+    {id:'a',title:'Одна',amount:1000,date:month+'-07'},
+    {id:'b',title:'Другая',amount:1500,date:month+'-08'}]}));
+  a.click('[data-period="early"]');
+  const value=money(a,'availableAmount');
+  const button=a.w.document.querySelector('[data-toggle-completed="a"]');
+  assert.equal(button.getAttribute('aria-pressed'),'false');
+  button.click();
+  assert.equal(a.read().expenses.find(x=>x.id==='a').completed,true);
+  assert.equal(a.w.document.querySelector('[data-expense-id="a"]').closest('.expense-row').classList.contains('is-completed'),true);
+  assert.equal(a.w.document.querySelector('[data-expense-id="b"]').closest('.expense-row').classList.contains('is-completed'),false);
+  assert.equal(a.w.document.querySelector('[data-toggle-completed="a"]').getAttribute('aria-pressed'),'true');
+  assert.equal(money(a,'availableAmount'),value);
+  const b=await app(t,JSON.stringify(a.read()));
+  b.click('[data-period="early"]');
+  assert.equal(b.w.document.querySelector('[data-toggle-completed="a"]').getAttribute('aria-pressed'),'true');
+  b.click('[data-toggle-completed="a"]');
+  assert.equal(b.read().expenses.find(x=>x.id==='a').completed,false);
+  b.click('[data-expense-id="a"]');
+  assert.equal(b.$('expenseDialog').open,true,'checkmark does not remove edit access');
+});
+
+test('adding an expense in either half defaults to its date and opens the corresponding tab', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t);
+  a.click('[data-period="early"]');
+  a.click('[data-add-section="home"]');
+  assert.equal(a.$('expenseDate').value,month+'-07');
+  a.$('expenseTitle').value='Ранний платеж';a.$('expenseAmount').value='900';a.submit('expenseForm');
+  assert.match(a.$('upcomingList').textContent,/Ранний платеж/);
+  a.click('[data-period="late"]');
+  a.click('[data-add-section="credit"]');
+  assert.equal(a.$('expenseDate').value,month+'-22');
+  a.$('expenseTitle').value='Поздний платеж';a.$('expenseAmount').value='800';a.submit('expenseForm');
+  assert.match(a.$('upcomingList').textContent,/Поздний платеж/);
+  assert.doesNotMatch(a.$('upcomingList').textContent,/Ранний платеж/);
+  assert.deepEqual(a.read().expenses.map(x=>x.date).sort(),[month+'-07',month+'-22']);
+});
+
+test('failed local persistence reverts a completion toggle without changing the budget', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{defaultBudget:3000},expenses:[
+    {id:'r',title:'Аренда',amount:1000,date:month+'-07'}]}));
+  a.click('[data-period="early"]');
+  const original=a.w.Storage.prototype.setItem;
+  a.w.Storage.prototype.setItem=()=>{throw new Error('Storage full');};
+  a.click('[data-toggle-completed="r"]');
+  assert.equal(a.read().expenses[0].completed,undefined,'stored record remains unchanged');
+  assert.equal(a.w.document.querySelector('[data-toggle-completed="r"]').getAttribute('aria-pressed'),'false');
+  assert.equal(money(a,'availableAmount'),'2 000 ₽');
+  a.w.Storage.prototype.setItem=original;
+});
+
+test('legacy paid items are shown as completed without mutating their payment history', async t => {
+  const month=new Date().toISOString().slice(0,7);
+  const a=await app(t,JSON.stringify({settings:{defaultBudget:5000},expenses:[
+    {id:'paid',title:'Уже оплачено',amount:1000,date:month+'-22',status:'paid'}]}));
+  a.click('[data-period="late"]');
+  assert.equal(a.w.document.querySelector('[data-toggle-completed="paid"]').getAttribute('aria-pressed'),'true');
+  assert.equal(a.read(),null,'loading old data must not rewrite storage until a user change');
+  a.click('[data-toggle-completed="paid"]');
+  assert.equal(a.read().expenses[0].completed,false);
+  assert.equal(a.read().expenses[0].payments[0].amount,1000);
+});
