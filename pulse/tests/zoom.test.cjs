@@ -43,3 +43,17 @@ test('updated mobile style is versioned in both the page and offline shell', () 
   assert.match(worker, new RegExp('pulse-v' + version.replace(/\./g, '\\.') + "'"));
   assert.ok(worker.includes("'./sections.css?v=" + version + "'"));
 });
+
+test('all editable fields have an unconditional Safari-safe text size in installed PWAs', () => {
+  // Do not rely on hover/pointer media queries: standalone iOS PWAs can differ from Safari tabs.
+  const block = css.split('/* Safari focus baseline: applies in browser and standalone PWA. */')[1];
+  assert.ok(block, 'unconditional focus baseline exists at the end of the stylesheet');
+  assert.match(block, /input:not\(\[type="hidden"\]\):not\(\[type="checkbox"\]\):not\(\[type="radio"\]\):not\(\[type="file"\]\),\s*select,\s*textarea\s*\{\s*font-size:\s*max\(17px,\s*1rem\)\s*!important;/);
+  assert.match(block, /dialog\.designed-sheet \.money-input input\[type="number"\]\s*\{\s*font-size:\s*20px\s*!important;/);
+  assert.match(block, /#categoryEmoji\s*\{\s*font-size:\s*22px\s*!important;/);
+});
+
+test('sheet opening does not leave a CSS transform on a dialog containing focused text', () => {
+  const animations = read('light.css');
+  assert.match(animations, /@keyframes pulse-sheet-enter\s*\{\s*from\s*\{\s*opacity:\s*0\s*\}\s*to\s*\{\s*opacity:\s*1\s*\}\s*\}/);
+});
