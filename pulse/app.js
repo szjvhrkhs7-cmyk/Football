@@ -1141,7 +1141,6 @@
   function bindVisualViewport() {
     const viewport = window.visualViewport;
     if (!viewport) return;
-    let previousScale = viewport.scale || 1;
     const update = () => {
       // Normalize pinch zoom before measuring the space removed by the keyboard.
       // offsetTop is also changed by panning, so it is not a keyboard measurement.
@@ -1152,16 +1151,9 @@
       document.documentElement.classList.toggle('keyboard-open', inset > 100);
       return inset;
     };
-    viewport.addEventListener('resize', () => {
-      const scale = viewport.scale || 1;
-      const zooming = Math.abs(scale - previousScale) > 0.01;
-      previousScale = scale;
-      const inset = update();
-      const field = document.activeElement;
-      if (!zooming && inset > 100 && field?.matches('dialog input, dialog select')) {
-        requestAnimationFrame(() => field.scrollIntoView({ block: 'nearest' }));
-      }
-    });
+    // Let Safari place the caret naturally. Forcing scrollIntoView here can
+    // magnify or leave a focused modal offset after the keyboard closes.
+    viewport.addEventListener('resize', update);
     viewport.addEventListener('scroll', update);
     window.addEventListener('resize', update);
     update();
