@@ -81,3 +81,36 @@ test('iOS WebKit prevents input autofocus scaling at the viewport, other devices
   assert.doesNotMatch(android, /maximum-scale=1|user-scalable=no/);
   assert.match(android, /initial-scale=1/);
 });
+
+test('only iOS WebKit activates the stable expense dialog geometry', () => {
+  const markupFor = userAgent => {
+    const dom = new JSDOM(html, {
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        Object.defineProperty(window.navigator, 'userAgent', { configurable: true, value: userAgent });
+      }
+    });
+    const enabled = dom.window.document.documentElement.classList.contains('ios-webkit');
+    dom.window.close();
+    return enabled;
+  };
+  assert.equal(markupFor('Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'), true);
+  assert.equal(markupFor('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36'), false);
+});
+
+test('iPhone expense sheet retains the same height when the keyboard opens and keeps the form scrollable', () => {
+  const stylesheet = read('styles.css');
+  const rules = stylesheet.split('/* Stable iPhone expense dialog geometry with the software keyboard. */')[1];
+  assert.ok(rules, 'iOS-specific expense form layout override exists');
+  const normal = rules.match(/\.ios-webkit\s+#expenseDialog\s*\{([^}]+)\}/)?.[1];
+  const keyboard = rules.match(/\.ios-webkit\.keyboard-open\s+#expenseDialog\s*\{([^}]+)\}/)?.[1];
+  assert.ok(normal, 'normal iOS expense dialog layout exists');
+  assert.ok(keyboard, 'keyboard-open expense dialog layout exists');
+  const height = /height:\s*min\(520px,\s*54svh\)\s*;/;
+  assert.match(normal, height);
+  assert.match(keyboard, height);
+  assert.doesNotMatch(normal + keyboard, /--visible-height|100dvh/);
+  assert.match(rules, /#expenseDialog\s*>\s*form\s*\{[^}]*height:\s*100%\s*;/);
+  assert.match(rules, /#expenseDialog\s+\.dialog-body\s*\{[^}]*overflow-y:\s*auto\s*;/);
+  assert.match(rules, /#expenseDialog\s+\.dialog-footer\s*\{[^}]*flex-shrink:\s*0\s*;/);
+});
