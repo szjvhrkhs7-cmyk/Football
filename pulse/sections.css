@@ -82,3 +82,21 @@ button,label,summary{touch-action:manipulation}
 @media(max-width:360px){.main.app-main{padding-left:12px;padding-right:12px}.balance-main,.balance-budget{padding:12px;min-height:98px}.balance-budget{padding-bottom:34px}.balance-value,.balance-budget>strong{font-size:22px}.plan-surface{padding-left:11px;padding-right:11px}.expense-section-head{gap:6px}.expense-section-head h3{font-size:16px}.section-total{font-size:13px}.section-icon,.section-icon svg{width:20px}.section-add{margin-left:0}.expense-section .amount{font-size:14px}.expense-section-picker span{font-size:13px}.balance-budget .budget-edit-hint{left:12px;font-size:11px}}
 @media(min-width:821px){.dock{bottom:24px;max-width:458px;border-radius:0 0 26px 26px}}
 @media(prefers-reduced-motion:no-preference){.screen.active{animation-duration:160ms}dialog.designed-sheet[open]{animation-duration:180ms}}
+
+/* iOS Safari: stop automatic focus and double-tap zoom without disabling pinch zoom. */
+html, body, .app, dialog, input, select, textarea {
+  touch-action: manipulation;
+}
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 17px !important;
+  }
+  dialog.designed-sheet .money-input input[type="number"] {
+    font-size: 20px !important;
+  }
+  #categoryEmoji {
+    font-size: 22px !important;
+  }
+}
