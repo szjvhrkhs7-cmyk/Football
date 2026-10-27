@@ -1,5 +1,5 @@
-const CACHE = 'pulse-v1.8.4';
-const APP_SHELL = ['./index.html', './styles.css?v=1.8.4', './light.css?v=1.8.4', './sections.css?v=1.8.4', './legacy-data.js?v=1.8.4', './app.js?v=1.8.4', './loans.js?v=1.8.4', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.8.4', './icon.svg?v=1.8.4', './logo-mark.svg?v=1.8.4', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
+const CACHE = 'pulse-v1.8.5';
+const APP_SHELL = ['./index.html', './styles.css?v=1.8.5', './light.css?v=1.8.5', './sections.css?v=1.8.5', './legacy-data.js?v=1.8.5', './app.js?v=1.8.5', './loans.js?v=1.8.5', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.8.5', './icon.svg?v=1.8.5', './logo-mark.svg?v=1.8.5', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
 
 self.addEventListener('install', event => {
   // Complete the new offline shell before activating it. Do not reload open forms:
