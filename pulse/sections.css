@@ -113,3 +113,25 @@ dialog.designed-sheet .money-input input[type="number"] {
 #categoryEmoji {
   font-size: 22px !important;
 }
+
+/* Two pay-date views. The summary cards continue to represent the full month. */
+.expense-period-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;margin:5px 0 12px;background:#f0f0ed;border-radius:12px}
+.expense-period-tabs .period-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:54px;padding:6px 5px;border:1px solid transparent;border-radius:9px;background:transparent;color:#777c77;text-align:center;touch-action:manipulation}
+.expense-period-tabs .period-tab[aria-selected=true]{background:#fff;color:var(--ink);border-color:#e4e4df;box-shadow:0 1px 3px #1a241908}
+.period-tab .period-date{font-size:14px;line-height:1.3;font-weight:600;overflow-wrap:anywhere}
+.period-tab .period-total{font-size:12px;line-height:1.3;color:var(--muted);font-weight:450;overflow-wrap:anywhere}
+.expense-period-tabs .period-tab:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#upcomingList[role=tabpanel]{outline:none}
+/* Per-expense completion, separate from editing or the monthly budget. */
+.expense-section .completion-toggle{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;margin-left:-6px;background:transparent;color:#767c76;border:0;border-radius:10px;touch-action:manipulation}
+.expense-section .completion-mark{display:grid;place-items:center;width:23px;height:23px;border:1.5px solid #b7bbb5;border-radius:7px;background:#fff;transition:background-color 140ms ease,border-color 140ms ease}
+.expense-section .completion-mark svg{width:15px;height:15px;stroke-width:2.3;stroke:currentColor;fill:none;opacity:0}
+.expense-section .completion-toggle[aria-pressed=true] .completion-mark{background:#7e857f;border-color:#7e857f;color:#fff}
+.expense-section .completion-toggle[aria-pressed=true] .completion-mark svg{opacity:1}
+.expense-section .completion-toggle:focus-visible{outline:2px solid var(--blue);outline-offset:0}
+.expense-section .simple-expense.is-completed{background:#f7f7f5;border-radius:7px}
+.expense-section .is-completed .details strong{color:#959b94;text-decoration:line-through;text-decoration-color:#b6bab5;text-decoration-thickness:1px}
+.expense-section .is-completed .details small,.expense-section .is-completed .amount{color:#969b95}
+.expense-section .simple-expense .amount{max-width:38%;overflow-wrap:anywhere;text-align:right}
+@media(max-width:360px){.expense-period-tabs .period-tab{min-height:52px}.period-tab .period-date{font-size:13px}.period-tab .period-total{font-size:11px}.expense-section .completion-toggle{margin-left:-8px}}
+@media(prefers-reduced-motion:reduce){.expense-section .completion-mark{transition:none}}
