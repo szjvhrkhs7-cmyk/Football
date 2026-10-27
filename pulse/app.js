@@ -173,7 +173,7 @@
         defaultBudget: Math.max(0, Number(settings.defaultBudget ?? fresh.settings.defaultBudget) || 0),
         budgets: settings.budgets && typeof settings.budgets === 'object' ? { ...settings.budgets } : {},
         periodBudgets: Object.fromEntries(Object.entries(settings.periodBudgets || {})
-          .filter(([key, value]) => /^\\d{4}-\\d{2}-(07|22)$/.test(key) && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1e15)
+          .filter(([key, value]) => /^\d{4}-\d{2}-(07|22)$/.test(key) && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 1e15)
           .map(([key, value]) => [key, Number(value)])),
         defaultPeriodBudgets: {
           early: Number.isFinite(Number(settings.defaultPeriodBudgets?.early)) && Number(settings.defaultPeriodBudgets.early) >= 0
