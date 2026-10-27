@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { JSDOM } = require('jsdom');
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
@@ -22,8 +23,18 @@ test('iPhone and PWA icons are opaque PNGs at their declared sizes', () => {
 
 test('header and installed icons use the approved light Impulse identity', () => {
   assert.match(html, /class="brandmark"/);
-  assert.match(html, /src="\.\/logo-mark\.svg\?v=[0-9.]+"/);
+  const markup = new JSDOM(html).window.document;
+  const mark = markup.querySelector('.brandmark > svg');
+  assert.ok(mark, 'the header mark is inline so network/cache failures cannot hide it');
+  assert.equal(markup.querySelector('.brandmark img'), null);
   const logo = fs.readFileSync(path.join(root, 'logo-mark.svg'), 'utf8');
+  const original = new JSDOM(logo, { contentType: 'image/svg+xml' }).window.document;
+  assert.equal(mark.getAttribute('viewBox'), original.querySelector('svg').getAttribute('viewBox'));
+  assert.equal(mark.querySelector('g')?.getAttribute('fill'), original.querySelector('g')?.getAttribute('fill'));
+  assert.equal(mark.querySelector('path')?.getAttribute('d'), original.querySelector('path')?.getAttribute('d'));
+  assert.equal(mark.querySelectorAll('rect').length, original.querySelectorAll('rect').length);
+  const sections = fs.readFileSync(path.join(root, 'sections.css'), 'utf8');
+  assert.match(sections, /\.brandmark\s*>\s*svg\s*\{[^}]*stroke:\s*none;[^}]*\}/s);
   const icon = fs.readFileSync(path.join(root, 'icon.svg'), 'utf8');
   assert.match(logo, /fill="#eba47f"/);
   assert.match(icon, /fill="#faf8f4"/);
