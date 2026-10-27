@@ -5,16 +5,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const code = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
 function worker({ offline = false, rootUnavailable = false } = {}) {
-  const events = {}; const writes = []; const requests = [];
+  const events = {}; const writes = []; const requests = []; const activation = { calls: 0 };
   const index = new Response('<html>offline shell</html>');
   const context = {
     URL, Response, location: { origin: 'https://example.com' },
-    self: { location: 'https://example.com/pulse/sw.js', addEventListener: (name, cb) => events[name] = cb, clients: { claim: async () => {} } },
+    self: { location: 'https://example.com/pulse/sw.js', skipWaiting: async () => { activation.calls++; }, addEventListener: (name, cb) => events[name] = cb, clients: { claim: async () => {} } },
     caches: { match: async key => key === './index.html' ? index : undefined, open: async () => ({ put: async (...args) => writes.push(args), addAll: async urls => { if (rootUnavailable && urls.includes('./')) throw new Error('root returned 503'); assert.ok(urls.includes('./index.html')); } }) },
     fetch: async request => { requests.push(request); if (offline) throw new Error('offline'); return new Response('script'); }
   };
   vm.runInNewContext(code, context);
-  return { events, writes, requests };
+  return { events, writes, requests, activation };
 }
 test('update installs when the directory route fails but the canonical shell is available', async () => {
   const w=worker({rootUnavailable:true});let installing;
@@ -43,4 +43,11 @@ test('every precached asset exists, including the bundled auth library', () => {
   const assets = code.match(/const APP_SHELL = \[([^\]]+)\]/)[1].match(/'[^']+'/g).map(value => value.slice(1, -1));
   for (const asset of assets) assert.ok(fs.existsSync(path.join(__dirname, '..', asset.split('?')[0])), asset);
   assert.ok(assets.includes('./vendor/supabase-2.45.4.js'));
+});
+
+test('a newly installed offline shell activates without waiting for every installed PWA window to close', async () => {
+  const w = worker(); let installing;
+  w.events.install({ waitUntil: p => { installing = p; } });
+  await installing;
+  assert.equal(w.activation.calls, 1);
 });
