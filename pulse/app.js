@@ -375,7 +375,8 @@
     $('availableAmount').setAttribute('aria-label', formatMoney(available));
     $('availableAmount').classList.toggle('long-value', formatMoney(available).length > 10);
     $('budgetAmount').textContent = formatMoney(budget, true);
-    $('plannedTotalAmount').textContent = `Запланировано ${formatMoney(plannedTotal / 100)}`;
+    $('plannedTotalValue').textContent = formatMoney(plannedTotal / 100);
+    $('budgetActionLabel').textContent = budget === 0 ? 'Задать бюджет' : '';
     $('upcomingHeading').textContent = 'Планируемые траты';
     renderExpenseList($('upcomingList'), monthlyExpenses);
     const alert = $('budgetAlert');
@@ -390,16 +391,16 @@
       const rows = entries.map(expense => {
       const category = categoryById(expense.categoryId);
       return `<div class="expense expense-row simple-expense">
-        <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small>${escapeHtml(category.name)} · ${escapeHtml(formatDate(expense.date))}</small></button>
+        <button class="details" type="button" data-expense-id="${escapeAttr(expense.id)}" aria-label="Редактировать ${escapeAttr(expense.title)}"><strong>${escapeHtml(expense.title)}</strong><small><span class="expense-category">${escapeHtml(category.name)} · </span>${escapeHtml(formatDate(expense.date))}</small></button>
         <span class="amount nums">${escapeHtml(formatMoney(expense.amount))}</span>
       </div>`;
       }).join('');
       return `<section class="expense-section" data-expense-section="${section.id}" aria-labelledby="section-title-${section.id}">
-        <header class="expense-section-head"><h3 id="section-title-${section.id}">${section.name}</h3>
+        <header class="expense-section-head"><span class="section-icon">${icon(section.id === 'other' ? 'grid' : section.id)}</span><h3 id="section-title-${section.id}">${section.name}</h3>
           <strong class="section-total nums" data-section-total>${escapeHtml(formatMoney(total))}</strong>
           <button class="section-add" type="button" data-add-section="${section.id}" aria-label="Добавить трату в раздел ${section.name}">${icon('plus')}</button>
         </header>
-        <div class="section-expenses">${rows || '<p class="section-empty">Пока нет трат</p>'}</div>
+        <div class="section-expenses">${rows || '<p class="section-empty">Нет трат в этом месяце</p>'}</div>
       </section>`;
     }).join('');
     container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));

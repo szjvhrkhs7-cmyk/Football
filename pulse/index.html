@@ -1,29 +1,29 @@
 <!DOCTYPE html><html lang="ru"><head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f7f6f2">
+    <meta name="theme-color" content="#f8f8f6">
     <meta name="color-scheme" content="light">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.8.1">
-    <link rel="icon" href="./icon.svg?v=1.8.1" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.8.2">
+    <link rel="icon" href="./icon.svg?v=1.8.2" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.8.1">
-    <link rel="stylesheet" href="./light.css?v=1.8.1">
-    <link rel="stylesheet" href="./sections.css?v=1.8.1">
+    <link rel="stylesheet" href="./styles.css?v=1.8.2">
+    <link rel="stylesheet" href="./light.css?v=1.8.2">
+    <link rel="stylesheet" href="./sections.css?v=1.8.2">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.8.1"></script>
-    <script defer="" src="./legacy-data.js?v=1.8.1"></script>
-    <script defer="" src="./app.js?v=1.8.1"></script>
+    <script defer="" src="./loans.js?v=1.8.2"></script>
+    <script defer="" src="./legacy-data.js?v=1.8.2"></script>
+    <script defer="" src="./app.js?v=1.8.2"></script>
   </head>
   <body>
     <div class="app app-shell">
       <header class="topbar">
         <button class="brand" type="button" data-nav="overview" aria-label="Перейти в обзор">
-          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.1" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
+          <span class="brandmark" aria-hidden="true"><img src="./logo-mark.svg?v=1.8.2" width="32" height="24" alt=""></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
         <button type="button" class="avatar" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
           <span id="profileInitial">В</span>
@@ -47,19 +47,20 @@
           </div>
           <section class="balance-composition" aria-label="План месяца">
             <div class="balance-main"><span class="label">Остаток</span><strong class="balance-value nums" id="availableAmount" aria-live="polite">0 ₽</strong></div>
-            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint">Изменить бюджет</small></button>
+            <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить планируемый бюджет"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint" id="budgetActionLabel">Задать бюджет</small><span class="budget-edit-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z"></path></svg></span></button>
           </section>
-          <p class="planned-total" id="plannedTotalAmount">Запланировано 0 ₽</p>
+          <p class="planned-total" id="plannedTotalAmount">Запланировано <strong id="plannedTotalValue">0 ₽</strong></p>
 
           <div class="balance-alert hidden" id="budgetAlert" role="status"></div>
 
-          <div class="sectionhead">
+          <div class="plan-surface"><div class="sectionhead">
             <h2 id="upcomingHeading">Планируемые траты</h2>
 
 
           </div>
 
           <div class="list" id="upcomingList"></div>
+          </div>
 
         </section>
 
@@ -168,7 +169,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.8.1</p>
+          <p class="note">Пульс · версия 1.8.2</p>
         </section>
       </main>
       <footer class="dock">

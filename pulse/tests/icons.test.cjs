@@ -25,7 +25,7 @@ test('header and installed icons use the approved light Impulse identity', () =>
   assert.match(html, /src="\.\/logo-mark\.svg\?v=[0-9.]+"/);
   const logo = fs.readFileSync(path.join(root, 'logo-mark.svg'), 'utf8');
   const icon = fs.readFileSync(path.join(root, 'icon.svg'), 'utf8');
-  assert.match(logo, /fill="#ff573f"/);
+  assert.match(logo, /fill="#eba47f"/);
   assert.match(icon, /fill="#faf8f4"/);
   const release = require('../package.json').version;
   assert.ok(worker.includes(`'./logo-mark.svg?v=${release}'`));
