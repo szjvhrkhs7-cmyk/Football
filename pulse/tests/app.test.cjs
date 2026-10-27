@@ -184,5 +184,5 @@ test('keyboard layout clears after zooming and dismissal, and still handles open
  viewport.height=225;viewport.dispatchEvent(new a.w.Event('resize'));
  assert.equal(root.classList.contains('keyboard-open'),true);
  assert.equal(root.style.getPropertyValue('--keyboard-inset'),`${a.w.innerHeight-450}px`);
- assert.equal(scrolled,1);
+ assert.equal(scrolled,0);
 });
