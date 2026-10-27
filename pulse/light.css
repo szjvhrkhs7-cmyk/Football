@@ -221,7 +221,7 @@ dialog.designed-sheet .money-input input[type=number]{color:var(--ink);backgroun
 dialog.designed-sheet[open]{animation:pulse-sheet-enter .28s var(--motion-ease) both}
 dialog.designed-sheet[open]::backdrop{animation:pulse-backdrop-enter .2s ease-out both;background:#1a17264f;backdrop-filter:blur(3px)}
 @keyframes pulse-screen-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse-sheet-enter{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-sheet-enter{from{opacity:0}to{opacity:1}}
 @keyframes pulse-backdrop-enter{from{opacity:0}to{opacity:1}}
 @keyframes cloud-spin{to{transform:rotate(360deg)}}
 @keyframes cloud-pulse{50%{opacity:.35}}
@@ -411,3 +411,6 @@ dialog.designed-sheet[open]::backdrop{animation:pulse-backdrop-enter .2s ease-ou
 .dock{height:52px;background:transparent;border:0;box-shadow:none}
 .dock .nav > #addExpenseButton{height:52px}
 .simple-expense .amount{max-width:48%;white-space:normal;overflow-wrap:anywhere;text-align:right}
+
+/* Keep focused native dialogs out of transformed containing blocks in Safari. */
+@keyframes sheet-in{from{opacity:0.6}to{opacity:1}}
