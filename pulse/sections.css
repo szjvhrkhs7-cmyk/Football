@@ -135,3 +135,6 @@ dialog.designed-sheet .money-input input[type="number"] {
 .expense-section .simple-expense .amount{max-width:38%;overflow-wrap:anywhere;text-align:right}
 @media(max-width:360px){.expense-period-tabs .period-tab{min-height:52px}.period-tab .period-date{font-size:13px}.period-tab .period-total{font-size:11px}.expense-section .completion-toggle{margin-left:-8px}}
 @media(prefers-reduced-motion:reduce){.expense-section .completion-mark{transition:none}}
+
+/* The selected salary-to-salary date range must remain visible in the budget editor. */
+#budgetDialog .dialog-heading #budgetDialogPeriod{display:block;margin:5px 0 0;font-size:12px;line-height:1.4;color:var(--muted)}
