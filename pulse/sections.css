@@ -114,7 +114,7 @@ dialog.designed-sheet .money-input input[type="number"] {
   font-size: 22px !important;
 }
 
-/* Two pay-date views. The summary cards continue to represent the full month. */
+/* Two independent salary-to-salary periods, with separate budget and balance cards. */
 .expense-period-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;margin:5px 0 12px;background:#f0f0ed;border-radius:12px}
 .expense-period-tabs .period-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:54px;padding:6px 5px;border:1px solid transparent;border-radius:9px;background:transparent;color:#777c77;text-align:center;touch-action:manipulation}
 .expense-period-tabs .period-tab[aria-selected=true]{background:#fff;color:var(--ink);border-color:#e4e4df;box-shadow:0 1px 3px #1a241908}
