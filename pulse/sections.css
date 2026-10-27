@@ -100,3 +100,16 @@ html, body, .app, dialog, input, select, textarea {
     font-size: 22px !important;
   }
 }
+
+/* Safari focus baseline: applies in browser and standalone PWA. */
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  font-size: max(17px, 1rem) !important;
+}
+dialog.designed-sheet .money-input input[type="number"] {
+  font-size: 20px !important;
+}
+#categoryEmoji {
+  font-size: 22px !important;
+}
