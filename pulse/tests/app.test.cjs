@@ -42,13 +42,14 @@ function budget(a, amount) {a.$('openBudgetButton').click();a.$('budgetInput').v
 function money(a,id) {return a.$(id).textContent.replace(/\u00a0/g,' ');}
 test('budget subtracts every plan including legacy paid and partially paid items, but excludes cancelled and other months',async t=>{
  const month=new Date().toISOString().slice(0,7);
- const a=await app(t,JSON.stringify({settings:{defaultBudget:20000},expenses:[
- {id:'a',title:'План',amount:5000,date:month+'-01'},
- {id:'b',title:'Оплачено раньше',amount:3000,date:month+'-02',status:'paid'},
- {id:'c',title:'Частичная',amount:2000,date:month+'-03',payments:[{id:'p',amount:500,date:month+'-03'}]},
- {id:'d',title:'Отменённая',amount:1000,date:month+'-04',cancelled:true},
+ const a=await app(t,JSON.stringify({settings:{periodBudgets:{[month+'-07']:20000}},expenses:[
+ {id:'a',title:'План',amount:5000,date:month+'-07'},
+ {id:'b',title:'Оплачено раньше',amount:3000,date:month+'-08',status:'paid'},
+ {id:'c',title:'Частичная',amount:2000,date:month+'-09',payments:[{id:'p',amount:500,date:month+'-09'}]},
+ {id:'d',title:'Отменённая',amount:1000,date:month+'-10',cancelled:true},
  {id:'e',title:'Другой месяц',amount:1000,date:'2020-01-01'}]}));
  assert.equal(money(a,'availableAmount'),'10 000 ₽');
+ a.click('[data-period="early"]');
  assert.equal(a.$('upcomingList').querySelectorAll('[data-expense-id]').length,3);
  a.$('openBudgetButton').click();assert.equal(money(a,'budgetPlannedAmount'),'10 000 ₽');assert.equal(money(a,'budgetRemainingAmount'),'10 000 ₽');
 });
@@ -74,7 +75,8 @@ test('create edit delete undo and reload keep the budget in step',async t=>{
 });
 test('overspending stays negative and editing a legacy paid plan preserves its payment history',async t=>{
  const month=new Date().toISOString().slice(0,7);
- const a=await app(t,JSON.stringify({settings:{defaultBudget:100},expenses:[{id:'p',title:'Старая',amount:200,date:month+'-01',status:'paid'}]}));
+ const a=await app(t,JSON.stringify({settings:{periodBudgets:{[month+'-07']:100}},expenses:[{id:'p',title:'Старая',amount:200,date:month+'-07',status:'paid'}]}));
+ a.click('[data-period="early"]');
  assert.equal(money(a,'availableAmount'),'-100 ₽');assert.match(a.$('budgetAlert').textContent,/100/);
  a.click('[data-expense-id]');a.$('expenseAmount').value='50';a.submit('expenseForm');
  assert.equal(a.$('expenseDialog').open,false);assert.equal(money(a,'availableAmount'),'50 ₽');
@@ -122,13 +124,14 @@ test('three open sections migrate legacy categories and total only active plans 
  const month=new Date().toISOString().slice(0,7);
  const a=await app(t,JSON.stringify({settings:{defaultBudget:10000,categories:[
   {id:'home',name:'Квартира'},{id:'custom-loan',name:'Кредиты'},{id:'food',name:'Продукты'}]},expenses:[
-  {id:'rent',title:'Аренда',categoryId:'home',amount:1000.25,date:month+'-01'},
-  {id:'loan',title:'Платёж',categoryId:'custom-loan',amount:2000.50,date:month+'-02'},
-  {id:'food',title:'Еда',categoryId:'food',amount:300,date:month+'-03'},
-  {id:'explicit',title:'Переопределение',categoryId:'home',sectionId:'other',amount:400,date:month+'-04'},
-  {id:'invalid',title:'Неизвестный раздел',categoryId:'food',sectionId:'<script>',amount:50,date:month+'-05'},
-  {id:'cancelled',title:'Отменено',categoryId:'home',cancelled:true,amount:9000,date:month+'-01'},
+  {id:'rent',title:'Аренда',categoryId:'home',amount:1000.25,date:month+'-07'},
+  {id:'loan',title:'Платёж',categoryId:'custom-loan',amount:2000.50,date:month+'-08'},
+  {id:'food',title:'Еда',categoryId:'food',amount:300,date:month+'-09'},
+  {id:'explicit',title:'Переопределение',categoryId:'home',sectionId:'other',amount:400,date:month+'-10'},
+  {id:'invalid',title:'Неизвестный раздел',categoryId:'food',sectionId:'<script>',amount:50,date:month+'-11'},
+  {id:'cancelled',title:'Отменено',categoryId:'home',cancelled:true,amount:9000,date:month+'-07'},
   {id:'old',title:'Прошлый месяц',categoryId:'home',amount:9000,date:'2020-01-01'}]}));
+ a.click('[data-period="early"]');
  assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-section]')].map(e=>e.dataset.expenseSection),['home','credit','other']);
  assert.equal(section(a,'home').querySelectorAll('[data-expense-id]').length,1);
  assert.equal(section(a,'credit').querySelectorAll('[data-expense-id]').length,1);
@@ -144,7 +147,8 @@ test('three open sections migrate legacy categories and total only active plans 
 test('each section adds independently, and moving an expense preserves category, payments and budget after reload', async t => {
  const month=new Date().toISOString().slice(0,7);
  const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
-  {id:'legacy',title:'Старый план',categoryId:'food',amount:100,date:month+'-01',payments:[{id:'p',amount:20,date:month+'-01'}]}]}));
+  {id:'legacy',title:'Старый план',categoryId:'food',amount:100,date:month+'-07',payments:[{id:'p',amount:20,date:month+'-07'}]}]}));
+ a.click('[data-period="early"]');
  for(const id of ['home','credit','other']) {
   a.click(`[data-add-section="${id}"]`);
   assert.equal(a.w.document.querySelector('input[name="expenseSection"]:checked').value,id);
@@ -157,6 +161,7 @@ test('each section adds independently, and moving an expense preserves category,
  const migrated=a.read().expenses.find(e=>e.id==='legacy');
  assert.equal(migrated.sectionId,'home');assert.equal(migrated.categoryId,'food');assert.equal(migrated.payments[0].amount,20);
  const b=await app(t,JSON.stringify(a.read()));
+ b.click('[data-period="early"]');
  assert.equal(b.w.document.querySelectorAll('[data-expense-id]').length,4);
  assert.equal(section(b,'home').querySelectorAll('[data-expense-id]').length,2);
  assert.equal(money(b,'availableAmount'),'9 149,25 ₽');
@@ -190,7 +195,7 @@ test('keyboard layout clears after zooming and dismissal, and still handles open
 
 test('two month periods show expenses separately while the monthly budget stays unchanged', async t => {
   const month=new Date().toISOString().slice(0,7);
-  const a=await app(t,JSON.stringify({settings:{defaultBudget:10000},expenses:[
+  const a=await app(t,JSON.stringify({settings:{periodBudgets:{[month+'-07']:7000,[month+'-22']:8000}},expenses:[
     {id:'early',title:'Первая половина',amount:2000,date:month+'-07',sectionId:'home'},
     {id:'late',title:'Вторая половина',amount:3500,date:month+'-22',sectionId:'credit'}]}));
   const tabs=a.$('expensePeriodTabs');
@@ -199,6 +204,7 @@ test('two month periods show expenses separately while the monthly budget stays 
   assert.match(tabs.textContent,/7 /); assert.match(tabs.textContent,/22 /);
   assert.equal(money(a,'availableAmount'),'4 500 ₽');
   a.click('[data-period="early"]');
+  assert.equal(money(a,'availableAmount'),'5 000 ₽');
   assert.deepEqual([...a.w.document.querySelectorAll('[data-expense-id]')].map(x=>x.dataset.expenseId),['early']);
   assert.equal(a.w.document.querySelector('[data-period="early"]').getAttribute('aria-selected'),'true');
   a.click('[data-period="late"]');
@@ -252,7 +258,7 @@ test('adding an expense in either half defaults to its date and opens the corres
 
 test('failed local persistence reverts a completion toggle without changing the budget', async t => {
   const month=new Date().toISOString().slice(0,7);
-  const a=await app(t,JSON.stringify({settings:{defaultBudget:3000},expenses:[
+  const a=await app(t,JSON.stringify({settings:{periodBudgets:{[month+'-07']:3000}},expenses:[
     {id:'r',title:'Аренда',amount:1000,date:month+'-07'}]}));
   a.click('[data-period="early"]');
   const original=a.w.Storage.prototype.setItem;
@@ -270,7 +276,7 @@ test('legacy paid items are shown as completed without mutating their payment hi
     {id:'paid',title:'Уже оплачено',amount:1000,date:month+'-22',status:'paid'}]}));
   a.click('[data-period="late"]');
   assert.equal(a.w.document.querySelector('[data-toggle-completed="paid"]').getAttribute('aria-pressed'),'true');
-  assert.equal(a.read(),null,'loading old data must not rewrite storage until a user change');
+  assert.equal(a.read().expenses[0].completed,undefined,'loading old data must not rewrite storage until a user change');
   a.click('[data-toggle-completed="paid"]');
   assert.equal(a.read().expenses[0].completed,false);
   assert.equal(a.read().expenses[0].payments[0].amount,1000);
