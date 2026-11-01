@@ -23,7 +23,7 @@ function fixture() {
   vm.runInContext(source.slice(0, source.indexOf(marker)) + `
     renderAll = () => {};
     subscribeRealtime = () => {};
-    globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, signUp, resendConfirmation, humanizeAuthError, normalizeState,
+    globalThis.api = { initCloud, syncBidirectional, pushCloudState, persistState, signIn, signUp, resendConfirmation, humanizeAuthError, normalizeState, mergeCloudStates,
       connect(client) { supabaseClient = client; currentUser = { id: 'test-user' }; },
       disconnect() { currentUser = null; setSyncState(''); },
       state: () => state, status: () => cloudStatus,
@@ -369,4 +369,15 @@ test('two devices editing separate salary-period budgets merge their keys withou
   assert.equal(budgets['2026-10-07'],12000);
   assert.equal(budgets['2026-10-22'],15000);
   assert.equal(cloud.snapshot().payload.settings.budgets['2026-10'],40000);
+});
+
+test('savings survive normalization and three-way category merges without silent deletion',()=>{
+ const {api}=fixture(); const base=api.normalizeState({savings:{total:100,categories:[]}});
+ const local=api.normalizeState({...base,savings:{total:100,categories:[{id:'a',name:'A',amount:70,updatedAt:'2026-11-01'}]}});
+ const remote=api.normalizeState({...base,savings:{total:100,categories:[{id:'b',name:'B',amount:60,updatedAt:'2026-11-01'}]}});
+ const merged=api.mergeCloudStates(base,local,remote);
+ assert.equal(merged.savings.total,100);assert.equal(merged.savings.categories.length,2);
+ assert.equal(merged.savings.categories.reduce((n,c)=>n+c.amount,0),130);
+ const removed=api.normalizeState({...merged,savings:{...merged.savings,categories:merged.savings.categories.map(c=>({...c,deleted:c.id==='a',updatedAt:'2026-11-02'}))}});
+ assert.equal(api.mergeCloudStates(merged,removed,merged).savings.categories.find(c=>c.id==='a').deleted,true);
 });

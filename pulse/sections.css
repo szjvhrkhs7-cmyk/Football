@@ -138,3 +138,62 @@ dialog.designed-sheet .money-input input[type="number"] {
 
 /* The selected salary-to-salary date range must remain visible in the budget editor. */
 #budgetDialog .dialog-heading #budgetDialogPeriod{display:block;margin:5px 0 0;font-size:12px;line-height:1.4;color:var(--muted)}
+
+/* Savings and the approved two-tab floating capsule. */
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:428px;padding:6px;height:auto;border:1px solid #ffffffd9;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 5px 24px #18253714;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:20}
+.dock[hidden]{display:none}
+.dock .bottom-nav{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%;height:auto;padding:0;background:transparent;border:0;box-shadow:none;border-radius:999px}
+.dock .bottom-nav button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:50px;height:auto;padding:10px 8px;border:0;border-radius:999px;background:transparent;color:#647184;box-shadow:none;transform:none}
+.dock .bottom-nav button.active{background:#eaf2ff;color:#265dea}
+.dock .bottom-nav button span{font-size:14px;font-weight:550;line-height:1.3}
+.dock .bottom-nav button svg{width:23px;height:23px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8}
+.dock .bottom-nav button:focus-visible,.savings-row:focus-visible,.savings-edit:focus-visible,.savings-add:focus-visible{outline:2px solid #265dea;outline-offset:2px}
+.dock .bottom-nav button:active{opacity:.7}
+.expenses-add{display:block;margin:14px 0 0;width:100%;min-height:48px;border:0;border-radius:16px;background:var(--ink);color:#fff;font-size:16px;font-weight:550}
+.savings-screen{color:#182537}
+.savings-screen>.heading{margin:16px 2px 20px}
+.savings-screen h1{font-size:30px;letter-spacing:-.7px;line-height:1.2}
+.savings-balance{padding:20px;border-radius:22px;background:#fff;border:1px solid #eeeeec}
+.savings-total-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.savings-total-row>div{min-width:0}
+.savings-total-row .label{display:block;font-size:15px;color:#647184;margin-bottom:6px}
+#savingsTotal{display:block;font-size:34px;line-height:1.2;letter-spacing:-1px;overflow-wrap:anywhere}
+.savings-edit{display:grid;place-items:center;flex:none;width:44px;height:44px;border:0;border-radius:15px;background:#f2f4f7;color:#50627c}
+.savings-edit svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8}
+.savings-summary{display:grid;gap:16px;margin:20px 0 0;padding:18px 0 0;border-top:1px solid #edf0f4}
+.savings-summary>div{display:flex;justify-content:space-between;gap:12px;font-size:16px}
+.savings-summary dt{color:#526079}
+.savings-summary dd{margin:0;text-align:right;font-weight:600;overflow-wrap:anywhere;max-width:58%}
+#savingsFree{color:#265dea}
+.savings-sectionhead{margin:26px 2px 14px}
+.savings-sectionhead h2{font-size:21px;font-weight:650}
+.savings-categories{background:#fff;border-radius:22px;padding:0 16px;overflow:hidden}
+.savings-row{display:flex;align-items:center;gap:12px;width:100%;min-height:80px;padding:14px 0;border:0;border-bottom:1px solid #edf0f4;background:transparent;text-align:left;color:#182537}
+.savings-row:last-child{border-bottom:0}
+.savings-name{flex:1;min-width:0;font-size:16px;overflow-wrap:anywhere}
+.savings-row strong{font-size:16px;text-align:right;max-width:42%;overflow-wrap:anywhere;font-weight:600}
+.savings-icon{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:14px;background:#e8f2ff;color:#265dea}
+.savings-icon.tone-1{background:#e6f5ef;color:#26725a}.savings-icon.tone-2{background:#fff0e9;color:#b85b42}
+.savings-icon svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.7}
+.savings-chevron svg{width:16px;height:16px;stroke:#748399;stroke-width:1.8;fill:none}
+.savings-add{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;margin:16px 0;border:1px solid #265dea;border-radius:18px;background:transparent;color:#265dea;font-size:16px;font-weight:550}
+.savings-add>span{font-size:26px;line-height:1}
+.savings-empty{padding:22px 0;margin:0;font-size:15px;color:#647184;line-height:1.5}
+.savings-dialog .sheet-head{align-items:center;gap:12px}
+.savings-dialog .sheet-head h2{font-size:23px;letter-spacing:-.5px;color:#182537}
+.savings-dialog .dialog-field{margin-bottom:18px}
+.savings-dialog .dialog-field input{font-size:17px!important;min-height:50px;border-radius:14px;background:#f1f3f7;border:1px solid transparent;padding:12px;width:100%;box-sizing:border-box}
+.savings-dialog .dialog-field input:focus{outline:2px solid #265dea;outline-offset:1px}
+.savings-dialog .dialog-field label{display:block;font-size:14px;color:#526079;margin-bottom:7px}
+.savings-remaining{display:flex;justify-content:space-between;gap:12px;padding:16px;border-radius:15px;background:#f1f3f7;font-size:14px;color:#526079}
+.savings-remaining strong{color:#265dea;max-width:55%;text-align:right;overflow-wrap:anywhere}
+.savings-error{font-size:14px;line-height:1.45;color:#a62c3d;margin:12px 0}
+.savings-error:empty{display:none}
+.savings-dialog .dialog-footer .primary{border-radius:16px;background:#265dea;min-height:52px}
+.savings-dialog #deleteSavingsCategory{min-height:44px;font-size:15px}
+@media(max-width:360px){.dock{width:calc(100% - 24px)}.dock .bottom-nav button{gap:6px}.dock .bottom-nav button span{font-size:13px}.savings-balance{padding:16px}#savingsTotal{font-size:30px}.savings-categories{padding:0 12px}.savings-row{gap:8px}.savings-name,.savings-row strong{font-size:14px}.savings-icon{width:38px;height:38px}}
+@media(prefers-reduced-transparency:reduce){.dock{background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}}
+/* Clear inherited positions and icon accents from the older five-button dock. */
+.dock .bottom-nav>button:first-child,.dock .bottom-nav>button:last-child{grid-column:auto;width:100%}
+.dock .bottom-nav>button svg,.dock .bottom-nav>button.active svg{color:inherit}
+.dock .bottom-nav>button:not(.active){background:transparent;color:#647184}

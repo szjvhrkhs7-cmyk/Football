@@ -18,21 +18,21 @@
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.9.0">
-    <link rel="icon" href="./icon.svg?v=1.9.0" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.10.0">
+    <link rel="icon" href="./icon.svg?v=1.10.0" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.9.0">
-    <link rel="stylesheet" href="./light.css?v=1.9.0">
-    <link rel="stylesheet" href="./sections.css?v=1.9.0">
+    <link rel="stylesheet" href="./styles.css?v=1.10.0">
+    <link rel="stylesheet" href="./light.css?v=1.10.0">
+    <link rel="stylesheet" href="./sections.css?v=1.10.0">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.9.0"></script>
-    <script defer="" src="./legacy-data.js?v=1.9.0"></script>
-    <script defer="" src="./app.js?v=1.9.0"></script>
+    <script defer="" src="./loans.js?v=1.10.0"></script>
+    <script defer="" src="./legacy-data.js?v=1.10.0"></script>
+    <script defer="" src="./app.js?v=1.10.0"></script>
   </head>
   <body>
     <div class="app app-shell">
       <header class="topbar">
-        <button class="brand" type="button" data-nav="overview" aria-label="Перейти в обзор">
+        <button class="brand" type="button" data-nav="overview" aria-label="Перейти к тратам">
           <span class="brandmark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 36" focusable="false"><g fill="#eba47f"><path d="M25 3h11a3 3 0 0 1 2.6 4.5l-14 24a3 3 0 0 1-2.6 1.5H12l14-24h-4a3 3 0 0 1 0-6Z"/><rect x="6" y="12" width="19" height="5" rx="2.5"/><rect x="0" y="20" width="21" height="5" rx="2.5"/><rect x="5" y="28" width="13" height="5" rx="2.5"/></g></svg></span><span class="brand-name">Пульс<small id="headerCloudStatus">На устройстве</small></span>
         </button>
         <button type="button" class="avatar" id="profileButton" data-nav="settings" aria-label="Открыть профиль и настройки">
@@ -59,6 +59,7 @@
             <div class="balance-main"><span class="label">Остаток</span><strong class="balance-value nums" id="availableAmount" aria-live="polite">0 ₽</strong></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить бюджет выбранного зарплатного периода"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint" id="budgetActionLabel">Задать бюджет</small><span class="budget-edit-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z"></path></svg></span></button>
           </section>
+          <button class="expenses-add" id="addExpenseButton" type="button" data-open-expense="">+ Добавить трату</button>
           <p class="planned-total" id="plannedTotalAmount">Запланировано <strong id="plannedTotalValue">0 ₽</strong></p>
 
           <div class="balance-alert hidden" id="budgetAlert" role="status"></div>
@@ -85,10 +86,21 @@
 
 
 
+        <section class="screen savings-screen" data-screen="savings" aria-labelledby="savingsTitle">
+          <div class="heading"><h1 id="savingsTitle">Накопления</h1></div>
+          <article class="savings-balance">
+            <div class="savings-total-row"><div><span class="label">Всего накоплено</span><strong class="nums" id="savingsTotal">0 ₽</strong></div><button type="button" class="savings-edit" id="editSavingsTotal" aria-label="Изменить общую сумму накоплений"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z"/></svg></button></div>
+            <dl class="savings-summary"><div><dt>Распределено</dt><dd class="nums" id="savingsAllocated">0 ₽</dd></div><div><dt>Свободно</dt><dd class="nums" id="savingsFree" aria-live="polite">0 ₽</dd></div></dl>
+          </article>
+          <p id="savingsConflict" class="savings-error" role="status" hidden></p>
+          <div class="sectionhead savings-sectionhead"><h2>Категории</h2></div>
+          <div class="savings-categories" id="savingsCategories"></div>
+          <button type="button" class="savings-add" id="addSavingsCategory"><span aria-hidden="true">+</span> Добавить категорию</button>
+        </section>
         <section class="screen" data-screen="settings" aria-labelledby="settingsTitle">
           <button class="back" type="button" data-nav="overview">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m15 5-7 7 7 7"></path></svg>Обзор
+              <path d="m15 5-7 7 7 7"></path></svg>Траты
           </button>
           <div class="heading"><h1 id="settingsTitle">Настройки</h1></div>
           <article class="settings-card" id="cloudCard">
@@ -187,14 +199,20 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.9.0</p>
+          <p class="note">Пульс · версия 1.10.0</p>
         </section>
       </main>
       <footer class="dock">
-        <nav class="nav bottom-nav" aria-label="Основная навигация"><button class="primary" id="addExpenseButton" type="button" data-open-expense="" aria-label="Добавить планируемую трату"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Добавить трату</span></button></nav>
+        <nav class="nav bottom-nav" aria-label="Основная навигация"><button type="button" data-nav="overview" class="active" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M12 20V4M20 20v-6"/></svg><span>Траты</span></button><button type="button" data-nav="savings"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 4 16 4 16 0V5M4 12v6c0 4 16 4 16 0v-6"/></svg><span>Накопления</span></button></nav>
       </footer>
     </div>
 
+    <dialog class="sheet designed-sheet savings-dialog" id="savingsTotalDialog" aria-labelledby="savingsTotalTitle">
+      <form id="savingsTotalForm" novalidate><header class="sheet-head"><h2 id="savingsTotalTitle" tabindex="-1">Сумма накоплений</h2><button type="button" class="sheet-close" data-close-savings aria-label="Закрыть">×</button></header><div class="dialog-body"><div class="dialog-field"><label for="savingsTotalInput">Всего накоплено, ₽</label><input id="savingsTotalInput" inputmode="decimal" type="text" autocomplete="off" maxlength="20"></div><p class="savings-error" id="savingsTotalError" role="alert"></p></div><footer class="dialog-footer"><button type="submit" class="primary">Сохранить</button></footer></form>
+    </dialog>
+    <dialog class="sheet designed-sheet savings-dialog" id="savingsCategoryDialog" aria-labelledby="savingsCategoryTitle">
+      <form id="savingsCategoryForm" novalidate><header class="sheet-head"><h2 id="savingsCategoryTitle" tabindex="-1">Новая категория</h2><button type="button" class="sheet-close" data-close-savings aria-label="Закрыть">×</button></header><div class="dialog-body"><input type="hidden" id="savingsCategoryId"><div class="dialog-field"><label for="savingsCategoryName">Название</label><input type="text" id="savingsCategoryName" maxlength="60" autocomplete="off" placeholder="Например, отпуск"></div><div class="dialog-field"><label for="savingsCategoryAmount">Отложить, ₽</label><input type="text" id="savingsCategoryAmount" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="0"></div><p class="helper-text" id="savingsCategoryAvailable"></p><div class="savings-remaining"><span>Останется свободно</span><strong class="nums" id="savingsCategoryRemaining">0 ₽</strong></div><p class="savings-error" id="savingsCategoryError" role="alert"></p><button type="button" class="danger-text" id="deleteSavingsCategory" hidden>Удалить категорию</button></div><footer class="dialog-footer"><button type="submit" class="primary" id="savingsCategorySave">Создать категорию</button></footer></form>
+    </dialog>
     <dialog class="sheet designed-sheet" id="expenseDialog" aria-labelledby="expenseDialogTitle">
       <form id="expenseForm" novalidate="">
         <header class="sheet-head">

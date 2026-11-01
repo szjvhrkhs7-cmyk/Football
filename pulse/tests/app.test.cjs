@@ -11,6 +11,14 @@ async function app(t, saved, mockViewport = false) {
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), { url: 'https://example.com/pulse/', runScripts: 'outside-only', virtualConsole: vc });
   t.after(() => dom.window.close());
   const w = dom.window;
+  // Ordinary scenarios start within this month's first salary period.
+  // Boundary scenarios below supply explicit dates; do not depend on CI's day.
+  const RealDate = w.Date;
+  const fixedNow = new Date(); fixedNow.setDate(7); fixedNow.setHours(12,0,0,0);
+  w.Date = class extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [fixedNow.getTime()])); }
+    static now() { return fixedNow.getTime(); }
+  };
   Object.defineProperty(w.navigator, 'onLine', { value: false });
   w.scrollTo = () => {};
   if (mockViewport) {
@@ -55,7 +63,7 @@ test('budget subtracts every plan including legacy paid and partially paid items
 });
 test('only the plan and profile screens remain, with no analytics, payment controls or extra navigation',async t=>{
  const a=await app(t);
- assert.deepEqual([...a.w.document.querySelectorAll('[data-screen]')].map(x=>x.dataset.screen),['overview','settings']);
+ assert.deepEqual([...a.w.document.querySelectorAll('[data-screen]')].map(x=>x.dataset.screen),['overview','savings','settings']);
  assert.equal(a.w.document.querySelector('[data-nav="analytics"]'),null);
  assert.equal(a.$('expensePaid'),null);assert.equal(a.$('overviewCalendar'),null);
  assert.equal(a.$('plannedHistoryButton'),null);assert.equal(a.$('plannedPaymentDialog'),null);
@@ -198,6 +206,7 @@ test('two month periods show expenses separately while the monthly budget stays 
   const a=await app(t,JSON.stringify({settings:{periodBudgets:{[month+'-07']:7000,[month+'-22']:8000}},expenses:[
     {id:'early',title:'Первая половина',amount:2000,date:month+'-07',sectionId:'home'},
     {id:'late',title:'Вторая половина',amount:3500,date:month+'-22',sectionId:'credit'}]}));
+  a.click('[data-period="late"]');
   const tabs=a.$('expensePeriodTabs');
   assert.equal(tabs.getAttribute('role'),'tablist');
   assert.equal(tabs.querySelectorAll('[role="tab"]').length,2);
@@ -342,4 +351,29 @@ test('an expense dated on the 6th appears under the previous 22nd, even after ed
   assert.equal(a.$('overviewMonthLabel').textContent,'11.26');
   assert.equal(a.w.document.querySelector('[data-period="early"]').getAttribute('aria-selected'),'true');
   assert.match(a.$('upcomingList').textContent,/Перенос/);
+});
+
+function total(a, value) { a.$('editSavingsTotal').click(); a.$('savingsTotalInput').value=value; a.submit('savingsTotalForm'); }
+function allocation(a, name, value) { a.$('addSavingsCategory').click(); a.$('savingsCategoryName').value=name; a.$('savingsCategoryAmount').value=value; a.submit('savingsCategoryForm'); }
+test('savings allocate an existing total, reject overspending and retain all data after reload', async t=>{
+ const a=await app(t); a.click('.bottom-nav [data-nav="savings"]');
+ assert.equal(a.w.document.querySelector('.screen.active').dataset.screen,'savings');
+ assert.deepEqual([...a.w.document.querySelectorAll('.bottom-nav [data-nav]')].map(x=>x.textContent.trim()),['Траты','Накопления']);
+ total(a,'120000'); allocation(a,'Подушка','50000');allocation(a,'Отпуск','30000');allocation(a,'Покупки','15000');
+ assert.equal(money(a,'savingsAllocated'),'95 000 ₽');assert.equal(money(a,'savingsFree'),'25 000 ₽');
+ allocation(a,'Лишнее','26000');assert.ok(a.$('savingsCategoryError').textContent);assert.equal(a.$('savingsCategoryDialog').open,true);
+ assert.equal(a.read().savings.categories.length,3);a.$('savingsCategoryDialog').close();
+ total(a,'94000');assert.ok(a.$('savingsTotalError').textContent);assert.equal(a.read().savings.total,120000);
+ const b=await app(t,JSON.stringify(a.read()));assert.equal(money(b,'savingsFree'),'25 000 ₽');
+ b.click('[data-savings-id]');b.$('savingsCategoryAmount').value='40000';b.submit('savingsCategoryForm');
+ assert.equal(money(b,'savingsFree'),'35 000 ₽');
+ b.click('[data-savings-id]');b.$('deleteSavingsCategory').click();assert.equal(money(b,'savingsFree'),'75 000 ₽');
+ const c=await app(t,JSON.stringify(b.read()));assert.equal(money(c,'savingsFree'),'75 000 ₽');
+});
+test('savings use cents, render user names as text and rollback on storage failure',async t=>{
+ const a=await app(t);total(a,'0.30');allocation(a,'<img src=x onerror=alert(1)>','0.10');allocation(a,'Вторая','0.20');
+ assert.equal(money(a,'savingsFree'),'0 ₽');assert.equal(a.$('savingsCategories').querySelector('img'),null);
+ const original=a.w.Storage.prototype.setItem;a.w.Storage.prototype.setItem=()=>{throw new Error('quota');};
+ total(a,'100');assert.ok(a.$('savingsTotalError').textContent);a.w.Storage.prototype.setItem=original;
+ assert.equal(a.read().savings.total,0.3);
 });

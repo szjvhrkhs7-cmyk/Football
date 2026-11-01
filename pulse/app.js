@@ -79,7 +79,7 @@
       : { markup: escapeHtml(category.emoji), soft: category.soft, color: category.color };
   }
   function updateDock() {
-    document.querySelector('.dock').hidden = activeScreen !== 'overview';
+    document.querySelector('.dock').hidden = activeScreen === 'settings';
   }
   function openBudgetDialog() {
     renderSettings();
@@ -105,6 +105,7 @@
         defaultPeriodBudgets: { early: 0, late: 0 },
         categories: defaultCategories.map(item => ({ ...item }))
       },
+      savings: { total: 0, categories: [] },
       mandatoryPayments: [],
       loans: [],
       expenses: [],
@@ -183,6 +184,7 @@
         },
         categories
       },
+      savings: normalizeSavings(candidate.savings),
       expenses,
       unplannedExpenses: window.PulseLegacyData.normalize(Array.isArray(candidate.unplannedExpenses)
         ? candidate.unplannedExpenses.map(item => item && typeof item === 'object'
@@ -191,6 +193,109 @@
       mandatoryPayments,
       loans: window.PulseLoans.normalize(candidate.loans)
     };
+  }
+
+  // Savings amounts are stored as rubles and calculated in integer kopecks.
+  function normalizeSavings(value) {
+    const amount = number => Number.isFinite(Number(number)) && Number(number) >= 0 && Number(number) <= 1e12
+      ? Math.round(Number(number) * 100) / 100 : 0;
+    const seen = new Set();
+    return {
+      total: amount(value?.total),
+      categories: (Array.isArray(value?.categories) ? value.categories : []).filter(item => {
+        if (!item || typeof item.id !== 'string' || seen.has(item.id)) return false;
+        seen.add(item.id); return true;
+      }).map(item => ({ id: item.id, name: String(item.name || 'Категория').slice(0, 60),
+        amount: amount(item.amount), deleted: item.deleted === true,
+        updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date(0).toISOString() }))
+    };
+  }
+  function savingsAllocatedCents(exceptId) {
+    return state.savings.categories.reduce((sum, item) => sum + (!item.deleted && item.id !== exceptId ? moneyCents(item.amount) : 0), 0);
+  }
+  function savingsInput(value) {
+    const text = String(value).trim().replace(/\s/g, '').replace(',', '.');
+    if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+    const amount = Number(text);
+    return Number.isFinite(amount) && amount <= 1e12 ? moneyCents(amount) : null;
+  }
+  function renderSavings() {
+    const free = (moneyCents(state.savings.total) - savingsAllocatedCents()) / 100;
+    $('savingsTotal').textContent = formatMoney(state.savings.total);
+    $('savingsAllocated').textContent = formatMoney(savingsAllocatedCents() / 100);
+    $('savingsFree').textContent = formatMoney(free);
+    $('savingsConflict').hidden = free >= 0;
+    $('savingsConflict').textContent = free < 0 ? 'После синхронизации распределено больше общей суммы. Увеличь накопления или уменьши суммы категорий на ' + formatMoney(-free) + '.' : '';
+    const categories = state.savings.categories.filter(item => !item.deleted);
+    $('savingsCategories').innerHTML = categories.length ? categories.map((item, index) =>
+      `<button type="button" class="savings-row" data-savings-id="${escapeHtml(item.id)}"><span class="savings-icon tone-${index % 3}">${icon('grid')}</span><span class="savings-name">${escapeHtml(item.name)}</span><strong class="nums">${formatMoney(item.amount)}</strong><span class="savings-chevron">${icon('chevron')}</span></button>`
+    ).join('') : '<p class="savings-empty">Создай категории, чтобы распределить накопления.</p>';
+    $('savingsCategories').querySelectorAll('[data-savings-id]').forEach(button => button.addEventListener('click', () => openSavingsCategory(button.dataset.savingsId)));
+  }
+  function saveSavings(next, errorElement) {
+    const previous = state.savings;
+    state.savings = next;
+    if (persistState()) return true;
+    state.savings = previous;
+    errorElement.textContent = 'Не удалось сохранить. Данные остались без изменений. Повтори попытку.';
+    return false;
+  }
+  function openSavingsCategory(id = '') {
+    const item = state.savings.categories.find(category => category.id === id && !category.deleted);
+    $('savingsCategoryForm').reset();
+    $('savingsCategoryId').value = item?.id || '';
+    $('savingsCategoryName').value = item?.name || '';
+    $('savingsCategoryAmount').value = item?.amount ?? '';
+    $('savingsCategoryTitle').textContent = item ? 'Категория' : 'Новая категория';
+    $('savingsCategorySave').textContent = item ? 'Сохранить' : 'Создать категорию';
+    $('deleteSavingsCategory').hidden = !item;
+    $('savingsCategoryError').textContent = '';
+    updateSavingsPreview();
+    showSheet($('savingsCategoryDialog'));
+    $('savingsCategoryTitle').focus({ preventScroll: true });
+  }
+  function updateSavingsPreview() {
+    const available = moneyCents(state.savings.total) - savingsAllocatedCents($('savingsCategoryId').value);
+    $('savingsCategoryAvailable').textContent = 'Доступно: ' + formatMoney(available / 100);
+    $('savingsCategoryRemaining').textContent = formatMoney((available - (savingsInput($('savingsCategoryAmount').value) || 0)) / 100);
+  }
+  function bindSavings() {
+    $('editSavingsTotal').addEventListener('click', () => {
+      $('savingsTotalInput').value = state.savings.total;
+      $('savingsTotalError').textContent = '';
+      showSheet($('savingsTotalDialog'));
+      $('savingsTotalTitle').focus({ preventScroll: true });
+    });
+    $('addSavingsCategory').addEventListener('click', () => openSavingsCategory());
+    $('savingsCategoryAmount').addEventListener('input', updateSavingsPreview);
+    qsa('[data-close-savings]').forEach(button => button.addEventListener('click', () => closeSheet(button.closest('dialog'))));
+    $('savingsTotalForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const cents = savingsInput($('savingsTotalInput').value);
+      if (cents === null) { $('savingsTotalError').textContent = 'Введи сумму от 0 до 1 000 000 000 000 ₽, не более двух знаков после запятой.'; return; }
+      if (cents < savingsAllocatedCents()) { $('savingsTotalError').textContent = 'Общая сумма не может быть меньше распределённой: ' + formatMoney(savingsAllocatedCents() / 100); return; }
+      if (saveSavings({ ...state.savings, total: cents / 100 }, $('savingsTotalError'))) closeSheet($('savingsTotalDialog'));
+    });
+    $('savingsCategoryForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const id = $('savingsCategoryId').value;
+      const name = $('savingsCategoryName').value.trim();
+      const cents = savingsInput($('savingsCategoryAmount').value);
+      if (!name || name.length > 60) { $('savingsCategoryError').textContent = 'Введи название до 60 символов.'; return; }
+      if (cents === null) { $('savingsCategoryError').textContent = 'Введи корректную сумму, не более двух знаков после запятой.'; return; }
+      const existing = state.savings.categories.find(item => item.id === id);
+      if (id && (!existing || existing.deleted)) { $('savingsCategoryError').textContent = 'Категория удалена на другом устройстве. Закрой окно и создай новую.'; return; }
+      if (cents + savingsAllocatedCents(id) > moneyCents(state.savings.total)) { $('savingsCategoryError').textContent = 'Сумма превышает свободный остаток.'; return; }
+      const item = { id: id || makeId('saving'), name, amount: cents / 100, deleted: false, updatedAt: new Date().toISOString() };
+      const categories = id ? state.savings.categories.map(category => category.id === id ? item : category) : [...state.savings.categories, item];
+      if (saveSavings({ ...state.savings, categories }, $('savingsCategoryError'))) closeSheet($('savingsCategoryDialog'));
+    });
+    $('deleteSavingsCategory').addEventListener('click', () => {
+      const id = $('savingsCategoryId').value;
+      if (!confirm('Удалить категорию? Её сумма вернётся в свободный остаток.')) return;
+      const categories = state.savings.categories.map(item => item.id === id ? { ...item, deleted: true, updatedAt: new Date().toISOString() } : item);
+      if (saveSavings({ ...state.savings, categories }, $('savingsCategoryError'))) closeSheet($('savingsCategoryDialog'));
+    });
   }
 
   function moneyCents(value) {
@@ -379,7 +484,7 @@
   }
 
   function navigate(screenName) {
-    if (!['overview', 'settings'].includes(screenName)) return;
+    if (!['overview', 'savings', 'settings'].includes(screenName)) return;
     if (!qsa('.screen').some(screen => screen.dataset.screen === screenName)) return;
     screenScroll.set(activeScreen, window.scrollY);
     activeScreen = screenName;
@@ -405,6 +510,7 @@
     });
     $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
     renderOverview();
+    renderSavings();
     renderSettings(); renderCategoryPicker(); updateCloudUi(); updateDock();
   }
 
@@ -1081,6 +1187,10 @@
         return { ...expense, payments, cancelled: chooseCloudItem(baseExpense?.cancelled, localExpense.cancelled, remoteExpense.cancelled, localExpense.updatedAt || localTime, remoteExpense.updatedAt || remoteTime) };
       }),
       unplannedExpenses: mergeCloudList(previous.unplannedExpenses, local.unplannedExpenses, remote.unplannedExpenses, localTime, remoteTime),
+      savings: {
+        total: chooseCloudItem(previous.savings?.total, local.savings?.total, remote.savings?.total, localTime, remoteTime) ?? 0,
+        categories: mergeCloudList(previous.savings?.categories, local.savings?.categories, remote.savings?.categories, localTime, remoteTime)
+      },
       mandatoryPayments: mergeCloudList(previous.mandatoryPayments, local.mandatoryPayments, remote.mandatoryPayments, localTime, remoteTime),
       loans: mergeCloudList(previous.loans, local.loans, remote.loans, localTime, remoteTime)
     });
@@ -1243,6 +1353,7 @@
 
   function bindEvents() {
     bindVisualViewport();
+    bindSavings();
     qsa('dialog').forEach(dialog => {
       dialog.addEventListener('cancel', event => { event.preventDefault(); closeSheet(dialog); });
       dialog.addEventListener('submit', event => {
