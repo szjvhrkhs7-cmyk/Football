@@ -1,10 +1,10 @@
 {
   "name": "pulse-finance",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check app.js && node --check loans.js && node --check legacy-data.js && node --check sw.js",
+    "check": "node --check repayment.js && node --check repayment-ui.js && node --check app.js && node --check loans.js && node --check legacy-data.js && node --check sw.js",
     "start": "python3 -m http.server 8765"
   },
   "devDependencies": {

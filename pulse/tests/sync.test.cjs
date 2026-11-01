@@ -11,7 +11,7 @@ function fixture() {
   const stored = new Map();
   const context = vm.createContext({
     Date, console: { warn() {}, error() {} },
-    window: { PulseLoans: require('../loans.js'), PulseLegacyData: require('../legacy-data.js'), location: { origin: 'https://example.com', pathname: '/pulse/' } },
+    window: { PulseRepayment: require('../repayment.js'), PulseLoans: require('../loans.js'), PulseLegacyData: require('../legacy-data.js'), location: { origin: 'https://example.com', pathname: '/pulse/' } },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', style: {}, disabled: false, checkValidity: () => true, classList: { add() {}, remove() {}, toggle() {} } });
       return elements.get(id);
@@ -380,4 +380,17 @@ test('savings survive normalization and three-way category merges without silent
  assert.equal(merged.savings.categories.reduce((n,c)=>n+c.amount,0),130);
  const removed=api.normalizeState({...merged,savings:{...merged.savings,categories:merged.savings.categories.map(c=>({...c,deleted:c.id==='a',updatedAt:'2026-11-02'}))}});
  assert.equal(api.mergeCloudStates(merged,removed,merged).savings.categories.find(c=>c.id==='a').deleted,true);
+});
+
+test('repayment config stays private in account payload and records merge across months',()=>{
+ const {api}=fixture();const base=api.normalizeState({});const config=require('./repayment-fixture.cjs');
+ const local=api.normalizeState({...base,repayment:{months:[{month:'2026-11',amounts:{large:1000}}]}});
+ const remote=api.normalizeState({...base,repayment:{config,months:[{month:'2026-12',amounts:{small1:100}}]}});
+ const merged=api.mergeCloudStates(base,local,remote);assert.equal(merged.repayment.months.length,2);assert.equal(merged.repayment.months[0].amounts.large,1000);assert.equal(merged.repayment.config.budget,5000);assert.equal(merged.repayment.config.loans[0].balance,100000);
+});
+test('first cloud download retains private plan despite newer unrelated local edits',()=>{
+ const {api}=fixture();const config=require('./repayment-fixture.cjs');
+ const local=api.normalizeState({meta:{updatedAt:'2099-01-01T00:00:00Z'},settings:{defaultBudget:123}});
+ const remote=api.normalizeState({meta:{updatedAt:'2026-11-01T00:00:00Z'},repayment:{config,months:[]}});
+ const merged=api.mergeCloudStates(null,local,remote);assert.equal(merged.repayment.config.budget,5000);assert.equal(merged.settings.defaultBudget,123);
 });

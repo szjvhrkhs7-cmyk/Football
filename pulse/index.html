@@ -18,16 +18,18 @@
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.10.0">
-    <link rel="icon" href="./icon.svg?v=1.10.0" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.11.0">
+    <link rel="icon" href="./icon.svg?v=1.11.0" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.10.0">
-    <link rel="stylesheet" href="./light.css?v=1.10.0">
-    <link rel="stylesheet" href="./sections.css?v=1.10.0">
+    <link rel="stylesheet" href="./styles.css?v=1.11.0">
+    <link rel="stylesheet" href="./light.css?v=1.11.0">
+    <link rel="stylesheet" href="./sections.css?v=1.11.0">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.10.0"></script>
-    <script defer="" src="./legacy-data.js?v=1.10.0"></script>
-    <script defer="" src="./app.js?v=1.10.0"></script>
+    <script defer="" src="./loans.js?v=1.11.0"></script>
+    <script defer="" src="./legacy-data.js?v=1.11.0"></script>
+    <script defer src="./repayment.js?v=1.11.0"></script>
+    <script defer src="./repayment-ui.js?v=1.11.0"></script>
+    <script defer="" src="./app.js?v=1.11.0"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -64,6 +66,17 @@
 
           <div class="balance-alert hidden" id="budgetAlert" role="status"></div>
 
+          <details class="repayment-plan" id="repaymentPlan">
+            <summary><span>Погашение кредитов<small id="repaymentAsOf">Начало: ноябрь 2026</small></span><strong class="nums" id="repaymentDebt">Не настроен</strong></summary>
+            <div class="repayment-body" id="repaymentBody"><div class="repayment-month"><button type="button" id="repaymentPrev" aria-label="Предыдущий месяц плана">‹</button><strong id="repaymentMonth">ноябрь 2026</strong><button type="button" id="repaymentNext" aria-label="Следующий месяц плана">›</button></div>
+            <div class="repayment-kpis"><div><span>План на месяц</span><strong id="repaymentBudget">0 ₽</strong></div><div><span>Внесено</span><strong id="repaymentEntered">Не внесено</strong></div><div><span>Осталось внести</span><strong id="repaymentRemaining">0 ₽</strong></div></div>
+            <button type="button" class="repayment-primary" id="recordRepayment">Внести платежи за месяц</button>
+            <div id="repaymentLoanList"></div><p class="repayment-projection" id="repaymentForecast"></p><p class="repayment-warning" id="repaymentWarning" hidden></p>
+            <p class="repayment-note">Расчёт примерный: проценты начисляются раз в месяц по ставке / 12. Остаток из банка можно указать при внесении платежей. Записи плана не создают повторные траты в списке.</p>
+            <details class="repayment-table-details"><summary>История платежей</summary><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Внесено</th><th>Долг</th></tr></thead><tbody id="repaymentHistory"></tbody></table></div></details>
+            <details class="repayment-table-details"><summary>Будущий график</summary><p class="repayment-note" id="repaymentScheduleNote">Прогноз при взносе 0 ₽ в месяц: сначала закрываем маленькие кредиты, затем большой. Будущие платежи не считаются внесёнными.</p><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Платёж</th><th>Долг</th></tr></thead><tbody id="repaymentSchedule"></tbody></table></div></details>
+            <button type="button" class="text-button" id="reservePlanOpen">Подушка →</button></div>
+          </details>
           <div class="plan-surface"><div class="sectionhead">
             <h2 id="upcomingHeading">Планируемые траты</h2>
 
@@ -93,6 +106,7 @@
             <dl class="savings-summary"><div><dt>Распределено</dt><dd class="nums" id="savingsAllocated">0 ₽</dd></div><div><dt>Свободно</dt><dd class="nums" id="savingsFree" aria-live="polite">0 ₽</dd></div></dl>
           </article>
           <p id="savingsConflict" class="savings-error" role="status" hidden></p>
+          <article class="reserve-plan" id="reservePlan"><h2>Подушка</h2><div><strong id="reservePlanActual">0 ₽</strong><span>из <b id="reservePlanTarget">0 ₽</b> по плану</span></div><p id="reservePlanDescription"></p></article>
           <div class="sectionhead savings-sectionhead"><h2>Категории</h2></div>
           <div class="savings-categories" id="savingsCategories"></div>
           <button type="button" class="savings-add" id="addSavingsCategory"><span aria-hidden="true">+</span> Добавить категорию</button>
@@ -199,7 +213,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.10.0</p>
+          <p class="note">Пульс · версия 1.11.0</p>
         </section>
       </main>
       <footer class="dock">
@@ -207,6 +221,7 @@
       </footer>
     </div>
 
+    <dialog class="sheet designed-sheet repayment-dialog" id="repaymentDialog" aria-labelledby="repaymentDialogTitle"><form id="repaymentForm" novalidate><header class="sheet-head"><div><h2 id="repaymentDialogTitle" tabindex="-1">Платежи за месяц</h2><p id="repaymentFormMonth"></p></div><button type="button" class="sheet-close" id="repaymentClose" aria-label="Закрыть">×</button></header><div class="dialog-body"><p class="repayment-note">Укажи общую сумму по каждому кредиту, включая досрочное погашение. Повторное сохранение заменяет суммы за месяц.</p><div class="dialog-field"><label for="repay-large" id="repay-label-large">Кредит 1, внесено за месяц, ₽</label><input id="repay-large" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="0"></div><div class="dialog-field"><label for="repay-small1" id="repay-label-small1">Кредит 2, внесено за месяц, ₽</label><input id="repay-small1" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="0"></div><div class="dialog-field"><label for="repay-small2" id="repay-label-small2">Кредит 3, внесено за месяц, ₽</label><input id="repay-small2" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="0"></div><details><summary>Сверить остатки с банком</summary><p class="repayment-note">Необязательно. Остаток основного долга на конец месяца после всех платежей заменит расчётное значение.</p><div class="dialog-field"><label for="bank-large" id="bank-label-large">Кредит 1: остаток, ₽</label><input id="bank-large" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="Не указан"></div><div class="dialog-field"><label for="bank-small1" id="bank-label-small1">Кредит 2: остаток, ₽</label><input id="bank-small1" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="Не указан"></div><div class="dialog-field"><label for="bank-small2" id="bank-label-small2">Кредит 3: остаток, ₽</label><input id="bank-small2" type="text" inputmode="decimal" autocomplete="off" maxlength="20" placeholder="Не указан"></div></details><p id="repaymentError" class="savings-error" role="alert"></p><button type="button" class="danger-text" id="deleteRepayment" hidden>Удалить запись за месяц</button></div><footer class="dialog-footer"><button type="submit" class="primary">Сохранить и пересчитать</button></footer></form></dialog>
     <dialog class="sheet designed-sheet savings-dialog" id="savingsTotalDialog" aria-labelledby="savingsTotalTitle">
       <form id="savingsTotalForm" novalidate><header class="sheet-head"><h2 id="savingsTotalTitle" tabindex="-1">Сумма накоплений</h2><button type="button" class="sheet-close" data-close-savings aria-label="Закрыть">×</button></header><div class="dialog-body"><div class="dialog-field"><label for="savingsTotalInput">Всего накоплено, ₽</label><input id="savingsTotalInput" inputmode="decimal" type="text" autocomplete="off" maxlength="20"></div><p class="savings-error" id="savingsTotalError" role="alert"></p></div><footer class="dialog-footer"><button type="submit" class="primary">Сохранить</button></footer></form>
     </dialog>

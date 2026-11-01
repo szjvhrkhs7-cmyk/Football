@@ -31,6 +31,8 @@ async function app(t, saved, mockViewport = false) {
   if (saved) w.localStorage.setItem('pulse-finance-v1', saved);
   w.eval(fs.readFileSync(path.join(root, 'loans.js'), 'utf8'));
   w.eval(fs.readFileSync(path.join(root, 'legacy-data.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(root, 'repayment.js'), 'utf8'));
+  w.eval(fs.readFileSync(path.join(root, 'repayment-ui.js'), 'utf8'));
   w.eval(fs.readFileSync(path.join(root, 'app.js'), 'utf8'));
   await new Promise(resolve => w.document.addEventListener('DOMContentLoaded', resolve, { once: true }));
   const $ = id => w.document.getElementById(id);
@@ -376,4 +378,23 @@ test('savings use cents, render user names as text and rollback on storage failu
  const original=a.w.Storage.prototype.setItem;a.w.Storage.prototype.setItem=()=>{throw new Error('quota');};
  total(a,'100');assert.ok(a.$('savingsTotalError').textContent);a.w.Storage.prototype.setItem=original;
  assert.equal(a.read().savings.total,0.3);
+});
+
+test('repayment monthly totals calculate debt, replace edits, persist and do not duplicate expenses',async t=>{
+ const config=require('./repayment-fixture.cjs');const a=await app(t,JSON.stringify({repayment:{config,months:[]}}));a.$('recordRepayment').click();
+ a.$('repay-large').value='1000';a.$('repay-small1').value='1000';a.$('repay-small2').value='200';a.submit('repaymentForm');
+ assert.match(a.$('repaymentDebt').textContent.replace(/\u00a0/g,' '),/101 820/);
+ assert.equal(a.read().expenses.length,0);assert.equal(a.read().repayment.months.length,1);
+ a.$('recordRepayment').click();a.$('repay-small1').value='1005';a.submit('repaymentForm');
+ assert.equal(a.read().repayment.months.length,1);assert.equal(a.read().repayment.months[0].amounts.small1,1005);
+ const b=await app(t,JSON.stringify(a.read()));assert.equal(b.$('repaymentDebt').textContent,a.$('repaymentDebt').textContent);
+ b.$('recordRepayment').click();b.$('repay-large').value='-1';b.submit('repaymentForm');assert.ok(b.$('repaymentError').textContent);
+ b.$('repay-large').value='1000';b.$('bank-large').value='98000';b.submit('repaymentForm');assert.equal(b.read().repayment.months[0].actualBalances.large,98000);
+ b.$('recordRepayment').click();b.$('deleteRepayment').click();assert.match(b.$('repaymentDebt').textContent.replace(/\u00a0/g,' '),/103 000/);
+});
+test('blank repayment entries cannot invent interest and failed storage preserves prior totals',async t=>{
+ const config=require('./repayment-fixture.cjs');const a=await app(t,JSON.stringify({repayment:{config,months:[]}}));a.$('recordRepayment').click();a.submit('repaymentForm');assert.ok(a.$('repaymentError').textContent);assert.equal(a.read().repayment.months.length,0);
+ a.$('repay-large').value='1000';a.submit('repaymentForm');const original=a.read();
+ a.$('recordRepayment').click();a.$('repay-large').value='2000';const setItem=a.w.Storage.prototype.setItem;a.w.Storage.prototype.setItem=()=>{throw new Error('quota');};a.submit('repaymentForm');a.w.Storage.prototype.setItem=setItem;
+ assert.ok(a.$('repaymentError').textContent);assert.equal(a.read().repayment.months[0].amounts.large,original.repayment.months[0].amounts.large);
 });

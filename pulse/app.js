@@ -42,6 +42,7 @@
   let overviewDay = null;
   let selectedCategoryId = 'food';
   let state = loadState();
+  let repaymentUI = null;
   let activeCloudAccountId = null;
   let supabaseClient = null;
   let currentUser = null;
@@ -106,6 +107,7 @@
         categories: defaultCategories.map(item => ({ ...item }))
       },
       savings: { total: 0, categories: [] },
+      repayment: window.PulseRepayment.normalize(),
       mandatoryPayments: [],
       loans: [],
       expenses: [],
@@ -185,6 +187,7 @@
         categories
       },
       savings: normalizeSavings(candidate.savings),
+      repayment: window.PulseRepayment.normalize(candidate.repayment),
       expenses,
       unplannedExpenses: window.PulseLegacyData.normalize(Array.isArray(candidate.unplannedExpenses)
         ? candidate.unplannedExpenses.map(item => item && typeof item === 'object'
@@ -511,6 +514,7 @@
     $('overviewTitle').textContent = `Мой ${MONTHS[Number(selectedMonth.slice(5,7)) - 1]}`;
     renderOverview();
     renderSavings();
+    repaymentUI?.render();
     renderSettings(); renderCategoryPicker(); updateCloudUi(); updateDock();
   }
 
@@ -1187,6 +1191,7 @@
         return { ...expense, payments, cancelled: chooseCloudItem(baseExpense?.cancelled, localExpense.cancelled, remoteExpense.cancelled, localExpense.updatedAt || localTime, remoteExpense.updatedAt || remoteTime) };
       }),
       unplannedExpenses: mergeCloudList(previous.unplannedExpenses, local.unplannedExpenses, remote.unplannedExpenses, localTime, remoteTime),
+      repayment: { config: chooseCloudItem(previous.repayment?.config, local.repayment?.config, remote.repayment?.config, localTime, remoteTime), months: mergeCloudList(previous.repayment?.months, local.repayment?.months, remote.repayment?.months, localTime, remoteTime) },
       savings: {
         total: chooseCloudItem(previous.savings?.total, local.savings?.total, remote.savings?.total, localTime, remoteTime) ?? 0,
         categories: mergeCloudList(previous.savings?.categories, local.savings?.categories, remote.savings?.categories, localTime, remoteTime)
@@ -1460,6 +1465,9 @@
 
   function bootstrap() {
     bindEvents();
+    repaymentUI = window.PulseRepaymentUI.mount({get: () => state,
+      save(next) { const previous = state.repayment; state.repayment = next; if (persistState()) return true; state.repayment = previous; return false; },
+      money: formatMoney, showSheet, closeSheet, navigate});
     renderAll();
     registerServiceWorker();
     const callback = new URLSearchParams(window.location.hash.slice(1));

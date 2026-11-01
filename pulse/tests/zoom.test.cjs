@@ -17,7 +17,8 @@ test('iPhone input focus does not trigger automatic page zoom in either screen o
   assert.deepEqual(fields.map(field => field.id).sort(), [
     'budgetInput', 'categoryEmoji', 'categoryName', 'categoryPicker',
     'cloudEmail', 'cloudPassword', 'expenseAmount', 'expenseDate', 'expenseTitle',
-    'savingsTotalInput', 'savingsCategoryName', 'savingsCategoryAmount'
+    'savingsTotalInput', 'savingsCategoryName', 'savingsCategoryAmount',
+    'repay-large', 'repay-small1', 'repay-small2', 'bank-large', 'bank-small1', 'bank-small2'
   ].sort());
   assert.match(css, /@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)/);
   assert.match(css, /input:not\(\[type="hidden"\]\):not\(\[type="checkbox"\]\):not\(\[type="radio"\]\):not\(\[type="file"\]\),\s*select,\s*textarea\s*\{\s*font-size:\s*17px\s*!important;/);
