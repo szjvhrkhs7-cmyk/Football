@@ -16,7 +16,7 @@
       for(const l of LOANS){amounts[l.id]=valid(row.amounts?.[l.id])?cents(row.amounts[l.id])/100:0;if(valid(row.actualBalances?.[l.id]))actualBalances[l.id]=cents(row.actualBalances[l.id])/100;}
       map.set(row.month,{id:row.month,month:row.month,amounts,actualBalances,deleted:row.deleted===true,updatedAt:typeof row.updatedAt==='string'?row.updatedAt:new Date(0).toISOString()});
     }
-    const config={budget:valid(value?.config?.budget)?Number(value.config.budget):0,reserve:valid(value?.config?.reserve)?Number(value.config.reserve):0,
+    const config={budget:valid(value?.config?.budget)?Number(value.config.budget):0,reserve:valid(value?.config?.reserve)?Number(value.config.reserve):0,extra:valid(value?.config?.extra)?Number(value.config.extra):null,
       loans:LOANS.map(base=>{const l=(Array.isArray(value?.config?.loans)?value.config.loans:[]).find(item=>item?.id===base.id)||base;return {id:base.id,name:String(l.name||base.name).slice(0,60),balance:valid(l.balance)?cents(l.balance)/100:0,rate:Number.isFinite(Number(l.rate))&&Number(l.rate)>=0&&Number(l.rate)<=100?Number(l.rate):0,payment:valid(l.payment)?cents(l.payment)/100:0};})};
     return {config,months:[...map.values()].sort((a,b)=>a.month.localeCompare(b.month))};
   }
@@ -39,13 +39,23 @@
     return {balances,paid,overpayment,debt:debt(balances),rows,missingMonths,lastMonth:last||null};
   }
   function forecast(value){
-    const normalized=normalize(value),LOANS=normalized.config.loans,BUDGET=normalized.config.budget,RESERVE=normalized.config.reserve;
+    const normalized=normalize(value),LOANS=normalized.config.loans,BUDGET=normalized.config.budget,RESERVE=normalized.config.reserve,EXTRA=normalized.config.extra;
     const actual=calculate(value);let balances={...actual.balances},month=actual.lastMonth?nextMonth(actual.lastMonth):START;const rows=[];
     for(let i=0;i<600&&debt(balances)>0;i++,month=nextMonth(month)){
       const due=Object.fromEntries(LOANS.map(l=>[l.id,cents(balances[l.id])+Math.round(cents(balances[l.id])*l.rate/1200)]));
       const amounts={};let remaining=cents(BUDGET);
       for(const l of LOANS){amounts[l.id]=Math.min(cents(l.payment),due[l.id],Math.max(0,remaining));remaining-=amounts[l.id];}
-      for(const id of ['small1','small2','large']){const extra=Math.min(Math.max(0,remaining),due[id]-amounts[id]);amounts[id]+=extra;remaining-=extra;}
+      if(EXTRA!==null){
+        // Extra repayment is capped independently of minimum payments. After one loan
+        // closes its former minimum is NOT redirected to another loan.
+        let extraLimit=Math.min(Math.max(0,remaining),cents(EXTRA));
+        for(const l of [...LOANS].sort((a,b)=>b.rate-a.rate||a.id.localeCompare(b.id))){
+          const extra=Math.min(extraLimit,due[l.id]-amounts[l.id]);amounts[l.id]+=extra;extraLimit-=extra;
+        }
+      }else{
+        // Preserve legacy snowball forecasts for old plans without a separate cap.
+        for(const id of ['small1','small2','large']){if(!LOANS.some(l=>l.id===id))continue;const extra=Math.min(Math.max(0,remaining),due[id]-amounts[id]);amounts[id]+=extra;remaining-=extra;}
+      }
       const paid=Object.fromEntries(LOANS.map(l=>[l.id,amounts[l.id]/100]));const result=step(balances,paid,{},LOANS);const previousDebt=debt(balances);balances=result.balances;
       rows.push({month,...result,amounts:paid,debt:debt(balances),reserveTarget:(monthIndex(month)+1)*RESERVE});
       if(debt(balances)>=previousDebt)break;
