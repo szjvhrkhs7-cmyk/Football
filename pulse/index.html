@@ -18,18 +18,18 @@
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.11.0">
-    <link rel="icon" href="./icon.svg?v=1.11.0" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.11.1">
+    <link rel="icon" href="./icon.svg?v=1.11.1" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.11.0">
-    <link rel="stylesheet" href="./light.css?v=1.11.0">
-    <link rel="stylesheet" href="./sections.css?v=1.11.0">
+    <link rel="stylesheet" href="./styles.css?v=1.11.1">
+    <link rel="stylesheet" href="./light.css?v=1.11.1">
+    <link rel="stylesheet" href="./sections.css?v=1.11.1">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.11.0"></script>
-    <script defer="" src="./legacy-data.js?v=1.11.0"></script>
-    <script defer src="./repayment.js?v=1.11.0"></script>
-    <script defer src="./repayment-ui.js?v=1.11.0"></script>
-    <script defer="" src="./app.js?v=1.11.0"></script>
+    <script defer="" src="./loans.js?v=1.11.1"></script>
+    <script defer="" src="./legacy-data.js?v=1.11.1"></script>
+    <script defer src="./repayment.js?v=1.11.1"></script>
+    <script defer src="./repayment-ui.js?v=1.11.1"></script>
+    <script defer="" src="./app.js?v=1.11.1"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -69,12 +69,12 @@
           <details class="repayment-plan" id="repaymentPlan">
             <summary><span>Погашение кредитов<small id="repaymentAsOf">Начало: ноябрь 2026</small></span><strong class="nums" id="repaymentDebt">Не настроен</strong></summary>
             <div class="repayment-body" id="repaymentBody"><div class="repayment-month"><button type="button" id="repaymentPrev" aria-label="Предыдущий месяц плана">‹</button><strong id="repaymentMonth">ноябрь 2026</strong><button type="button" id="repaymentNext" aria-label="Следующий месяц плана">›</button></div>
-            <div class="repayment-kpis"><div><span>План на месяц</span><strong id="repaymentBudget">0 ₽</strong></div><div><span>Внесено</span><strong id="repaymentEntered">Не внесено</strong></div><div><span>Осталось внести</span><strong id="repaymentRemaining">0 ₽</strong></div></div>
+            <div class="repayment-kpis"><div><span>Максимум за месяц</span><strong id="repaymentBudget">0 ₽</strong></div><div><span>Внесено</span><strong id="repaymentEntered">Не внесено</strong></div><div><span>Осталось внести</span><strong id="repaymentRemaining">0 ₽</strong></div></div>
             <button type="button" class="repayment-primary" id="recordRepayment">Внести платежи за месяц</button>
             <div id="repaymentLoanList"></div><p class="repayment-projection" id="repaymentForecast"></p><p class="repayment-warning" id="repaymentWarning" hidden></p>
             <p class="repayment-note">Расчёт примерный: проценты начисляются раз в месяц по ставке / 12. Остаток из банка можно указать при внесении платежей. Записи плана не создают повторные траты в списке.</p>
             <details class="repayment-table-details"><summary>История платежей</summary><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Внесено</th><th>Долг</th></tr></thead><tbody id="repaymentHistory"></tbody></table></div></details>
-            <details class="repayment-table-details"><summary>Будущий график</summary><p class="repayment-note" id="repaymentScheduleNote">Прогноз при взносе 0 ₽ в месяц: сначала закрываем маленькие кредиты, затем большой. Будущие платежи не считаются внесёнными.</p><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Платёж</th><th>Долг</th></tr></thead><tbody id="repaymentSchedule"></tbody></table></div></details>
+            <details class="repayment-table-details"><summary>Будущий график</summary><p class="repayment-note" id="repaymentScheduleNote">Прогноз с ограничением досрочных платежей. Будущие платежи не считаются внесёнными.</p><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Платёж</th><th>Долг</th></tr></thead><tbody id="repaymentSchedule"></tbody></table></div></details>
             <button type="button" class="text-button" id="reservePlanOpen">Подушка →</button></div>
           </details>
           <div class="plan-surface"><div class="sectionhead">
@@ -213,7 +213,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.11.0</p>
+          <p class="note">Пульс · версия 1.11.1</p>
         </section>
       </main>
       <footer class="dock">
