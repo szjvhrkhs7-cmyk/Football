@@ -8,6 +8,7 @@
   const label=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(' г.','');
   const configuration=()=>R.normalize(get().repayment).config;
   const planLoans=()=>configuration().loans;
+  const activeLoans=actual=>planLoans().filter(l=>l.balance>0||l.payment>0||(actual?.balances?.[l.id]||0)>0);
   function render(){
    const plan=get().repayment,actual=R.calculate(plan),forecast=R.forecast(plan);
    const selectedRecord=plan.months.find(row=>row.month===selected&&!row.deleted);
@@ -21,7 +22,7 @@
    $('repaymentPrev').disabled=selected===R.START;$('repaymentNext').disabled=selected>=currentMonth;
    $('repaymentEntered').textContent=selectedRecord?money(selectedPaid):'Не внесено';
    $('repaymentRemaining').textContent=money(Math.max(0,configuration().budget-selectedPaid));
-   $('repaymentLoanList').innerHTML=planLoans().map(l=>`<div class="repayment-loan"><span>${l.name.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}<small>${String(l.rate).replace('.',',')}% годовых</small></span><strong>${money(actual.balances[l.id])}</strong></div>`).join('');
+   $('repaymentLoanList').innerHTML=activeLoans(actual).map(l=>`<div class="repayment-loan"><span>${l.name.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}<small>${String(l.rate).replace('.',',')}% годовых</small></span><strong>${money(actual.balances[l.id])}</strong></div>`).join('');
    $('repaymentForecast').textContent=forecast.stalled?'При взносе '+money(configuration().budget)+' долг не удаётся погасить. Нужен пересмотр плана.':forecast.finishMonth?'По прогнозу: '+label(forecast.finishMonth):'Кредиты погашены';
    const warnings=[];if(actual.missingMonths.length)warnings.push('Нет записей за '+actual.missingMonths.map(label).join(', ')+'. В расчёте учтены проценты без платежей.');
    if(actual.overpayment>0)warnings.push('Введённые платежи превышают расчётный долг на '+money(actual.overpayment)+'. Проверь суммы или укажи остатки из банка.');
@@ -34,12 +35,13 @@
    const reserve=get().savings.categories.filter(c=>!c.deleted&&c.name.trim().toLocaleLowerCase('ru-RU')==='подушка').reduce((sum,c)=>sum+Math.round(c.amount*100),0)/100;
    $('reservePlanActual').textContent=money(reserve);$('reservePlanTarget').textContent=money(target);
    $('reservePlanDescription').textContent='План: '+money(configuration().reserve)+' в месяц с ноября 2026. Факт — сумма в категории «Подушка».';
-   $('repaymentScheduleNote').textContent='Прогноз при взносе '+money(configuration().budget)+' в месяц: сначала закрываем маленькие кредиты, затем большой. Будущие платежи не считаются внесёнными.';
+   $('repaymentScheduleNote').textContent=configuration().extra===null?'Прогноз при взносе '+money(configuration().budget)+' в месяц. Будущие платежи не считаются внесёнными.':'Обязательные платежи по действующим кредитам плюс не более '+money(configuration().extra)+' досрочно в месяц. Досрочное погашение направляется на кредит с максимальной ставкой. После закрытия кредита его платёж не переходит на другой. Будущие платежи не считаются внесёнными.';
   }
   function open(){
    const row=get().repayment.months.find(row=>row.month===selected&&!row.deleted);
    $('repaymentForm').reset();$('repaymentFormMonth').textContent=label(selected);$('repaymentError').textContent='';
-   for(const l of planLoans()){$('repay-label-'+l.id).textContent=l.name+', внесено за месяц, ₽';$('bank-label-'+l.id).textContent=l.name+': остаток, ₽';$('repay-'+l.id).value=row?.amounts[l.id]??'';$('bank-'+l.id).value=row?.actualBalances[l.id]??'';}
+   const visible=new Set(activeLoans(R.calculate(get().repayment)).map(l=>l.id));
+   for(const l of planLoans()){const hidden=!visible.has(l.id);$('repay-'+l.id).parentElement.style.display=hidden?'none':'';$('bank-'+l.id).parentElement.style.display=hidden?'none':'';$('repay-label-'+l.id).textContent=l.name+', внесено за месяц, ₽';$('bank-label-'+l.id).textContent=l.name+': остаток, ₽';$('repay-'+l.id).value=row?.amounts[l.id]??'';$('bank-'+l.id).value=row?.actualBalances[l.id]??'';}
    $('deleteRepayment').hidden=!row;
    showSheet($('repaymentDialog'));$('repaymentDialogTitle').focus({preventScroll:true});
   }
