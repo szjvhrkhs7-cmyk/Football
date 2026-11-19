@@ -253,31 +253,14 @@ dialog.designed-sheet .money-input input[type="number"] {
 .overview-summary .budget-edit-hint { bottom: 5px; left: 12px; }
 .overview-summary .expenses-add { margin-top: 6px; min-height: 44px; }
 .overview-summary .planned-total { margin: 5px 2px; }
-.overview-summary .repayment-plan { margin: 6px 0; }
-.overview-summary .repayment-plan > summary { min-height: 48px; padding: 6px 12px; }
-.overview-summary .repayment-plan > summary small { margin-top: 0; }
+[data-screen=overview] .repayment-plan { margin: 6px 0; }
+[data-screen=overview] .repayment-plan > summary { min-height: 48px; padding: 6px 12px; }
+[data-screen=overview] .repayment-plan > summary small { margin-top: 0; }
 .plan-surface { padding-top: 6px; min-width: 0; }
 .plan-surface .sectionhead { margin: 0; }
 .expense-period-tabs { margin: 2px 0 4px; }
 .expense-period-tabs .period-tab { min-height: 44px; padding: 2px; }
 .expense-section, .expense-section + .expense-section { padding: 0; }
-
-@media (min-width: 600px) {
-  body:has([data-screen=overview].active) { padding: 0; }
-  .app.app-shell:has([data-screen=overview].active) {
-    width: 100%;
-    max-width: 960px;
-    min-height: 100dvh;
-    border-radius: 0;
-  }
-  [data-screen=overview].active {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: start;
-    column-gap: clamp(10px, 2vw, 24px);
-  }
-  [data-screen=overview] > .heading { grid-column: 1 / -1; }
-}
 
 /* On short screens the month selector shares the header with the profile. */
 @media (max-height: 690px) {
@@ -297,17 +280,6 @@ dialog.designed-sheet .money-input input[type="number"] {
     clip-path: inset(50%);
   }
   .overview-summary .balance-alert { margin: 4px 0; padding: 4px 8px; }
-}
-@media (min-width: 600px) and (max-height: 470px) {
-  .app-shell:has([data-screen=overview].active) .dock {
-    width: calc(45% - 28px);
-    max-width: 360px;
-    left: max(14px, calc((100% - 960px) / 2 + 14px));
-    transform: none;
-    bottom: max(4px, env(safe-area-inset-bottom));
-  }
-  .app-main:has([data-screen=overview].active) { padding-bottom: 8px; }
-  .overview-summary { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
 }
 @media (max-height: 690px) {
   [data-screen=overview].active { animation: none; position: static; }
@@ -411,21 +383,21 @@ dialog.designed-sheet .money-input input[type="number"] {
   font-weight: 550;
 }
 .overview-summary .expenses-add span { font-size: 20px; font-weight: 400; }
-.overview-summary .repayment-plan {
+[data-screen=overview] .repayment-plan {
   margin: 0 0 10px;
   border: 0;
   border-block: 1px solid var(--overview-rule);
   border-radius: 0;
   background: transparent;
 }
-.overview-summary .repayment-plan > summary { padding: 6px 2px; }
-.overview-summary .repayment-plan > summary > span,
-.overview-summary .repayment-plan > summary strong {
+[data-screen=overview] .repayment-plan > summary { padding: 6px 2px; }
+[data-screen=overview] .repayment-plan > summary > span,
+[data-screen=overview] .repayment-plan > summary strong {
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0;
 }
-.overview-summary .repayment-plan > summary small { margin-top: 2px; }
+[data-screen=overview] .repayment-plan > summary small { margin-top: 2px; }
 [data-screen=overview] .plan-surface {
   padding: 0;
   border: 0;
@@ -480,3 +452,76 @@ dialog.designed-sheet .money-input input[type="number"] {
 .dock .bottom-nav button { min-height: 44px; }
 .dock .bottom-nav button.active { background: #f3eeea; color: #89472e; }
 .dock .bottom-nav button svg { width: 17px; height: 17px; stroke-width: 1.5; }
+
+body { background: var(--bg); }
+.app.app-shell { width: 100%; max-width: none; border: 0; border-radius: 0; }
+.app-shell > .topbar, .app-shell > .app-main {
+  max-width: 500px;
+  margin-inline: auto;
+  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+}
+
+.savings-screen > .heading { margin: 8px 0 12px; }
+.savings-screen h1 { font-size: 22px; font-weight: 550; letter-spacing: 0; }
+.savings-screen .savings-balance { border: 0; border-radius: 14px; background: #f3eeea; padding: 14px; }
+.savings-screen #savingsTotal { color: #89472e; font-size: 28px; font-weight: 550; }
+.savings-screen #savingsFree { color: #89472e; }
+.savings-screen .savings-add {
+  width: auto;
+  padding-inline: 4px;
+  border: 0;
+  color: #89472e;
+  font-weight: 550;
+}
+.savings-screen .savings-empty { padding-block: 8px; }
+.savings-screen .savings-categories { padding: 0; border: 0; background: transparent; }
+
+@media (min-width: 600px) {
+  body { padding: 0; }
+  .app.app-shell { min-height: 100dvh; }
+  .app-shell > .topbar, .app-shell > .app-main {
+    max-width: 920px;
+    padding-inline: max(clamp(24px, 5vw, 48px), env(safe-area-inset-left))
+      max(clamp(24px, 5vw, 48px), env(safe-area-inset-right));
+  }
+  .app-main > [data-screen=settings] { max-width: 540px; margin-inline: auto; }
+
+  [data-screen=overview].active, .savings-screen.active {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 12px clamp(20px, 4vw, 36px);
+  }
+  [data-screen=overview].active {
+    grid-template-areas:
+      "month month"
+      "summary summary"
+      "plan loans";
+  }
+  [data-screen=overview] > .heading { grid-area: month; margin: 0; }
+  .overview-summary { grid-area: summary; }
+  [data-screen=overview] .plan-surface { grid-area: plan; }
+  [data-screen=overview] .repayment-plan { grid-area: loans; margin: 0; }
+  .overview-summary .balance-composition {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    padding: 12px 16px;
+  }
+  .overview-summary .balance-main { grid-column: auto; padding: 0; }
+  .overview-summary .balance-budget, .overview-summary .planned-total {
+    border-top: 0;
+    border-inline-start: 1px solid #e4dcd5;
+    padding-inline-start: 12px;
+  }
+  .savings-screen > .heading { grid-column: 1 / -1; }
+  .savings-overview, .savings-allocation { min-width: 0; }
+  .savings-allocation .savings-sectionhead { margin: 0; min-height: 32px; }
+}
+
+@media (min-width: 600px) and (max-height: 690px) {
+  [data-screen=overview].active {
+    grid-template-areas:
+      "summary summary"
+      "plan loans";
+  }
+}

@@ -1,5 +1,5 @@
-const CACHE = 'pulse-v1.11.3';
-const APP_SHELL = ['./repayment.js?v=1.11.3', './repayment-ui.js?v=1.11.3', './index.html', './styles.css?v=1.11.3', './light.css?v=1.11.3', './sections.css?v=1.11.3', './legacy-data.js?v=1.11.3', './app.js?v=1.11.3', './loans.js?v=1.11.3', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.11.3', './icon.svg?v=1.11.3', './logo-mark.svg?v=1.11.3', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
+const CACHE = 'pulse-v1.11.4';
+const APP_SHELL = ['./repayment.js?v=1.11.4', './repayment-ui.js?v=1.11.4', './index.html', './styles.css?v=1.11.4', './light.css?v=1.11.4', './sections.css?v=1.11.4', './legacy-data.js?v=1.11.4', './app.js?v=1.11.4', './loans.js?v=1.11.4', './vendor/supabase-2.45.4.js', './manifest.webmanifest?v=1.11.4', './icon.svg?v=1.11.4', './logo-mark.svg?v=1.11.4', './apple-touch-icon-v3.png', './icon-192-v3.png', './icon-512-v3.png'];
 
 self.addEventListener('install', event => {
   // Complete the new offline shell before activating it. Do not reload open forms:
