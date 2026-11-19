@@ -550,6 +550,7 @@
   }
 
   function renderExpenseList(container, expenses) {
+    const expanded = new Set(Array.from(container.querySelectorAll('[aria-expanded="true"]'), button => button.dataset.sectionToggle));
     container.innerHTML = EXPENSE_SECTIONS.map(section => {
       const entries = expenses.filter(expense => expenseSectionId(expense) === section.id);
       const total = entries.reduce((sum, expense) => sum + moneyCents(expense.amount), 0) / 100;
@@ -563,13 +564,20 @@
       </div>`;
       }).join('');
       return `<section class="expense-section" data-expense-section="${section.id}" aria-labelledby="section-title-${section.id}">
-        <header class="expense-section-head"><span class="section-icon">${icon(section.id === 'other' ? 'grid' : section.id)}</span><h3 id="section-title-${section.id}">${section.name}</h3>
+        <header class="expense-section-head"><span class="section-icon">${icon(section.id === 'other' ? 'grid' : section.id)}</span><h3 id="section-title-${section.id}"><button type="button" class="section-toggle" data-section-toggle="${section.id}" aria-expanded="${expanded.has(section.id)}" aria-controls="expenses-${section.id}">${section.name}</button></h3>
           <strong class="section-total nums" data-section-total>${escapeHtml(formatMoney(total))}</strong>
           <button class="section-add" type="button" data-add-section="${section.id}" aria-label="Добавить трату в раздел ${section.name}">${icon('plus')}</button>
         </header>
-        <div class="section-expenses">${rows || '<p class="section-empty">Нет трат в этой половине месяца</p>'}</div>
+        <div class="section-expenses" id="expenses-${section.id}" ${expanded.has(section.id) ? '' : 'hidden'}>${rows || '<p class="section-empty">Нет трат в этой половине месяца</p>'}</div>
       </section>`;
     }).join('');
+    container.querySelectorAll('[data-section-toggle]').forEach(button => {
+      button.addEventListener('click', () => {
+        const list = document.getElementById(button.getAttribute('aria-controls'));
+        list.hidden = !list.hidden;
+        button.setAttribute('aria-expanded', String(!list.hidden));
+      });
+    });
     container.querySelectorAll('[data-toggle-completed]').forEach(button =>
       button.addEventListener('click', () => toggleExpenseCompletion(button.dataset.toggleCompleted)));
     container.querySelectorAll('[data-expense-id]').forEach(button => button.addEventListener('click', () => openExpenseDialog(button.dataset.expenseId)));

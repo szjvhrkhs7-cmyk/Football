@@ -18,18 +18,18 @@
     <meta name="apple-mobile-web-app-title" content="Пульс">
     <meta name="format-detection" content="telephone=no">
     <title>Пульс - финансовый трекер</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=1.11.1">
-    <link rel="icon" href="./icon.svg?v=1.11.1" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest?v=1.11.2">
+    <link rel="icon" href="./icon.svg?v=1.11.2" type="image/svg+xml">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon-v3.png">
-    <link rel="stylesheet" href="./styles.css?v=1.11.1">
-    <link rel="stylesheet" href="./light.css?v=1.11.1">
-    <link rel="stylesheet" href="./sections.css?v=1.11.1">
+    <link rel="stylesheet" href="./styles.css?v=1.11.2">
+    <link rel="stylesheet" href="./light.css?v=1.11.2">
+    <link rel="stylesheet" href="./sections.css?v=1.11.2">
     <script defer="" src="./vendor/supabase-2.45.4.js"></script>
-    <script defer="" src="./loans.js?v=1.11.1"></script>
-    <script defer="" src="./legacy-data.js?v=1.11.1"></script>
-    <script defer src="./repayment.js?v=1.11.1"></script>
-    <script defer src="./repayment-ui.js?v=1.11.1"></script>
-    <script defer="" src="./app.js?v=1.11.1"></script>
+    <script defer="" src="./loans.js?v=1.11.2"></script>
+    <script defer="" src="./legacy-data.js?v=1.11.2"></script>
+    <script defer src="./repayment.js?v=1.11.2"></script>
+    <script defer src="./repayment-ui.js?v=1.11.2"></script>
+    <script defer="" src="./app.js?v=1.11.2"></script>
   </head>
   <body>
     <div class="app app-shell">
@@ -57,6 +57,7 @@
               </button>
             </div>
           </div>
+          <div class="overview-summary">
           <section class="balance-composition" aria-label="Бюджет выбранного зарплатного периода">
             <div class="balance-main"><span class="label">Остаток</span><strong class="balance-value nums" id="availableAmount" aria-live="polite">0 ₽</strong></div>
             <button class="balance-budget" id="openBudgetButton" type="button" aria-label="Изменить бюджет выбранного зарплатного периода"><span>Бюджет</span><strong class="nums" id="budgetAmount">0 ₽</strong><small class="budget-edit-hint" id="budgetActionLabel">Задать бюджет</small><span class="budget-edit-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15Z"></path></svg></span></button>
@@ -77,6 +78,7 @@
             <details class="repayment-table-details"><summary>Будущий график</summary><p class="repayment-note" id="repaymentScheduleNote">Прогноз с ограничением досрочных платежей. Будущие платежи не считаются внесёнными.</p><div class="repayment-table-wrap"><table><thead><tr><th>Месяц</th><th>Платёж</th><th>Долг</th></tr></thead><tbody id="repaymentSchedule"></tbody></table></div></details>
             <button type="button" class="text-button" id="reservePlanOpen">Подушка →</button></div>
           </details>
+          </div>
           <div class="plan-surface"><div class="sectionhead">
             <h2 id="upcomingHeading">Планируемые траты</h2>
 
@@ -213,7 +215,7 @@
               <input id="importFile" type="file" accept="application/json" hidden="">
             </div>
           </article>
-          <p class="note">Пульс · версия 1.11.1</p>
+          <p class="note">Пульс · версия 1.11.2</p>
         </section>
       </main>
       <footer class="dock">

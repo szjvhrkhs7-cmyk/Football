@@ -211,3 +211,105 @@ dialog.designed-sheet .money-input input[type="number"] {
 .reserve-plan{background:#fff;border-radius:22px;margin-top:16px;padding:18px 20px}.reserve-plan h2{font-size:18px;margin:0 0 12px}.reserve-plan>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px}.reserve-plan strong{font-size:25px;letter-spacing:-.7px;color:#26725a}.reserve-plan span{font-size:13px;color:#647184}.reserve-plan b{font-weight:550}.reserve-plan p{font-size:13px;line-height:1.5;color:#647184;margin:10px 0 0}
 .repayment-dialog .dialog-field{margin:16px 0}.repayment-dialog label{display:block;margin-bottom:7px;color:#526079;font-size:14px}.repayment-dialog input{width:100%;box-sizing:border-box;min-height:48px;border:1px solid #e0e4eb;border-radius:13px;padding:10px 12px;background:#fff;font-size:17px!important}.repayment-dialog .dialog-body{overflow-y:auto}.repayment-dialog #deleteRepayment{min-height:44px;font-size:15px}.repayment-dialog .sheet-head h2{font-size:23px}.repayment-dialog .sheet-head p{margin:5px 0 0;color:#647184;font-size:14px;text-transform:capitalize}
 .repayment-plan summary:focus-visible,.repayment-plan button:focus-visible,.repayment-dialog input:focus-visible{outline:2px solid #265dea;outline-offset:2px}
+
+/* Keep the overview compact; expanded detail stays in normal document flow. */
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.section-toggle::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border: solid var(--muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.section-toggle[aria-expanded="true"]::after { transform: rotate(225deg); }
+.section-expenses[hidden] { display: none; }
+.app-shell:has([data-screen=overview].active) .topbar {
+  padding-top: max(6px, env(safe-area-inset-top));
+}
+.app-main:has([data-screen=overview].active) {
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+}
+[data-screen=overview] > .heading { margin: 0 0 6px; }
+.overview-summary { min-width: 0; }
+.overview-summary .balance-main, .overview-summary .balance-budget {
+  min-height: 78px;
+  gap: 3px;
+  padding: 8px 12px;
+}
+.overview-summary .balance-budget { padding-bottom: 27px; }
+.overview-summary .budget-edit-icon { width: 22px; height: 22px; bottom: 4px; }
+.overview-summary .budget-edit-hint { bottom: 5px; left: 12px; }
+.overview-summary .expenses-add { margin-top: 6px; min-height: 44px; }
+.overview-summary .planned-total { margin: 5px 2px; }
+.overview-summary .repayment-plan { margin: 6px 0; }
+.overview-summary .repayment-plan > summary { min-height: 48px; padding: 6px 12px; }
+.overview-summary .repayment-plan > summary small { margin-top: 0; }
+.plan-surface { padding-top: 6px; min-width: 0; }
+.plan-surface .sectionhead { margin: 0; }
+.expense-period-tabs { margin: 2px 0 4px; }
+.expense-period-tabs .period-tab { min-height: 44px; padding: 2px; }
+.expense-section, .expense-section + .expense-section { padding: 0; }
+
+@media (min-width: 600px) {
+  body:has([data-screen=overview].active) { padding: 0; }
+  .app.app-shell:has([data-screen=overview].active) {
+    width: 100%;
+    max-width: 960px;
+    min-height: 100dvh;
+    border-radius: 0;
+  }
+  [data-screen=overview].active {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    column-gap: clamp(10px, 2vw, 24px);
+  }
+  [data-screen=overview] > .heading { grid-column: 1 / -1; }
+}
+
+/* On short screens the month selector shares the header with the profile. */
+@media (max-height: 690px) {
+  [data-screen=overview].active > .heading {
+    position: absolute;
+    top: max(6px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+  }
+  .app-shell:has([data-screen=overview].active) .brand-name { font-size: 0; }
+  .app-shell:has([data-screen=overview].active) .brand-name small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .overview-summary .balance-alert { margin: 4px 0; padding: 4px 8px; }
+}
+@media (min-width: 600px) and (max-height: 470px) {
+  .app-shell:has([data-screen=overview].active) .dock {
+    width: calc(45% - 28px);
+    max-width: 360px;
+    left: max(14px, calc((100% - 960px) / 2 + 14px));
+    transform: none;
+    bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .app-main:has([data-screen=overview].active) { padding-bottom: 8px; }
+  .overview-summary { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+}
+@media (max-height: 690px) {
+  [data-screen=overview].active { animation: none; position: static; }
+  .app-main:has([data-screen=overview].active) { position: static; }
+}
