@@ -313,3 +313,170 @@ dialog.designed-sheet .money-input input[type="number"] {
   [data-screen=overview].active { animation: none; position: static; }
   .app-main:has([data-screen=overview].active) { position: static; }
 }
+
+/* Overview: one budget surface, understated controls and open lists. */
+[data-screen=overview] {
+  --overview-accent: #89472e;
+  --overview-rule: #e7e3de;
+}
+
+.app-shell:has([data-screen=overview].active) .topbar .brandmark svg {
+  width: 28px;
+  height: 26px;
+}
+.app-shell:has([data-screen=overview].active) .topbar .avatar {
+  background: transparent;
+  font-weight: 500;
+}
+[data-screen=overview] .month button.month-label {
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+[data-screen=overview] .month svg {
+  width: 15px;
+  height: 15px;
+}
+.overview-summary .balance-composition {
+  gap: 0 12px;
+  padding: 12px 14px 6px;
+  background: #f3eeea;
+  border-radius: 14px;
+}
+.overview-summary .balance-main,
+.overview-summary .balance-budget {
+  min-height: 0;
+  min-width: 0;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.overview-summary .balance-main {
+  grid-column: 1 / -1;
+  padding-bottom: 10px;
+}
+.overview-summary .balance-value {
+  font-size: clamp(25px, 7vw, 32px);
+  font-weight: 550;
+  color: var(--overview-accent);
+}
+.overview-summary .balance-budget,
+.overview-summary .planned-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  margin: 0;
+  padding: 7px 0;
+  border-top: 1px solid #e4dcd5;
+}
+.overview-summary .balance-budget { padding-right: 20px; }
+.overview-summary .balance-main .label,
+.overview-summary .balance-budget > span:first-child,
+.overview-summary .planned-total {
+  font-size: 13px;
+  line-height: 1.3;
+  color: #655e59;
+}
+.overview-summary .balance-budget > strong,
+.overview-summary .planned-total strong {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+.overview-summary .budget-edit-hint { display: none; }
+.overview-summary .budget-edit-icon {
+  inset: auto 0 8px auto;
+  width: 17px;
+  height: 17px;
+  background: transparent;
+  color: var(--overview-accent);
+}
+.overview-summary .budget-edit-icon svg { width: 13px; height: 13px; }
+.overview-summary .expenses-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  width: auto;
+  margin: 2px 0;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--overview-accent);
+  font-size: 15px;
+  font-weight: 550;
+}
+.overview-summary .expenses-add span { font-size: 20px; font-weight: 400; }
+.overview-summary .repayment-plan {
+  margin: 0 0 10px;
+  border: 0;
+  border-block: 1px solid var(--overview-rule);
+  border-radius: 0;
+  background: transparent;
+}
+.overview-summary .repayment-plan > summary { padding: 6px 2px; }
+.overview-summary .repayment-plan > summary > span,
+.overview-summary .repayment-plan > summary strong {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.overview-summary .repayment-plan > summary small { margin-top: 2px; }
+[data-screen=overview] .plan-surface {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-screen=overview] #upcomingHeading {
+  font-size: 17px;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+[data-screen=overview] .expense-period-tabs {
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--overview-rule);
+  border-radius: 0;
+  background: transparent;
+}
+[data-screen=overview] .period-tab {
+  align-items: flex-start;
+  padding: 3px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: #655e59;
+}
+[data-screen=overview] .period-tab[aria-selected="true"] {
+  border-color: var(--overview-accent);
+  background: transparent;
+  color: var(--overview-accent);
+  box-shadow: none;
+}
+[data-screen=overview] .period-date,
+[data-screen=overview] .section-total { font-weight: 500; }
+[data-screen=overview] .expense-section-head h3 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+[data-screen=overview] .section-icon { display: none; }
+[data-screen=overview] .section-add {
+  background: transparent;
+  color: var(--overview-accent);
+}
+[data-screen=overview] .section-add svg { width: 17px; height: 17px; }
+.app-shell .dock {
+  padding: 3px;
+  border-color: #e9e5e0;
+  box-shadow: 0 2px 8px #30251d0a;
+}
+.dock .bottom-nav button { min-height: 44px; }
+.dock .bottom-nav button.active { background: #f3eeea; color: #89472e; }
+.dock .bottom-nav button svg { width: 17px; height: 17px; stroke-width: 1.5; }
